@@ -2,9 +2,9 @@
 
 ## Project Overview
 
-**Project Name:** Quantum Workbench
+**Project Name:** RogueScholar's Quantum Workbench
 
-Quantum Workbench is an open-source, browser-based application for creating, visualizing, simulating, and understanding quantum circuits.
+RogueScholar's Quantum Workbench is an open-source, browser-based application for creating, visualizing, simulating, and understanding quantum circuits.
 
 The project is intended to bridge the gap between educational tools and professional quantum software frameworks. While existing tools often focus on execution, Quantum Workbench emphasizes understanding through visualization, state inspection, and interactive learning.
 
@@ -223,7 +223,7 @@ Ask for clarification instead of making assumptions.
 
 # Project Vision
 
-Quantum Workbench is intended to become a platform for:
+Rogue's Quantum Workbench is intended to become a platform for:
 
 * quantum circuit construction
 * interactive simulation
