@@ -1,0 +1,117 @@
+name: CI
+
+# Enforces the mechanical half of the Definition of Done in docs/Roadmap.md:
+# tests, linting, and type checking pass, and the application still builds.
+# The other half -- documentation updated, code reviewed -- stays human.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# The default token is broader than any job here needs.
+permissions:
+  contents: read
+
+# Three pushes to a branch should not burn three full runs.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      # Report every failing leg, not just the first.
+      fail-fast: false
+      matrix:
+        # 3.11 is the floor pyproject.toml claims; 3.14 is what we develop on.
+        # An untested claim rots. The `simulation` extra is deliberately not
+        # installed -- nothing before Milestone 4 needs Qiskit, and it has no
+        # 3.14 wheels. Milestone 4 will need its own 3.11-3.13 job.
+        python-version: ['3.11', '3.14']
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+
+      - name: Install
+        run: pip install -e ".[dev]"
+
+      - name: Lint
+        run: ruff check .
+
+      # --check, not the bare `ruff format` in CLAUDE.md, which rewrites files.
+      - name: Format
+        run: ruff format --check .
+
+      - name: Type check
+        run: mypy
+
+      - name: Test
+        run: pytest
+
+  frontend:
+    name: Frontend (Node ${{ matrix.node-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 20.19 is the floor claimed by package.json engines and the README.
+        node-version: ['20.19', '22']
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # `npm ci`, not `npm install`: installs strictly from the lockfile and
+      # fails if package.json and the lockfile have drifted. That drift is
+      # invisible locally.
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Format
+        run: npm run format:check
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      # Proves the app is still deployable -- the last Definition of Done
+      # criterion a machine can check.
+      - name: Build
+        run: npm run build
+
+  # Single stable status check for branch protection. Matrix job names carry
+  # their version ('Backend (Python 3.11)'), so requiring them directly means
+  # every matrix change silently leaves a leg unprotected until someone
+  # remembers to update the rule. Requiring this one job instead stays correct.
+  ci:
+    name: CI
+    if: always()
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify every job succeeded
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: exit 1
