@@ -1,0 +1,35 @@
+# Line endings
+#
+# LF everywhere: in the repository and in working trees on every platform.
+# This matches .editorconfig (end_of_line = lf) and keeps diffs clean once CI
+# runs on Linux.
+#
+# These rules override core.autocrlf for everyone who clones the repository,
+# so line endings do not depend on each contributor's local git config.
+* text=auto eol=lf
+
+# Windows shells require CRLF in batch files; they misbehave with LF.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binary files: never normalize, never diff as text.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.webp binary
+*.avif binary
+*.pdf  binary
+*.woff  binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.eot binary
+*.zip binary
+*.gz  binary
+*.whl binary
+*.pyc binary
+
+# Generated files: collapsed by default in GitHub diffs, but still reviewable.
+package-lock.json linguist-generated=true
