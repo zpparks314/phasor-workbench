@@ -9,7 +9,7 @@ from typing import Literal
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from quantum_workbench import __version__
+from phasor_workbench import __version__
 
 router = APIRouter(tags=["system"])
 

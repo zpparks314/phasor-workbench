@@ -18,7 +18,7 @@ python -m venv .venv
 
 pip install -e ".[dev]"
 cp .env.example .env
-uvicorn quantum_workbench.main:app --reload --port 8000
+uvicorn phasor_workbench.main:app --reload --port 8000
 ```
 
 Interactive API docs: `http://localhost:8000/api/v1/docs`
@@ -50,7 +50,7 @@ actually needs it.
 ## Layout
 
 ```text
-src/quantum_workbench/
+src/phasor_workbench/
 ├── main.py          Application assembly, no business logic
 ├── config.py        Settings and resource limits
 ├── api/

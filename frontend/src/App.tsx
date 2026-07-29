@@ -42,7 +42,7 @@ export default function App() {
     <main className="flex min-h-full flex-col items-center justify-center gap-6 bg-surface p-8 text-ink">
       <header className="text-center">
         <h1 className="text-3xl font-semibold tracking-tight">
-          Quantum Workbench
+          Phasor Workbench
         </h1>
         <p className="mt-2 text-ink-muted">
           Foundation scaffolding. No circuit features are implemented yet.

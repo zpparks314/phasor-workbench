@@ -1,6 +1,12 @@
-# RogueScholar's Quantum Workbench
+# Phasor Workbench
 
 An open-source, browser-based workbench for building, visualizing, simulating, and **understanding** quantum circuits.
+
+Built by Zachary Parks ([RogueScholar](https://github.com/zpparks314)).
+
+> **On the name:** a *phasor* is a rotating complex number carrying magnitude
+> and phase — which is exactly what a quantum amplitude is. The name describes
+> what the tool makes visible.
 
 > **Project status: foundation.**
 > The project structure exists and the backend runs, but no quantum features are implemented.
@@ -12,7 +18,7 @@ An open-source, browser-based workbench for building, visualizing, simulating, a
 
 Most quantum software optimizes for execution — a circuit goes in, a result comes out, and everything in between is invisible.
 
-Quantum Workbench treats the part in between as the interesting part.
+Phasor Workbench treats the part in between as the interesting part.
 
 The goal is a tool where you can build a circuit, run it, and then see *why* it produced the result it did: state inspection, amplitude and probability displays, Bloch spheres, and annotated algorithm walkthroughs.
 
@@ -122,7 +128,7 @@ python -m venv .venv
 # source .venv/bin/activate     # macOS / Linux
 
 pip install -e ".[dev]"
-uvicorn quantum_workbench.main:app --reload --port 8000
+uvicorn phasor_workbench.main:app --reload --port 8000
 ```
 
 Verify: `http://localhost:8000/api/v1/health` returns `{"status":"ok","version":"0.1.0"}`

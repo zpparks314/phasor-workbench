@@ -8,7 +8,7 @@ for the rules this structure exists to enforce.
 # Top Level
 
 ```text
-quantumworkbench/
+phasor-workbench/
 ├── frontend/    React + TypeScript + Vite + Tailwind
 ├── backend/     Python + FastAPI + Pydantic
 ├── shared/      Circuit Model, schema, cross-language fixtures
@@ -86,7 +86,7 @@ Details and the SVG rendering decision: [Frontend.md](Frontend.md).
 
 ```text
 backend/
-├── src/quantum_workbench/
+├── src/phasor_workbench/
 │   ├── main.py          Application assembly, no business logic
 │   ├── config.py        Settings and resource limits
 │   ├── api/

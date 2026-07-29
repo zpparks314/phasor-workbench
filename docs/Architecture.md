@@ -2,7 +2,7 @@
 
 ## High-Level Overview
 
-Quantum Workbench consists of independent modules that communicate through well-defined interfaces.
+Phasor Workbench consists of independent modules that communicate through well-defined interfaces.
 
 The application is divided into three primary layers:
 

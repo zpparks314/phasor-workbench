@@ -2,11 +2,13 @@
 
 ## Project Overview
 
-**Project Name:** RogueScholar's Quantum Workbench
+**Project Name:** Phasor Workbench
 
-RogueScholar's Quantum Workbench is an open-source, browser-based application for creating, visualizing, simulating, and understanding quantum circuits.
+Phasor Workbench is an open-source, browser-based application for creating, visualizing, simulating, and understanding quantum circuits.
 
-The project is intended to bridge the gap between educational tools and professional quantum software frameworks. While existing tools often focus on execution, Quantum Workbench emphasizes understanding through visualization, state inspection, and interactive learning.
+The project is intended to bridge the gap between educational tools and professional quantum software frameworks. While existing tools often focus on execution, Phasor Workbench emphasizes understanding through visualization, state inspection, and interactive learning.
+
+Renamed from "RogueScholar's Quantum Workbench" on 2026-07-28. The possessive read as a hobby project, and the bare name collided with at least four existing tools, two in the same niche. A *phasor* is a rotating complex number carrying magnitude and phase — what a quantum amplitude is — so the name describes what the tool makes visible. Python package: `phasor_workbench`.
 
 This project is expected to grow over several years and should be designed with long-term maintainability in mind.
 
@@ -276,7 +278,7 @@ pytest              # tests
 ruff check .        # lint
 ruff format .       # format
 mypy                # type check
-uvicorn quantum_workbench.main:app --reload --port 8000
+uvicorn phasor_workbench.main:app --reload --port 8000
 ```
 
 Frontend, from `frontend/`:
@@ -315,7 +317,7 @@ dependency chain. Deliberately deferred; see `docs/Roadmap.md`. Do not run
 
 # Project Vision
 
-RogueScholar's Quantum Workbench is intended to become a platform for:
+Phasor Workbench is intended to become a platform for:
 
 * quantum circuit construction
 * interactive simulation

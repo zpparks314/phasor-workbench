@@ -2,14 +2,14 @@
 
 ## Purpose
 
-RogueScholar's Quantum Workbench exists to make quantum circuits **understandable**, not merely executable.
+Phasor Workbench exists to make quantum circuits **understandable**, not merely executable.
 
 Most quantum software falls into one of two categories:
 
 * professional frameworks that assume the user already understands the mathematics
 * educational toys that demonstrate concepts but cannot express real circuits
 
-Quantum Workbench aims to occupy the space between them.
+Phasor Workbench aims to occupy the space between them.
 
 A user should be able to build a circuit, run it, and then see *why* it produced the result it did.
 
@@ -23,7 +23,7 @@ A circuit goes in, a result comes out, and the intermediate state is invisible.
 
 That is appropriate for production work and unhelpful for learning.
 
-Quantum Workbench treats the intermediate state as the interesting part.
+Phasor Workbench treats the intermediate state as the interesting part.
 
 Priorities that follow from this:
 
@@ -50,7 +50,7 @@ The tool should be approachable for the first group without becoming useless to 
 
 # What Success Looks Like
 
-Quantum Workbench is successful when:
+Phasor Workbench is successful when:
 
 * a newcomer can build a Bell state and understand what entanglement did to the state vector
 * an educator can demonstrate teleportation without preparing slides
@@ -143,19 +143,19 @@ Saved circuits, sharing, classroom mode.
 
 Naming these protects the architecture from drift.
 
-**Quantum Workbench is not a replacement for Qiskit or Cirq.**
+**Phasor Workbench is not a replacement for Qiskit or Cirq.**
 
 It consumes them. It does not compete with them as a general-purpose framework.
 
-**Quantum Workbench is not a hardware access portal.**
+**Phasor Workbench is not a hardware access portal.**
 
 Real device execution is out of scope. The project simulates.
 
-**Quantum Workbench is not an AI tool.**
+**Phasor Workbench is not an AI tool.**
 
 Circuit generation by language model is out of scope. The user builds the circuit.
 
-**Quantum Workbench is not a platform business.**
+**Phasor Workbench is not a platform business.**
 
 No marketplace, no accounts-first design, no telemetry-driven feature gating.
 

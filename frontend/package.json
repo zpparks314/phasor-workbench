@@ -1,9 +1,9 @@
 {
-  "name": "quantum-workbench-frontend",
+  "name": "phasor-workbench-frontend",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Frontend for RogueScholar's Quantum Workbench.",
+  "description": "Frontend for Phasor Workbench.",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",

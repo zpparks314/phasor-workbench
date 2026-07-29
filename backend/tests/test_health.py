@@ -6,7 +6,7 @@ contract -- not that any quantum feature works, since none exist yet.
 
 from fastapi.testclient import TestClient
 
-from quantum_workbench import __version__
+from phasor_workbench import __version__
 
 
 def test_health_reports_ok(client: TestClient) -> None:

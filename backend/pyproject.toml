@@ -3,9 +3,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "quantum-workbench-backend"
+name = "phasor-workbench-backend"
 version = "0.1.0"
-description = "Backend services for RogueScholar's Quantum Workbench."
+description = "Backend services for Phasor Workbench."
 readme = "README.md"
 requires-python = ">=3.11"
 
@@ -38,7 +38,7 @@ dev = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/quantum_workbench"]
+packages = ["src/phasor_workbench"]
 
 # --- Testing -------------------------------------------------------------
 
@@ -49,7 +49,7 @@ addopts = "-ra --strict-markers"
 filterwarnings = ["error"]
 
 [tool.coverage.run]
-source = ["src/quantum_workbench"]
+source = ["src/phasor_workbench"]
 branch = true
 
 # --- Linting and formatting ---------------------------------------------

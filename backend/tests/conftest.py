@@ -5,7 +5,7 @@ from collections.abc import Iterator
 import pytest
 from fastapi.testclient import TestClient
 
-from quantum_workbench.main import create_app
+from phasor_workbench.main import create_app
 
 
 @pytest.fixture

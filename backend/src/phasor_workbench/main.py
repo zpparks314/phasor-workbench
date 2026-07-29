@@ -7,17 +7,17 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from quantum_workbench import __version__
-from quantum_workbench.api.errors import ApiError
-from quantum_workbench.api.routes import health
-from quantum_workbench.config import settings
+from phasor_workbench import __version__
+from phasor_workbench.api.errors import ApiError
+from phasor_workbench.api.routes import health
+from phasor_workbench.config import settings
 
 API_PREFIX = "/api/v1"
 
 
 def create_app() -> FastAPI:
     app = FastAPI(
-        title="Quantum Workbench API",
+        title="Phasor Workbench API",
         version=__version__,
         description="See docs/API.md for the contract this implements.",
         openapi_url=f"{API_PREFIX}/openapi.json",
