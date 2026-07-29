@@ -2,7 +2,7 @@
   <img src="phasor_workbench_logo.png" alt="Phasor Workbench" width="180">
 </p>
 
-# Phasor Workbench
+<p style="text-align: center;"># Phasor Workbench</p>
 
 [![CI](https://github.com/zpparks314/phasor-workbench/actions/workflows/ci.yml/badge.svg)](https://github.com/zpparks314/phasor-workbench/actions/workflows/ci.yml)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
