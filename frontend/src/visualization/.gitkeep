@@ -1,0 +1,6 @@
+State visualization: probability displays, Bloch spheres, amplitude views.
+
+A first-class consumer of the Circuit Model and simulation results, not a
+decoration over the editor. See docs/Vision.md.
+
+Empty until Milestone 4.

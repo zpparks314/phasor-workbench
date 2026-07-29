@@ -1,0 +1,6 @@
+Circuit state management, including undo and redo.
+
+The circuit exists exactly once. All UI derives from it. No duplicated
+state, no hidden state. See docs/Architecture.md.
+
+Empty until Milestone 3.

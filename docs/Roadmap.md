@@ -32,22 +32,39 @@ Create a maintainable project structure.
 
 ### Tasks
 
-* [ ] Initialize repository
-* [ ] Configure frontend project
-* [ ] Configure backend project
-* [ ] Configure formatting and linting
-* [ ] Configure testing
+* [x] Initialize repository
+* [x] Configure frontend project
+* [x] Configure backend project
+* [x] Configure formatting and linting
+* [x] Configure testing
 * [ ] Configure CI/CD
 * [ ] Configure Docker development environment
-* [ ] Create project documentation
+* [x] Create project documentation
 
 ### Exit Criteria
 
-* Application builds successfully.
-* Frontend and backend communicate.
-* Documentation exists.
-* Tests execute automatically.
-* Repository is ready for feature development.
+* [ ] Application builds successfully.
+* [ ] Frontend and backend communicate.
+* [x] Documentation exists.
+* [x] Tests execute automatically.
+* [ ] Repository is ready for feature development.
+
+### Status
+
+The backend is scaffolded and **verified**: dependencies install on Python
+3.14, `pytest` passes, and `ruff` and `mypy` are clean. `GET /api/v1/health`
+returns a valid response.
+
+The frontend is scaffolded but **not verified** — Node is not installed on
+the development machine, so nothing has been installed, built, or run. Its
+dependency versions are unconfirmed until `npm install` succeeds.
+
+Remaining before this milestone can close:
+
+1. Install Node 20.19+ and verify the frontend builds, lints, and tests.
+2. Confirm the frontend reaches the backend end to end.
+3. Configure CI/CD.
+4. Configure the Docker development environment.
 
 ---
 

@@ -1,0 +1,25 @@
+@import 'tailwindcss';
+
+/* Design tokens live here rather than in component classes so that the
+   visual language can change in one place. See docs/UI.md when it exists. */
+@theme {
+  --color-surface: oklch(99% 0 0);
+  --color-surface-raised: oklch(97% 0 0);
+  --color-ink: oklch(20% 0 0);
+  --color-ink-muted: oklch(50% 0 0);
+}
+
+@media (prefers-color-scheme: dark) {
+  @theme {
+    --color-surface: oklch(18% 0.01 260);
+    --color-surface-raised: oklch(23% 0.01 260);
+    --color-ink: oklch(96% 0 0);
+    --color-ink-muted: oklch(70% 0 0);
+  }
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
