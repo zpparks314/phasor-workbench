@@ -237,20 +237,29 @@ reload on both sides.
 No quantum features exist yet. The only endpoint is `GET /api/v1/health`.
 `shared/` has directory structure but no schema — that is Milestone 2's work.
 
-**The Circuit Model design is settled as of 2026-07-29.** ADRs
-[0001](../docs/decisions/ADR0001_CircuitRepresentation.md),
-[0002](../docs/decisions/ADR0002_IdentityModel.md), and
-[0003](../docs/decisions/ADR0003_ExecutionSemantics.md) are **Accepted**, and
-`docs/CircuitModel.md` specifies the model. Read all four before writing
-Milestone 2 code. Mid-circuit measurement (deferred), identifier generation
-(client-side), and `classicalRegisters` (required field, may be empty, no
-implicit register) are resolved — do not reopen them without cause.
+**The Circuit Model design is settled as of 2026-07-29, and nothing blocks
+Milestone 2.** ADRs [0001](../docs/decisions/ADR0001_CircuitRepresentation.md),
+[0002](../docs/decisions/ADR0002_IdentityModel.md),
+[0003](../docs/decisions/ADR0003_ExecutionSemantics.md), and
+[0004](../docs/decisions/ADR0004_SharedModelStrategy.md) are **Accepted**, and
+`docs/CircuitModel.md` specifies the model. Read all five before writing
+Milestone 2 code.
 
-**One decision is still open:** the shared-model strategy — JSON Schema
-generation vs. hand-written types with contract tests. It matters more than the
-roadmap originally implied, because ADR-0001 makes the frontend and backend
-share the *cycle derivation algorithm*, not just types. Ask rather than
-assuming the default.
+Resolved — do not reopen without cause: mid-circuit measurement (deferred;
+measurement terminates a qubit, barriers exempt), identifier generation
+(client-side, backend-validated), `classicalRegisters` (required field, may be
+empty, no implicit register), and the shared-model strategy (JSON Schema as
+source of truth).
+
+**JSON Schema covers shape only.** Roughly a third of the validation rules are
+expressible in it, and the cycle derivation none at all. Everything
+cross-referential, semantic, or order-dependent is hand-written in *both*
+languages and held to agreement by fixtures in `shared/fixtures/`. Do not assume
+generation means validation is solved.
+
+The first task of the milestone is verifying that the generated `Operation`
+discriminated union is usable on both sides — see ADR-0004, Decision 5. Build
+nothing on top of it until that is confirmed.
 
 **The project was renamed to Phasor Workbench on 2026-07-28** (commit
 `5d902cf`), and the GitHub repository is now `zpparks314/phasor-workbench`. If

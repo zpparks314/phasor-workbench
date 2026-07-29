@@ -153,7 +153,9 @@ before implementing the change.
 | 0001 | Accepted | Canonical circuit representation — flat operation list, derived cycles |
 | 0002 | Accepted | Stable object identity                                             |
 | 0003 | Accepted | Execution semantics and cycle derivation                           |
+| 0004 | Accepted | Shared model strategy — JSON Schema as source of truth             |
 
-These three are interdependent and should be read in order. 0001 decides what is
-stored, 0002 decides how stored objects are referenced, and 0003 specifies the
-derivation 0001 relies on.
+All four govern Milestone 2 and should be read in order. 0001 decides what is
+stored, 0002 decides how stored objects are referenced, 0003 specifies the
+derivation 0001 relies on, and 0004 decides how all of it becomes code in two
+languages.
