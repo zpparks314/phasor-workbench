@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="phasor_workbench_logo.png" alt="Phasor Workbench" width="180">
+</p>
+
 # Phasor Workbench
 
 [![CI](https://github.com/zpparks314/phasor-workbench/actions/workflows/ci.yml/badge.svg)](https://github.com/zpparks314/phasor-workbench/actions/workflows/ci.yml)
