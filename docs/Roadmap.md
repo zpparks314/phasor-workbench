@@ -2,11 +2,13 @@
 
 ## Project Status
 
-**Current Phase:** Project Foundation
+**Current Phase:** Circuit Model
 
-**Current Milestone:** Establish project architecture and development environment.
+**Current Milestone:** Milestone 2 — design the application's central data model.
 
-The focus at this stage is creating a clean, maintainable foundation. Features are intentionally limited until the architecture is in place.
+Milestone 1 (Foundation) closed on 2026-07-28. The architecture, tooling, CI, branch protection, licensing, and development environments are in place, so feature work can begin.
+
+Three of the four **Decisions Awaiting the Owner** below shape the Circuit Model directly and should be settled before it is designed.
 
 ---
 
@@ -14,13 +16,13 @@ The focus at this stage is creating a clean, maintainable foundation. Features a
 
 The highest priorities are:
 
-1. Repository setup
-2. Development environment
-3. Documentation
-4. Core data model
-5. Testing infrastructure
+1. ~~Repository setup~~ — done
+2. ~~Development environment~~ — done, native and Docker
+3. ~~Documentation~~ — done; `UI.md` deferred to Milestone 3
+4. **Core data model** — active, Milestone 2
+5. ~~Testing infrastructure~~ — done; enforced by CI
 
-Do **not** begin implementing advanced quantum features until these objectives are complete.
+Do **not** begin implementing advanced quantum features until the core data model is complete. It is the single source of truth every other subsystem reads from, and building on a provisional version means rewriting all of them.
 
 ---
 
