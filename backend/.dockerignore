@@ -1,0 +1,17 @@
+# A host virtualenv copied into a Linux image would be broken and large.
+.venv/
+venv/
+
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Secrets and machine-local settings never belong in an image layer.
+.env
+.env.local

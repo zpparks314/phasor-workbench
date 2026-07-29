@@ -38,7 +38,7 @@ Create a maintainable project structure.
 * [x] Configure formatting and linting
 * [x] Configure testing
 * [x] Configure CI — lint, format, type check, test, and build both projects
-* [ ] Configure Docker development environment
+* [x] Configure Docker development environment
 * [x] Create project documentation
 
 ### Exit Criteria
@@ -47,7 +47,11 @@ Create a maintainable project structure.
 * [x] Frontend and backend communicate.
 * [x] Documentation exists.
 * [x] Tests execute automatically.
-* [ ] Repository is ready for feature development.
+* [x] Repository is ready for feature development.
+
+**Milestone 1 is complete.** Milestone 2 (Circuit Model) may begin — but read
+the *Decisions Awaiting the Owner* table below first, since three of its four
+entries shape that milestone directly.
 
 ### Status
 
@@ -88,9 +92,21 @@ contributors who arrive later, and the guardrail against accidental force
 pushes and deletions still applies to everyone. Revisit when the project takes
 its first outside contributor.
 
-Remaining before this milestone can close:
+**Docker** — `compose.yaml` runs both services with the working tree bind-mounted
+and hot reload verified on both sides. The backend container pins Python 3.13
+because Qiskit publishes no 3.14 wheels, making it where the Milestone 4
+`simulation` extra will install. Production images are deferred to Milestone 5;
+both Dockerfiles are multi-stage so adding a `production` target is additive.
 
-1. Configure the Docker development environment.
+Docker supplements native development rather than replacing it. CI runs
+natively, and the venv/npm workflow remains fully supported.
+
+One finding worth keeping: **Vite 7 bundles chokidar instead of depending on
+it, and `server.watch.usePolling` alone does not reach the watcher** —
+`CHOKIDAR_USEPOLLING` does. Polling is required at all because bind-mounted
+Windows filesystems deliver no inotify events; this was verified directly
+(`fs.watchFile` sees host edits through the mount, `fs.watch` never fires).
+Without that environment variable, frontend hot reload fails silently.
 
 ### Known Issues
 
@@ -109,7 +125,7 @@ they affect begins.
 | Shared model strategy: JSON Schema generation vs. hand-written types with contract tests | Milestone 2 | JSON Schema as source of truth, per `shared/README.md` |
 | Mid-circuit measurement: permitted at MVP or deferred? | Milestone 2 | Deferred; measurement ends a qubit's usable life |
 | Are identifiers client-generated or backend-assigned? | Milestone 2 | Client-generated |
-| Interpreter for the `simulation` extra (Qiskit lacks 3.14 wheels) | Milestone 4 | Pin 3.11–3.13 for that extra |
+| Interpreter for the `simulation` extra (Qiskit lacks 3.14 wheels) | Milestone 4 | Partly answered: the Docker environment pins 3.13, so simulation work happens there. Whether native 3.14 must also be supported is still open |
 
 The full set of open questions lives at the end of
 [CircuitModel.md](CircuitModel.md), [API.md](API.md), and
