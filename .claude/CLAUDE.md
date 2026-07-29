@@ -234,6 +234,12 @@ milestone closes: **CI/CD** and **Docker development environment**.
 No quantum features exist yet. The only endpoint is `GET /api/v1/health`.
 `shared/` has directory structure but no schema — that is Milestone 2.
 
+**The project was renamed to Phasor Workbench on 2026-07-28** (commit
+`5d902cf`). If you are on a machine cloned before that, read the migration
+steps under **Environment Notes** before running anything — the venv will be
+stale. Still open from that work: the GitHub repository may not yet be renamed
+to `phasor-workbench`, and `LICENSE` is still empty.
+
 Start any session by reading, in order:
 
 1. `docs/Roadmap.md` — status, remaining tasks, known issues, and the table of
@@ -298,10 +304,38 @@ Run the full set before declaring work complete. The Definition of Done in
 
 # Environment Notes
 
-**The repository lives inside OneDrive.** OneDrive locks files as it syncs and
-periodically leaves a stale `.git/index.lock`, which blocks all staging and
-committing. If git refuses to stage, check for that file; delete it only after
-confirming no git process is running and no merge/rebase is in progress.
+**This project is developed from more than one Windows machine.** Setup state
+(`.venv/`, `node_modules/`, `.env`, `.claude/settings.local.json`) is all
+gitignored, so each machine is configured independently and one cannot break
+another. The notes below are not all true of every machine — check before
+acting on them.
+
+**Migrating a machine cloned before the 2026-07-28 rename.** A checkout made
+before commit `5d902cf` has an editable install pointing at
+`backend/src/quantum_workbench/`, a path that no longer exists. Git updates
+files; it does not update a venv. After pulling:
+
+```
+cd backend
+.venv\Scripts\activate
+pip uninstall -y quantum-workbench-backend    # the old distribution
+pip install -e ".[dev]"
+cd ../frontend && npm install
+```
+
+Then delete any leftover `backend/src/quantum_workbench/`. Git will not remove
+that directory if it still holds untracked `__pycache__/`, so it survives the
+pull as confusing debris. Skipping the `pip uninstall` is the failure mode to
+avoid — both distributions end up registered, the old one pointing at nothing.
+
+**On some machines the repository lives inside OneDrive.** Where it does,
+OneDrive locks files as it syncs and periodically leaves a stale
+`.git/index.lock`, which blocks all staging and committing. If git refuses to
+stage, check for that file; delete it only after confirming no git process is
+running and no merge/rebase is in progress. Confirm the checkout is actually
+inside the synced tree before blaming OneDrive — note that `C:\Users\<you>\
+Documents` and `C:\Users\<you>\OneDrive\Documents` are different directories,
+and the repo may sit in the unsynced one.
 
 **Line endings are LF everywhere**, enforced by `.gitattributes`, which
 overrides the repo-local `core.autocrlf=true`. Do not reintroduce CRLF.
