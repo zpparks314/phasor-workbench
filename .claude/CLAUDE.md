@@ -234,11 +234,11 @@ every push and pull request, `main` is protected, the project is licensed under
 Apache 2.0, and `docker compose up --build` runs the whole stack with hot
 reload on both sides.
 
-No quantum features exist yet. The only endpoint is `GET /api/v1/health`.
-`shared/` has directory structure but no schema — that is Milestone 2's work.
+The only endpoint is still `GET /api/v1/health`. There is no editor, no
+validation, and no simulation.
 
-**The Circuit Model design is settled as of 2026-07-29, and nothing blocks
-Milestone 2.** ADRs [0001](../docs/decisions/ADR0001_CircuitRepresentation.md),
+**The Circuit Model design is settled as of 2026-07-29.** ADRs
+[0001](../docs/decisions/ADR0001_CircuitRepresentation.md),
 [0002](../docs/decisions/ADR0002_IdentityModel.md),
 [0003](../docs/decisions/ADR0003_ExecutionSemantics.md), and
 [0004](../docs/decisions/ADR0004_SharedModelStrategy.md) are **Accepted**, and
@@ -251,15 +251,46 @@ measurement terminates a qubit, barriers exempt), identifier generation
 empty, no implicit register), and the shared-model strategy (JSON Schema as
 source of truth).
 
+## Milestone 2 progress
+
+**Done.** `shared/schema/circuit.schema.json` exists and is the source of truth.
+Bindings are generated from it into `backend/src/phasor_workbench/models/circuit.py`
+and `frontend/src/model/circuit.ts`, and a **Shared model** CI job fails the
+build if either is stale. ADR-0004's gating task — proving the `Operation`
+discriminated union survives generation on both sides — is confirmed on both.
+
+**Next, in this order.** Validation, then the cycle derivation, then the
+contract fixtures. Write each subsystem's fixtures *alongside* it rather than
+after both languages are done: fixtures are the only thing that detects
+divergence, so deferring them means building the second implementation blind.
+
 **JSON Schema covers shape only.** Roughly a third of the validation rules are
 expressible in it, and the cycle derivation none at all. Everything
 cross-referential, semantic, or order-dependent is hand-written in *both*
 languages and held to agreement by fixtures in `shared/fixtures/`. Do not assume
 generation means validation is solved.
 
-The first task of the milestone is verifying that the generated `Operation`
-discriminated union is usable on both sides — see ADR-0004, Decision 5. Build
-nothing on top of it until that is confirmed.
+## Working with the generated bindings
+
+**Never hand-edit a generated file.** Change the schema and run
+`python shared/generate_bindings.py`. CI rejects a hand edit, and so does the
+next regeneration.
+
+**Every flag in `generate_bindings.py` is load-bearing and was found
+empirically.** Do not tidy them away. In particular:
+
+* The `discriminator` keyword in the schema is OpenAPI, not JSON Schema 2020-12,
+  and validators ignore it. It exists so Pydantic builds a real discriminated
+  union. Without it a single bad gate reports four errors across all three
+  branches instead of one.
+* `Identifier` (constrained) and `IdentifierRef` (unconstrained) are a
+  deliberate split, not an oversight. A *constrained* string inside an array
+  generates as `RootModel[str]`, which is unhashable — `target in qubit_ids`
+  raises `TypeError` rather than returning the wrong answer. Constraints belong
+  where an id is minted; a reference is validated by resolution, which is
+  stronger.
+* Generation normalizes line endings, because the two generators disagree and
+  the CI check compares bytes.
 
 **The project was renamed to Phasor Workbench on 2026-07-28** (commit
 `5d902cf`), and the GitHub repository is now `zpparks314/phasor-workbench`. If
@@ -272,9 +303,13 @@ Start any session by reading, in order:
    **decisions awaiting the owner**
 2. `docs/Architecture.md` — the rules
 3. `docs/ProjectStructure.md` — where things go and why
+4. `docs/CircuitModel.md` and ADRs 0001–0004 — required before touching the
+   model, the schema, or anything generated from it
 
-`CircuitModel.md` is **Accepted but not implemented** — its design is settled
-and its open questions are resolved, but no code exists behind it.
+`CircuitModel.md` is **Accepted and partially implemented**: its types exist as
+generated bindings, but validation and the cycle derivation do not. Where the
+document describes a rule, assume it is specified and unwritten unless you have
+found the code.
 
 `API.md` and `Simulation.md` remain *draft pending review*: they describe
 intended design, not implemented behavior, and their closing "Open Questions"
@@ -331,6 +366,18 @@ npm run typecheck       # type check
 npm run build           # type check + production build
 npm run dev             # dev server on 5173, proxies /api to 8000
 ```
+
+Shared model, from the repository root. Needs both the backend venv and
+`frontend/node_modules`, because it drives each project's own toolchain:
+
+```
+python shared/generate_bindings.py            # regenerate bindings
+python shared/generate_bindings.py --check    # verify not stale -- what CI runs
+```
+
+Run this after **any** edit to `shared/schema/circuit.schema.json`. The schema
+and its regenerated output belong in the same commit, and `--check` fails the
+build otherwise. Never edit a generated file by hand; see ADR-0004.
 
 Docker, from the repository root:
 

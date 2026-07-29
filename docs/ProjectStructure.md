@@ -35,6 +35,26 @@ directory makes both sides equal dependents.
 `shared/` may not import from `frontend/` or `backend/`. The dependency
 arrows point inward only.
 
+```text
+shared/
+├── schema/               Canonical JSON Schema -- the source of truth
+├── fixtures/
+│   ├── valid/            Circuits both sides must accept
+│   ├── invalid/          Circuits both sides must reject, with violation codes
+│   └── decomposition/    Circuits with their expected cycle decomposition
+├── generate_bindings.py  Generates bindings into each consuming project
+└── README.md
+```
+
+Generated bindings live **in the consuming projects**, not here. Neither
+language can import cleanly from a sibling directory outside its package root,
+and forcing it would add packaging complexity to every install path. The schema
+stays the single source; only its output is co-located with its consumers. See
+[ADR-0004](decisions/ADR0004_SharedModelStrategy.md).
+
+`generate_bindings.py` invokes each project's toolchain as a subprocess. That
+is not an import, so the rule above still holds.
+
 ---
 
 # Why `tests/` Is Separate From Project Tests
@@ -66,6 +86,7 @@ would imply that project owns the contract.
 frontend/
 ├── src/
 │   ├── api/            The only module permitted to call fetch
+│   ├── model/          Circuit types -- GENERATED, never hand-edited
 │   ├── components/     Shared presentational components  (Milestone 3)
 │   ├── editor/         Circuit editor, SVG rendering     (Milestone 3)
 │   ├── visualization/  State visualization               (Milestone 4)
@@ -92,7 +113,7 @@ backend/
 │   ├── api/
 │   │   ├── errors.py    The single documented error envelope
 │   │   └── routes/      One module per resource group
-│   ├── models/          Circuit Model types      (Milestone 2)
+│   ├── models/          Circuit Model types      (GENERATED)
 │   ├── validation/      Circuit validation       (Milestone 2)
 │   ├── simulation/
 │   │   └── backends/    Simulator adapters       (Milestone 4)

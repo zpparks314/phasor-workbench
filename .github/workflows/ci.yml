@@ -122,6 +122,49 @@ jobs:
       - name: Build frontend image
         run: docker build --target development -t phasor-workbench-frontend:ci ./frontend
 
+  # Proves the committed bindings still match the schema they came from. Per
+  # ADR-0004 the schema is the source of truth and bindings are generated into
+  # each project, so a schema edit without a regeneration leaves the two
+  # languages describing different circuits -- exactly the drift generation was
+  # chosen to make impossible. Nothing else in this workflow would catch it:
+  # both projects would lint, type check and build perfectly against a stale
+  # model.
+  #
+  # The only job needing both toolchains, because it drives both generators.
+  # Versions are pinned rather than floating (pyproject for Python, the
+  # lockfile for npm): the comparison is byte-for-byte, so a generator version
+  # differing from the developer's fails with no real drift to fix.
+  schema:
+    name: Shared model
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # 3.14 is what the model is developed and generated on natively.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install backend dev dependencies
+        run: pip install -e "./backend[dev]"
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+
+      # --check reports staleness and restores the tree; it never rewrites the
+      # committed output to make itself pass.
+      - name: Verify generated bindings are current
+        run: python shared/generate_bindings.py --check
+
   # Single stable status check for branch protection. Matrix job names carry
   # their version ('Backend (Python 3.11)'), so requiring them directly means
   # every matrix change silently leaves a leg unprotected until someone
@@ -129,7 +172,7 @@ jobs:
   ci:
     name: CI
     if: always()
-    needs: [backend, frontend, images]
+    needs: [backend, frontend, images, schema]
     runs-on: ubuntu-latest
     steps:
       - name: Verify every job succeeded

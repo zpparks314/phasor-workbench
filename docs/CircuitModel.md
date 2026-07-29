@@ -1,14 +1,23 @@
 # Circuit Model
 
-**Status:** Accepted. The design is settled by
+**Status:** Accepted, partially implemented. The design is settled by
 [ADR-0001](decisions/ADR0001_CircuitRepresentation.md),
-[ADR-0002](decisions/ADR0002_IdentityModel.md), and
-[ADR-0003](decisions/ADR0003_ExecutionSemantics.md). Not yet implemented.
+[ADR-0002](decisions/ADR0002_IdentityModel.md),
+[ADR-0003](decisions/ADR0003_ExecutionSemantics.md), and
+[ADR-0004](decisions/ADR0004_SharedModelStrategy.md).
 
 **Target milestone:** Milestone 2 (Circuit Model).
 
-This document specifies the model. The ADRs record why it is shaped this way;
-where the two disagree, the ADRs win and this document is wrong.
+| Section | State |
+|---|---|
+| Core entities, serialization format, gate naming | Implemented — `shared/schema/circuit.schema.json`, generated into both languages |
+| Validation rules | **Specified, not implemented** |
+| Cycle derivation (ADR-0003) | **Specified, not implemented** |
+| Versioning and migration | **Specified, not implemented** |
+
+Where this document describes a rule, assume it is unwritten unless you have
+found the code. It specifies the model; the ADRs record why it is shaped this
+way, and where the two disagree the ADRs win and this document is wrong.
 
 ---
 

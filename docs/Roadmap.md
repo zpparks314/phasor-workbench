@@ -8,7 +8,12 @@
 
 Milestone 1 (Foundation) closed on 2026-07-28. The architecture, tooling, CI, branch protection, licensing, and development environments are in place, so feature work can begin.
 
-Three of the four **Decisions Awaiting the Owner** below shape the Circuit Model directly and should be settled before it is designed.
+Milestone 2 is **in progress.** Its design is settled by ADRs 0001–0004, and its
+schema and generated bindings are done. Validation, the cycle derivation, and
+the cross-language contract fixtures remain — see *Status* under Milestone 2.
+
+Every decision that blocked this milestone has been answered. The one entry
+still open in **Decisions Awaiting the Owner** is scoped to Milestone 4.
 
 ---
 
@@ -75,6 +80,12 @@ request: lint, format check, type check, test, and production build. Backend
 across Python 3.11 and 3.14, frontend across Node 20.19 and 22. It enforces the
 mechanical half of the Definition of Done below; documentation and review stay
 human.
+
+Milestone 2 added a **Shared model** job, the only one needing both toolchains.
+It verifies that the bindings committed under each project still match
+`shared/schema/circuit.schema.json`. Nothing else in the workflow would catch
+that drift — both projects lint, type check and build perfectly against a stale
+model.
 
 Continuous *deployment* is deliberately not part of this milestone. There is
 nothing to deploy yet, and a pipeline built now would be rewritten once Docker
@@ -158,18 +169,23 @@ settled by ADRs [0001](decisions/ADR0001_CircuitRepresentation.md),
 
 ### Tasks
 
-* [ ] JSON Schema and generated bindings
-* [ ] Circuit
-* [ ] Gate
-* [ ] Qubit
-* [ ] Classical Register
-* [ ] Measurement
-* [ ] Barrier
-* [ ] Cycle derivation
+* [x] JSON Schema and generated bindings
+* [x] Circuit
+* [x] Gate
+* [x] Qubit
+* [x] Classical Register
+* [x] Measurement
+* [x] Barrier
 * [ ] Serialization
 * [ ] Validation
+* [ ] Cycle derivation
 * [ ] Unit tests
 * [ ] Cross-language contract fixtures
+
+A checked entity means it is **defined in the schema and generated into both
+languages**. It does not mean the entity behaves correctly: nothing validates a
+circuit yet, and nothing derives its cycles. Those are the three unchecked items
+and they are the bulk of the milestone.
 
 Barrier and cycle derivation were added by ADR-0001. Barriers were pulled
 forward from the deferred list because they are how scheduling intent is
@@ -186,6 +202,51 @@ No UI or simulator should maintain its own circuit representation.
 
 The cycle derivation produces identical output in both languages across the
 fixture set in `shared/fixtures/`, enforced from `tests/contract/`.
+
+### Status
+
+**The schema and its generated bindings are done.**
+`shared/schema/circuit.schema.json` is the source of truth;
+`shared/generate_bindings.py` generates Pydantic models into the backend and
+TypeScript types into the frontend; and a **Shared model** CI job fails the
+build if either is stale. ADR-0004's gating task — proving the `Operation`
+discriminated union survives generation on both sides — is confirmed.
+
+Three findings from that work are worth not rediscovering:
+
+* **The union needs OpenAPI's `discriminator` keyword.** With a plain `oneOf`,
+  Pydantic attempts every branch and reports that none matched: a gate missing
+  `name` produced four errors and a barrier carrying illegal `controls`
+  produced seven, in both cases burying the real one. With it, each produces
+  exactly one, and an unknown `kind` reports the tags it accepts.
+* **A *constrained* string inside an array generates as `RootModel[str]`**,
+  which is unhashable — `target in qubit_ids` raised `TypeError` rather than
+  returning a wrong answer. Hence the `Identifier` / `IdentifierRef` split:
+  constraints belong where an id is minted, and a reference is validated by
+  resolution, which is strictly stronger.
+* **The two generators disagree about line endings.** `.gitattributes`
+  normalization hid it in the repository while leaving it in the working tree,
+  which would have made the byte-exact CI check fail unconditionally on Linux.
+  Generation now normalizes.
+
+**Remaining: validation, the cycle derivation, and the contract fixtures.**
+Write each subsystem's fixtures alongside it rather than after both languages
+are implemented. Fixtures are the only mechanism that detects divergence, so
+deferring them means writing the second implementation blind.
+
+### Known Issues
+
+* **Strict schema versus the forward-compatibility policy.** The schema sets
+  `additionalProperties: false`, so a circuit written by a newer *minor* version
+  is rejected — but the versioning rules in
+  [CircuitModel.md](CircuitModel.md) say it should load with unknown fields
+  preserved and a warning surfaced. These are reconcilable: the schema defines
+  what a circuit of *its own* version looks like, and the loader inspects
+  `schemaVersion` first and applies the schema strictly only for an exact
+  match. That loader is specified and unwritten, and the interaction should be
+  settled before it is built rather than discovered afterwards.
+* `register` generates as `register_` in Python, aliased back to `register` on
+  the wire. Cosmetic, and confined to the Python API.
 
 ---
 
