@@ -8,6 +8,8 @@ version = "0.1.0"
 description = "Backend services for Phasor Workbench."
 readme = "README.md"
 requires-python = ">=3.11"
+license = "Apache-2.0"
+authors = [{ name = "Zachary Parks" }]
 
 # Core dependencies only. Qiskit and NumPy are not needed until Milestone 4
 # and are isolated in the `simulation` extra below -- see the note there.

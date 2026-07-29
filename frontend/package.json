@@ -4,6 +4,8 @@
   "private": true,
   "type": "module",
   "description": "Frontend for Phasor Workbench.",
+  "license": "Apache-2.0",
+  "author": "Zachary Parks",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",

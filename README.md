@@ -184,6 +184,8 @@ A feature is done only when it works, tests pass, docs are updated, linting and 
 
 ## License
 
-**Not yet finalized.** A `LICENSE` file exists in the repository but is currently empty.
+Licensed under the **[Apache License 2.0](LICENSE)**. Copyright 2026 Zachary Parks.
 
-The project is intended to be open source; the specific license has not been selected. Until it is, no license is granted.
+Apache 2.0 rather than MIT for a reason specific to this field: quantum computing is heavily patented, and this project plans implementations of published algorithms. Apache 2.0 §3 grants an explicit patent license from contributors — with a retaliation clause — where MIT is silent on patents entirely. It also matches Qiskit, Cirq, and Q#, which removes compatibility friction with the ecosystem this project depends on.
+
+Contributions are accepted under the same license, per Apache 2.0 §5.
