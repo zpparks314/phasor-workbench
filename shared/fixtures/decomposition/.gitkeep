@@ -1,0 +1,9 @@
+Circuits paired with their expected cycle decomposition.
+
+Ground truth for the derivation specified in ADR-0003, which is implemented
+once per language and cannot be generated from the schema. Both
+implementations must reproduce every decomposition here exactly.
+
+A failing fixture is never repaired by accepting the new output.
+
+Empty until Milestone 2.

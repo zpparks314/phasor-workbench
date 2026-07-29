@@ -439,9 +439,12 @@ Recorded so they are not relitigated. Each was open at the start of Milestone 2.
 | Mid-circuit measurement at MVP? | Deferred; measurement terminates a qubit | This document |
 | Identifiers client- or backend-generated? | Client-generated, backend-validated | This document |
 | May `classicalRegisters` be absent? | Field required, may be empty; no implicit register | This document |
+| How does this become code in two languages? | JSON Schema as source of truth, bindings generated per project | ADR-0004 |
 
-One decision affecting this document remains open: whether the shared model is
-generated from JSON Schema or hand-written on both sides with contract tests. See
-`Roadmap.md`. It does not change the model specified here, but it determines how
-this specification becomes code — and now also how the shared *derivation*
-becomes code, which is a larger surface than types alone.
+No decisions affecting this document remain open.
+
+Note the coverage boundary in ADR-0004: JSON Schema expresses the structural
+rules above, but every cross-referential, semantic, and order-dependent rule in
+this document is hand-written in both languages, as is the cycle derivation. The
+fixtures in `shared/fixtures/` are what hold the two implementations to this
+specification.

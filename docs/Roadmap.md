@@ -124,7 +124,7 @@ they affect begins.
 
 | Decision | Blocks | Status |
 |---|---|---|
-| Shared model strategy: JSON Schema generation vs. hand-written types with contract tests | Milestone 2 | **Open.** Default is JSON Schema as source of truth, per `shared/README.md`. More urgent than when first written: ADR-0001 means the frontend and backend now share an *algorithm* as well as types |
+| Shared model strategy: JSON Schema generation vs. hand-written types with contract tests | Milestone 2 | **Resolved 2026-07-29** — JSON Schema as source of truth, bindings generated into each project. See [ADR-0004](decisions/ADR0004_SharedModelStrategy.md) |
 | Mid-circuit measurement: permitted at MVP or deferred? | Milestone 2 | **Resolved 2026-07-29** — deferred. Measurement terminates a qubit; barriers are exempt. See [CircuitModel.md](CircuitModel.md) |
 | Are identifiers client-generated or backend-assigned? | Milestone 2 | **Resolved 2026-07-29** — client-generated, backend-validated. Forced by offline operation and local save |
 | Interpreter for the `simulation` extra (Qiskit lacks 3.14 wheels) | Milestone 4 | **Partly answered.** The Docker environment pins 3.13, so simulation work happens there. Whether native 3.14 must also be supported is still open |
@@ -136,6 +136,9 @@ representation and the cycle derivation
 ([ADR-0002](decisions/ADR0002_IdentityModel.md)), and whether
 `classicalRegisters` may be absent (required field, may be empty, no implicit
 register).
+
+**Nothing now blocks Milestone 2.** The only remaining entry above is scoped to
+Milestone 4.
 
 Remaining open questions live at the end of [API.md](API.md) and
 [Simulation.md](Simulation.md). `CircuitModel.md` no longer has any.
@@ -155,6 +158,7 @@ settled by ADRs [0001](decisions/ADR0001_CircuitRepresentation.md),
 
 ### Tasks
 
+* [ ] JSON Schema and generated bindings
 * [ ] Circuit
 * [ ] Gate
 * [ ] Qubit
