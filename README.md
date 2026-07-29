@@ -1,5 +1,8 @@
 # Phasor Workbench
 
+[![CI](https://github.com/zpparks314/phasor-workbench/actions/workflows/ci.yml/badge.svg)](https://github.com/zpparks314/phasor-workbench/actions/workflows/ci.yml)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+
 An open-source, browser-based workbench for building, visualizing, simulating, and **understanding** quantum circuits.
 
 Built by Zachary Parks ([RogueScholar](https://github.com/zpparks314)).
@@ -49,7 +52,8 @@ It sits deliberately between educational toys that can't express real circuits a
 | Frontend ↔ backend | Verified — connects through the dev proxy, degrades gracefully when the backend is down |
 | Shared circuit model | Directory structure only; schema is Milestone 2 |
 | Tooling and tests | Configured and passing for both projects |
-| CI/CD | Not started |
+| CI | Lint, format, type check, test, and build on every push and PR |
+| Continuous deployment | Deferred to Milestone 5 — nothing to deploy yet |
 | Docker environment | Not started |
 
 Only `GET /api/v1/health` is implemented. It exists to prove the two halves can talk to each other, which is this milestone's exit criterion.

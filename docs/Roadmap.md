@@ -37,7 +37,7 @@ Create a maintainable project structure.
 * [x] Configure backend project
 * [x] Configure formatting and linting
 * [x] Configure testing
-* [ ] Configure CI/CD
+* [x] Configure CI — lint, format, type check, test, and build both projects
 * [ ] Configure Docker development environment
 * [x] Create project documentation
 
@@ -64,10 +64,22 @@ proxy and reports the API version. With the backend stopped, it degrades to a
 readable message rather than failing blank, satisfying the requirement in
 Architecture.md that the frontend stay functional when the backend is down.
 
+**CI** — `.github/workflows/ci.yml` runs both projects on every push and pull
+request: lint, format check, type check, test, and production build. Backend
+across Python 3.11 and 3.14, frontend across Node 20.19 and 22. It enforces the
+mechanical half of the Definition of Done below; documentation and review stay
+human.
+
+Continuous *deployment* is deliberately not part of this milestone. There is
+nothing to deploy yet, and a pipeline built now would be rewritten once Docker
+exists and the app has features. It belongs with **Deployment** in Milestone 5,
+and should consume the Dockerfile rather than duplicate it.
+
 Remaining before this milestone can close:
 
-1. Configure CI/CD.
-2. Configure the Docker development environment.
+1. Configure the Docker development environment.
+2. Enable branch protection on `main` requiring the `CI` status check. CI that
+   cannot block a merge is advisory decoration.
 
 ### Known Issues
 

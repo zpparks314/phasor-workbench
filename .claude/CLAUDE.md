@@ -280,25 +280,34 @@ Two decisions that are easy to accidentally reverse:
 Backend, from `backend/` with the venv activated:
 
 ```
-pytest              # tests
-ruff check .        # lint
-ruff format .       # format
-mypy                # type check
+pytest                  # tests
+ruff check .            # lint
+ruff format .           # format (rewrites)
+ruff format --check .   # format (verify only) -- what CI runs
+mypy                    # type check
 uvicorn phasor_workbench.main:app --reload --port 8000
 ```
 
 Frontend, from `frontend/`:
 
 ```
-npm test            # tests
-npm run lint        # lint
-npm run typecheck   # type check
-npm run build       # type check + production build
-npm run dev         # dev server on 5173, proxies /api to 8000
+npm test                # tests
+npm run lint            # lint
+npm run format          # format (rewrites)
+npm run format:check    # format (verify only) -- what CI runs
+npm run typecheck       # type check
+npm run build           # type check + production build
+npm run dev             # dev server on 5173, proxies /api to 8000
 ```
 
 Run the full set before declaring work complete. The Definition of Done in
 `docs/Roadmap.md` requires tests, linting, and type checking to pass.
+
+**The `--check` variants are the ones CI runs**, and they fail rather than
+rewrite. Run them before pushing: the rewriting variants pass silently by
+fixing the problem, so a green local run proves nothing about CI. CI also runs
+`npm ci` rather than `npm install`, which fails if `package.json` and
+`package-lock.json` have drifted — commit both together.
 
 ---
 
