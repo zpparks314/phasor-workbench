@@ -223,7 +223,7 @@ Ask for clarification instead of making assumptions.
 
 # Project Vision
 
-Rogue's Quantum Workbench is intended to become a platform for:
+RogueScholar's Quantum Workbench is intended to become a platform for:
 
 * quantum circuit construction
 * interactive simulation
