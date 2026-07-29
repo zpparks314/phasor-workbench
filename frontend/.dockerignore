@@ -1,0 +1,12 @@
+# Host node_modules is built for Windows. Copying it into a Linux image gives
+# native bindings for the wrong platform, which fails in confusing ways.
+node_modules/
+
+dist/
+coverage/
+
+# Secrets and machine-local settings never belong in an image layer.
+.env
+.env.local
+
+*.log

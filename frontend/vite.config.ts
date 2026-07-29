@@ -16,11 +16,20 @@ export default defineConfig({
 
   server: {
     port: 5173,
+    // Polling costs CPU and is only needed inside a container, where
+    // bind-mounted Windows filesystems do not deliver inotify events.
+    watch: {
+      usePolling: process.env.VITE_USE_POLLING === 'true',
+    },
     // Proxying /api to the backend keeps the browser origin identical in
     // development, so CORS is not exercised on the happy path.
     proxy: {
       '/api': {
-        target: 'http://localhost:8000',
+        // The proxy runs wherever the dev server runs. Natively that is the
+        // host; under compose it is a container, where the backend resolves
+        // by service name. Node context, so process.env rather than
+        // import.meta.env.
+        target: process.env.VITE_PROXY_TARGET ?? 'http://localhost:8000',
         changeOrigin: true,
       },
     },

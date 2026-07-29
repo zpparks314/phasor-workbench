@@ -34,8 +34,18 @@ pip install -e ".[dev,simulation]"
 
 Qiskit does not yet publish wheels for Python 3.14, so that extra needs
 Python 3.11–3.13. Keeping it optional means the foundation installs and runs
-on 3.14 today, and the interpreter question can be settled when Milestone 4
-actually needs it.
+on 3.14 today.
+
+**The Docker development environment pins Python 3.13 for exactly this
+reason**, so the container is where the `simulation` extra will install when
+Milestone 4 arrives. From the repository root:
+
+```bash
+docker compose up --build
+```
+
+That does not force containers on anyone — native development on 3.14 stays
+supported for everything except the `simulation` extra.
 
 ## Commands
 

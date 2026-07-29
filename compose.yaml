@@ -1,0 +1,68 @@
+# Development environment. Production images are Milestone 5, together with
+# Deployment -- see docs/Roadmap.md. Both Dockerfiles are already multi-stage
+# so adding a `production` target later is additive rather than a rewrite.
+#
+# This supplements native development, it does not replace it. The venv and
+# npm workflow in .claude/CLAUDE.md remains fully supported, and CI runs
+# natively.
+
+name: phasor-workbench
+
+services:
+  backend:
+    build:
+      context: ./backend
+      target: development
+    ports:
+      - '8000:8000'
+    volumes:
+      # Targeted mounts rather than the whole directory, so the host's
+      # Windows-built .venv/ never appears inside the container.
+      - ./backend/src:/app/src
+      - ./backend/tests:/app/tests
+    environment:
+      WATCHFILES_FORCE_POLLING: 'true'
+    healthcheck:
+      # Uses the endpoint that exists for exactly this purpose. urllib rather
+      # than curl, which python:3.13-slim does not ship.
+      test:
+        [
+          'CMD',
+          'python',
+          '-c',
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  frontend:
+    build:
+      context: ./frontend
+      target: development
+    ports:
+      - '5173:5173'
+    volumes:
+      - ./frontend:/app
+      # Anonymous volume preserving the image's node_modules. Without it the
+      # mount above hides them behind the host's Windows-built copy.
+      - /app/node_modules
+    environment:
+      # The Vite proxy runs inside this container, so it resolves the backend
+      # by service name rather than localhost.
+      VITE_PROXY_TARGET: http://backend:8000
+      # Windows bind mounts do not deliver inotify events; without polling,
+      # hot reload silently stops working. Verified directly: fs.watchFile
+      # sees host edits through the mount, fs.watch never fires.
+      #
+      # Vite 7 bundles chokidar rather than depending on it, and the
+      # server.watch.usePolling config option alone does not reach the
+      # watcher. CHOKIDAR_USEPOLLING does. Both are set: the env var is what
+      # actually works, the config option documents the intent.
+      VITE_USE_POLLING: 'true'
+      CHOKIDAR_USEPOLLING: 'true'
+      CHOKIDAR_INTERVAL: '300'
+    depends_on:
+      backend:
+        condition: service_healthy

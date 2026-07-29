@@ -55,7 +55,7 @@ It sits deliberately between educational toys that can't express real circuits a
 | CI | Lint, format, type check, test, and build on every push and PR |
 | Branch protection | `main` requires a PR and a passing `CI` check |
 | Continuous deployment | Deferred to Milestone 5 — nothing to deploy yet |
-| Docker environment | Not started |
+| Docker environment | Both services, hot-reloading, Python 3.13 in-container |
 
 Only `GET /api/v1/health` is implemented. It exists to prove the two halves can talk to each other, which is this milestone's exit criterion.
 
@@ -119,7 +119,23 @@ Details and rationale: [Architecture.md](docs/Architecture.md).
 
 ## Getting Started
 
-### Prerequisites
+Two supported paths. **Docker** is the fastest way to get running; **native** is what CI runs. Neither is more official than the other.
+
+### Docker
+
+Requires Docker Desktop or Docker Engine with Compose v2.
+
+```bash
+docker compose up --build
+```
+
+Frontend on `http://localhost:5173`, backend on `http://localhost:8000`. Both hot-reload from your working tree — source is bind-mounted, not baked in.
+
+The container pins **Python 3.13** rather than the 3.14 used natively, because Qiskit publishes no 3.14 wheels. That makes the container where the Milestone 4 `simulation` extra will install.
+
+Production images are deliberately **not** included; they belong with Deployment in Milestone 5. Both Dockerfiles are already multi-stage, so adding a `production` target is additive.
+
+### Native — Prerequisites
 
 * **Python 3.11+** — the backend runs on 3.14
 * **Node 20.19+** — required for the frontend

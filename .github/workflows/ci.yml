@@ -102,6 +102,26 @@ jobs:
       - name: Build
         run: npm run build
 
+  # Proves the development images still build. Without this the Dockerfiles
+  # rot silently and the breakage surfaces months later, the first time
+  # someone runs `docker compose up`.
+  #
+  # Plain `docker build` rather than a third-party build action: the runner
+  # already has Docker, and CLAUDE.md asks for dependencies to be minimised.
+  # Images are built, not run -- verifying the dev experience itself needs a
+  # human at a machine.
+  images:
+    name: Docker images
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build backend image
+        run: docker build --target development -t phasor-workbench-backend:ci ./backend
+
+      - name: Build frontend image
+        run: docker build --target development -t phasor-workbench-frontend:ci ./frontend
+
   # Single stable status check for branch protection. Matrix job names carry
   # their version ('Backend (Python 3.11)'), so requiring them directly means
   # every matrix change silently leaves a leg unprotected until someone
@@ -109,7 +129,7 @@ jobs:
   ci:
     name: CI
     if: always()
-    needs: [backend, frontend]
+    needs: [backend, frontend, images]
     runs-on: ubuntu-latest
     steps:
       - name: Verify every job succeeded

@@ -300,8 +300,26 @@ npm run build           # type check + production build
 npm run dev             # dev server on 5173, proxies /api to 8000
 ```
 
+Docker, from the repository root:
+
+```
+docker compose up --build    # both services, hot-reloading
+docker compose down          # stop
+docker compose build         # rebuild after dependency changes
+```
+
 Run the full set before declaring work complete. The Definition of Done in
 `docs/Roadmap.md` requires tests, linting, and type checking to pass.
+
+**Docker supplements native development, it does not replace it.** CI runs
+natively, and the venv/npm workflow above remains fully supported. Do not
+rewrite the native instructions to assume containers.
+
+The container pins **Python 3.13**, not the 3.14 used natively — Qiskit
+publishes no 3.14 wheels, so the container is where the Milestone 4
+`simulation` extra will install. Dependency changes need
+`docker compose build`; source changes do not, because the working tree is
+bind-mounted.
 
 **The `--check` variants are the ones CI runs**, and they fail rather than
 rewrite. Run them before pushing: the rewriting variants pass silently by
