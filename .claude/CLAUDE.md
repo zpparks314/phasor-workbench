@@ -221,6 +221,98 @@ Ask for clarification instead of making assumptions.
 
 ---
 
+# Current State
+
+**Milestone 1 (Foundation) — nearly complete.**
+
+Both projects are scaffolded and verified end to end: the backend installs and
+serves, the frontend builds, and the two communicate. Remaining before the
+milestone closes: **CI/CD** and **Docker development environment**.
+
+No quantum features exist yet. The only endpoint is `GET /api/v1/health`.
+`shared/` has directory structure but no schema — that is Milestone 2.
+
+Start any session by reading, in order:
+
+1. `docs/Roadmap.md` — status, remaining tasks, known issues, and the table of
+   **decisions awaiting the owner**
+2. `docs/Architecture.md` — the rules
+3. `docs/ProjectStructure.md` — where things go and why
+
+Documents marked *draft pending review* (`CircuitModel.md`, `API.md`,
+`Simulation.md`) describe intended design, not implemented behavior. Their
+closing "Open Questions" sections are unresolved.
+
+---
+
+# Technology Stack
+
+Decided during Milestone 1. Do not change without discussion.
+
+**Frontend** — React 19, TypeScript (strict), Vite, Tailwind v4, Vitest,
+ESLint + Prettier
+
+**Backend** — Python 3.11+, FastAPI, Pydantic v2, pytest, Ruff, mypy (strict)
+
+**Simulation** — Qiskit + NumPy, isolated in an optional `simulation` extra
+because nothing before Milestone 4 needs them
+
+Two decisions that are easy to accidentally reverse:
+
+* **Circuit rendering is direct SVG, not a node-graph library.** A library
+  that owns node positions would duplicate the layout the Circuit Model must
+  derive. See `docs/Frontend.md`.
+* **Operations are a flat ordered list, not moments/columns.** Column layout
+  is derived at render time. See `docs/CircuitModel.md`.
+
+---
+
+# Commands
+
+Backend, from `backend/` with the venv activated:
+
+```
+pytest              # tests
+ruff check .        # lint
+ruff format .       # format
+mypy                # type check
+uvicorn quantum_workbench.main:app --reload --port 8000
+```
+
+Frontend, from `frontend/`:
+
+```
+npm test            # tests
+npm run lint        # lint
+npm run typecheck   # type check
+npm run build       # type check + production build
+npm run dev         # dev server on 5173, proxies /api to 8000
+```
+
+Run the full set before declaring work complete. The Definition of Done in
+`docs/Roadmap.md` requires tests, linting, and type checking to pass.
+
+---
+
+# Environment Notes
+
+**The repository lives inside OneDrive.** OneDrive locks files as it syncs and
+periodically leaves a stale `.git/index.lock`, which blocks all staging and
+committing. If git refuses to stage, check for that file; delete it only after
+confirming no git process is running and no merge/rebase is in progress.
+
+**Line endings are LF everywhere**, enforced by `.gitattributes`, which
+overrides the repo-local `core.autocrlf=true`. Do not reintroduce CRLF.
+
+**Python 3.14 is installed locally.** The backend runs on it, but Qiskit does
+not yet publish 3.14 wheels — hence the optional `simulation` extra.
+
+**`npm audit` reports 5 high-severity dev-only findings** in ESLint's
+dependency chain. Deliberately deferred; see `docs/Roadmap.md`. Do not run
+`npm audit fix --force`, which would install a breaking ESLint major.
+
+---
+
 # Project Vision
 
 RogueScholar's Quantum Workbench is intended to become a platform for:

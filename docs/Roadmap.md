@@ -75,9 +75,25 @@ Remaining before this milestone can close:
   (`brace-expansion` DoS) reached through ESLint's dependency chain. Dev-only,
   never bundled, and the only offered fix is a breaking `eslint@10` upgrade.
   Deliberately deferred until the plugin ecosystem supports ESLint 10.
-* `docs/architecture.md` and `docs/roadmap.md` are tracked in lowercase while
-  every cross-link uses title case. Works on Windows, breaks on GitHub and
-  Linux CI.
+* `LICENSE` is an empty file. The project is intended to be open source but no
+  license has been selected, so no license is currently granted.
+
+### Decisions Awaiting the Owner
+
+These block or shape upcoming work and should be answered before the milestone
+they affect begins.
+
+| Decision | Blocks | Default if unanswered |
+|---|---|---|
+| Shared model strategy: JSON Schema generation vs. hand-written types with contract tests | Milestone 2 | JSON Schema as source of truth, per `shared/README.md` |
+| Mid-circuit measurement: permitted at MVP or deferred? | Milestone 2 | Deferred; measurement ends a qubit's usable life |
+| Are identifiers client-generated or backend-assigned? | Milestone 2 | Client-generated |
+| Which open-source license? | Public release | None; currently unlicensed |
+| Interpreter for the `simulation` extra (Qiskit lacks 3.14 wheels) | Milestone 4 | Pin 3.11–3.13 for that extra |
+
+The full set of open questions lives at the end of
+[CircuitModel.md](CircuitModel.md), [API.md](API.md), and
+[Simulation.md](Simulation.md).
 
 ---
 
