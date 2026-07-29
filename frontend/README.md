@@ -22,15 +22,15 @@ backend on `http://localhost:8000`.
 
 ## Scripts
 
-| Command | Purpose |
-|---|---|
-| `npm run dev` | Development server |
-| `npm run build` | Type-check and produce a production build |
-| `npm test` | Run tests once |
-| `npm run test:watch` | Run tests in watch mode |
-| `npm run lint` | ESLint |
-| `npm run format` | Prettier |
-| `npm run typecheck` | TypeScript, no emit |
+| Command              | Purpose                                   |
+| -------------------- | ----------------------------------------- |
+| `npm run dev`        | Development server                        |
+| `npm run build`      | Type-check and produce a production build |
+| `npm test`           | Run tests once                            |
+| `npm run test:watch` | Run tests in watch mode                   |
+| `npm run lint`       | ESLint                                    |
+| `npm run format`     | Prettier                                  |
+| `npm run typecheck`  | TypeScript, no emit                       |
 
 ## Layout
 
@@ -51,12 +51,12 @@ Circuit rendering uses **direct SVG**, not a node-graph library.
 A circuit is a grid of fixed wire lanes with gates at discrete
 `(qubit, column)` positions — not free-positioned nodes with edges. Node-graph
 libraries own node coordinates, which would duplicate layout that
-[CircuitModel.md](../docs/CircuitModel.md) requires to be *derived* from the
+[CircuitModel.md](../docs/CircuitModel.md) requires to be _derived_ from the
 model. SVG also gives the control the educational visualizations need later.
 
 ## Rules
 
-* never implement simulation logic here
-* never call `fetch` outside `src/api/`
-* never store a second copy of the circuit
-* the app must degrade gracefully when the backend is unavailable
+- never implement simulation logic here
+- never call `fetch` outside `src/api/`
+- never store a second copy of the circuit
+- the app must degrade gracefully when the backend is unavailable

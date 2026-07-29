@@ -1,0 +1,9 @@
+# Build output. Generated, never hand-edited, and minified bundles can never
+# satisfy Prettier anyway.
+dist/
+
+# Coverage reports.
+coverage/
+
+# Owned by npm. Formatting it would fight the tool that regenerates it.
+package-lock.json

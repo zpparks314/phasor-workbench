@@ -14,7 +14,11 @@ function mockFetch(
 
 describe('request', () => {
   it('returns the parsed body on success', async () => {
-    mockFetch({ ok: true, status: 200, json: () => Promise.resolve({ status: 'ok' }) });
+    mockFetch({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({ status: 'ok' }),
+    });
 
     await expect(request('/health')).resolves.toEqual({ status: 'ok' });
   });
