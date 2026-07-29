@@ -81,9 +81,23 @@ def _run(command: list[str]) -> None:
         )
 
 
+def _normalize_newlines(path: Path) -> None:
+    """Force LF, which .gitattributes requires and the generators disagree on.
+
+    datamodel-code-generator writes CRLF on Windows while json2ts writes LF.
+    Left alone, the committed bytes would depend on which platform generated
+    them, and --check would compare CRLF against LF and report stale forever.
+    """
+    content = path.read_bytes()
+    normalized = content.replace(b"\r\n", b"\n")
+    if normalized != content:
+        path.write_bytes(normalized)
+
+
 def generate_python(output: Path) -> None:
     _run([str(_venv_bin("datamodel-codegen")), "--input", str(SCHEMA),
           "--output", str(output), *PYTHON_ARGS])
+    _normalize_newlines(output)
 
 
 def generate_typescript(output: Path) -> None:
@@ -93,6 +107,7 @@ def generate_typescript(output: Path) -> None:
     # would reject its output. Formatting here mirrors the Python side, which
     # generates through ruff for the same reason.
     _run([str(_node_bin("prettier")), "--write", "--log-level", "warn", str(output)])
+    _normalize_newlines(output)
 
 
 def main() -> int:
