@@ -37,6 +37,10 @@ dev = [
     "httpx2>=2.9",
     "ruff>=0.8",
     "mypy>=1.13",
+    # Generates src/phasor_workbench/models/circuit.py from
+    # shared/schema/circuit.schema.json. See ADR-0004 and
+    # shared/generate_bindings.py -- never edit the generated file by hand.
+    "datamodel-code-generator>=0.26",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -77,6 +81,11 @@ select = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S101"]
+# Generated from shared/schema/circuit.schema.json. Docstrings carry the schema
+# descriptions verbatim and exceed the line limit; wrapping them is not the
+# generator's job and the file is never hand-edited. Every other rule still
+# applies, so genuinely broken generation is still caught.
+"src/phasor_workbench/models/circuit.py" = ["E501"]
 
 [tool.ruff.format]
 quote-style = "double"

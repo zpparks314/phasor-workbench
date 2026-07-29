@@ -332,6 +332,18 @@ npm run build           # type check + production build
 npm run dev             # dev server on 5173, proxies /api to 8000
 ```
 
+Shared model, from the repository root. Needs both the backend venv and
+`frontend/node_modules`, because it drives each project's own toolchain:
+
+```
+python shared/generate_bindings.py            # regenerate bindings
+python shared/generate_bindings.py --check    # verify not stale -- what CI runs
+```
+
+Run this after **any** edit to `shared/schema/circuit.schema.json`. The schema
+and its regenerated output belong in the same commit, and `--check` fails the
+build otherwise. Never edit a generated file by hand; see ADR-0004.
+
 Docker, from the repository root:
 
 ```

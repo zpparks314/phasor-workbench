@@ -1,0 +1,184 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://phasor-workbench.dev/schema/circuit.schema.json",
+  "title": "Circuit",
+  "description": "The canonical Phasor Workbench circuit. Specified in docs/CircuitModel.md; shaped by ADR-0001 (flat operation list, derived cycles), ADR-0002 (stable opaque identifiers), and ADR-0004 (this schema is the source of truth for the wire format). Structural rules only -- referential, semantic, and order-dependent validation is hand-written in both languages. The cycle decomposition is derived and never appears here.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "qubits", "classicalRegisters", "operations"],
+  "properties": {
+    "schemaVersion": {
+      "description": "Semantic version of the model. Migration policy lives in docs/CircuitModel.md.",
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    },
+    "id": { "$ref": "#/$defs/Identifier" },
+    "name": { "type": "string" },
+    "qubits": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Qubit" }
+    },
+    "classicalRegisters": {
+      "description": "Required, but may be empty. There is no implicit default register; every measurement names a register declared here.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/ClassicalRegister" }
+    },
+    "operations": {
+      "description": "Flat and in execution order. Concurrency is derived, never stored -- see ADR-0001.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/Operation" }
+    },
+    "metadata": { "$ref": "#/$defs/Metadata" }
+  },
+  "$defs": {
+    "Identifier": {
+      "description": "Opaque stable identifier, generated client-side. Nothing may parse meaning out of it. See ADR-0002.",
+      "$comment": "Used only where an identifier is minted -- the id field of a first-class object. Positions that merely reference an identifier use IdentifierRef instead; see the note there.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "IdentifierRef": {
+      "description": "A reference to an identifier declared elsewhere in the circuit.",
+      "$comment": "Deliberately unconstrained, for two reasons. Correctness: a reference is validated by resolution -- 'this id must name a declared qubit' -- which is hand-written and strictly stronger than a length check, because a resolved id already satisfied Identifier where it was minted. Practical: datamodel-code-generator wraps any *constrained* string appearing inside an array in RootModel[str], which is unhashable and unequal to a plain str, breaking the set-membership check every referential rule performs. An unconstrained string generates as list[str].",
+      "type": "string"
+    },
+    "Qubit": {
+      "description": "A single quantum wire.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "index"],
+      "properties": {
+        "id": { "$ref": "#/$defs/Identifier" },
+        "index": {
+          "description": "Position on the wire stack. Contiguity from 0 is validated in code, not here.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "label": { "type": "string" }
+      }
+    },
+    "ClassicalRegister": {
+      "description": "A named group of classical bits that measurement results are written into.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "size"],
+      "properties": {
+        "id": { "$ref": "#/$defs/Identifier" },
+        "size": { "type": "integer", "minimum": 1 },
+        "label": { "type": "string" }
+      }
+    },
+    "ClassicalTarget": {
+      "description": "A single bit within a declared classical register. Contention is tracked per bit -- see ADR-0003.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["register", "bit"],
+      "properties": {
+        "register": { "$ref": "#/$defs/IdentifierRef" },
+        "bit": {
+          "description": "Index within the register. Bounds against the register's size are validated in code.",
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "GateName": {
+      "description": "Lowercase, following OpenQASM convention. Arity is validated in code -- expressing it here would require one branch per gate.",
+      "type": "string",
+      "enum": [
+        "i", "h", "x", "y", "z", "s", "sdg", "t", "tdg",
+        "rx", "ry", "rz", "p",
+        "cx", "cy", "cz", "swap", "ccx"
+      ]
+    },
+    "GateOperation": {
+      "description": "A unitary operation on one or more qubits.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "name", "targets"],
+      "properties": {
+        "id": { "$ref": "#/$defs/Identifier" },
+        "kind": { "const": "gate" },
+        "name": { "$ref": "#/$defs/GateName" },
+        "targets": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/IdentifierRef" }
+        },
+        "controls": {
+          "description": "Control qubits. Control count is never encoded into the gate name.",
+          "type": "array",
+          "items": { "$ref": "#/$defs/IdentifierRef" },
+          "default": []
+        },
+        "parameters": {
+          "description": "Angles in radians. Which parameters a given gate requires is validated in code.",
+          "type": "object",
+          "additionalProperties": { "type": "number" },
+          "default": {}
+        }
+      }
+    },
+    "MeasurementOperation": {
+      "description": "A projective measurement writing into a classical bit. While mid-circuit measurement is deferred, a measured qubit is terminal -- enforced in code, not here.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "targets", "classicalTarget"],
+      "properties": {
+        "id": { "$ref": "#/$defs/Identifier" },
+        "kind": { "const": "measurement" },
+        "targets": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": { "$ref": "#/$defs/IdentifierRef" }
+        },
+        "classicalTarget": { "$ref": "#/$defs/ClassicalTarget" }
+      }
+    },
+    "BarrierOperation": {
+      "description": "An authoring constraint preventing operations from being scheduled across it. Occupies no cycle and does not contribute to depth -- see ADR-0003. Carries no controls, parameters, or classical target.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "targets"],
+      "properties": {
+        "id": { "$ref": "#/$defs/Identifier" },
+        "kind": { "const": "barrier" },
+        "targets": {
+          "description": "Required and non-empty. There is no implicit all-qubits barrier; importers expand OpenQASM's bare barrier at import time.",
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/IdentifierRef" }
+        }
+      }
+    },
+    "Operation": {
+      "description": "Anything occupying a position in execution order, discriminated on kind.",
+      "$comment": "The discriminator keyword is OpenAPI rather than JSON Schema 2020-12, and validators ignore it as an unknown annotation. It is present because datamodel-code-generator reads it to emit Field(discriminator='kind'). Without it Pydantic attempts every branch and reports that none matched, instead of reporting the one real error against the branch the kind names.",
+      "oneOf": [
+        { "$ref": "#/$defs/GateOperation" },
+        { "$ref": "#/$defs/MeasurementOperation" },
+        { "$ref": "#/$defs/BarrierOperation" }
+      ],
+      "discriminator": {
+        "propertyName": "kind",
+        "mapping": {
+          "gate": "#/$defs/GateOperation",
+          "measurement": "#/$defs/MeasurementOperation",
+          "barrier": "#/$defs/BarrierOperation"
+        }
+      }
+    },
+    "Metadata": {
+      "description": "Descriptive only. If the simulator would behave differently based on a field here, that field belongs in the model proper.",
+      "type": "object",
+      "properties": {
+        "description": { "type": "string" },
+        "author": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}
