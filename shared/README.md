@@ -2,8 +2,9 @@
 
 The Circuit Model, serialization format, and validation rules.
 
-**Status:** structure only. No schema is defined yet — that is Milestone 2. The
-*strategy* is settled; see [ADR-0004](../docs/decisions/ADR0004_SharedModelStrategy.md).
+**Status:** the schema exists and bindings generate from it. Fixtures are still
+empty — they land with validation and the cycle derivation, which are the rest
+of Milestone 2. Strategy: [ADR-0004](../docs/decisions/ADR0004_SharedModelStrategy.md).
 
 ---
 

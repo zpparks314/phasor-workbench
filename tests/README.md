@@ -51,6 +51,20 @@ those mocks from quietly diverging from reality.
 
 **Shared-model parity** — every fixture in `shared/fixtures/` must be
 accepted or rejected identically by the TypeScript and Python
-implementations, with matching violation codes.
+implementations, with matching violation codes, and every fixture in
+`shared/fixtures/decomposition/` must produce an identical cycle decomposition
+in both.
 
-Planned for Milestone 2, alongside the first Circuit Model implementation.
+Parity matters more than it looks. Per ADR-0004 the JSON Schema covers only the
+*shape* of a circuit; validation and the cycle derivation are hand-written once
+per language, so these fixtures are the only mechanism that detects the two
+implementations disagreeing.
+
+A failing decomposition fixture is never repaired by regenerating it to match
+the new output. Either an implementation is wrong or ADR-0003 has changed, and
+the second requires an ADR revision.
+
+Planned for Milestone 2, alongside validation and the cycle derivation. The
+*wire format* half of the shared-model contract is already enforced, but by the
+`Shared model` CI job rather than from here: it checks that the committed
+bindings still match the schema they were generated from.

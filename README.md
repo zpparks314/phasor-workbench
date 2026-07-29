@@ -11,9 +11,10 @@ Built by Zachary Parks ([RogueScholar](https://github.com/zpparks314)).
 > and phase — which is exactly what a quantum amplitude is. The name describes
 > what the tool makes visible.
 
-> **Project status: foundation.**
-> The project structure exists and the backend runs, but no quantum features are implemented.
-> There is no circuit editor and no simulation yet. See [Current Status](#current-status).
+> **Project status: building the circuit model.**
+> The foundation is complete and the shared circuit schema now exists, but no
+> quantum features are usable yet. There is no circuit editor, no validation,
+> and no simulation. See [Current Status](#current-status).
 
 ---
 
@@ -42,7 +43,7 @@ It sits deliberately between educational toys that can't express real circuits a
 
 ## Current Status
 
-**Milestone 1 — Foundation: complete.** **Milestone 2 — Circuit Model** is now active. The foundation is deliberately finished before any quantum features are built.
+**Milestone 1 — Foundation: complete.** **Milestone 2 — Circuit Model: in progress.** The foundation was deliberately finished before any quantum features were built.
 
 | Area | State |
 |---|---|
@@ -50,14 +51,21 @@ It sits deliberately between educational toys that can't express real circuits a
 | Backend project | Verified — installs, tests pass, lint and types clean |
 | Frontend project | Verified — installs, builds, tests pass, lint and types clean |
 | Frontend ↔ backend | Verified — connects through the dev proxy, degrades gracefully when the backend is down |
-| Shared circuit model | Directory structure only; schema is Milestone 2 |
+| Circuit model design | Settled — ADRs 0001–0004 accepted |
+| Circuit schema | Done — `shared/schema/`, the single source of truth for the wire format |
+| Generated bindings | Done — Pydantic models and TypeScript types, generated into both projects |
+| Circuit validation | **Not started** |
+| Cycle derivation | **Not started** |
+| Contract fixtures | **Not started** |
 | Tooling and tests | Configured and passing for both projects |
-| CI | Lint, format, type check, test, and build on every push and PR |
+| CI | Lint, format, type check, test, build, and generated-binding freshness on every push and PR |
 | Branch protection | `main` requires a PR and a passing `CI` check |
 | Continuous deployment | Deferred to Milestone 5 — nothing to deploy yet |
 | Docker environment | Both services, hot-reloading, Python 3.13 in-container |
 
-Only `GET /api/v1/health` is implemented. It existed to prove the two halves can talk to each other — Milestone 1's exit criterion. Quantum features begin with the Circuit Model in Milestone 2.
+Only `GET /api/v1/health` is implemented. A circuit can be *described* — the schema and its generated types exist on both sides — but nothing yet validates one, derives its cycles, or simulates it.
+
+Design decisions behind the model are recorded as [ADRs](docs/decisions/): the circuit is a flat ordered operation list with cycles derived rather than stored, every object carries a stable client-generated identifier, and JSON Schema is the source of truth for the wire format.
 
 Full plan: [Roadmap.md](docs/Roadmap.md).
 
@@ -92,8 +100,11 @@ Documentation is treated as part of the project, not an afterthought. Start here
 | [Simulation.md](docs/Simulation.md) | Simulation pipeline, backends, limits, correctness testing |
 | [Frontend.md](docs/Frontend.md) | Frontend stack, rendering decision, API client |
 | [UI.md](docs/UI.md) | *Deferred — belongs with Milestone 3* |
+| [decisions/](docs/decisions/) | Architecture Decision Records — why the model is shaped the way it is |
 
-`CircuitModel.md`, `API.md`, and `Simulation.md` are **drafts pending review**. They describe intended design, not implemented behavior.
+`CircuitModel.md` is **accepted and partially implemented**: its types exist as generated bindings, but validation and the cycle derivation do not.
+
+`API.md` and `Simulation.md` remain **drafts pending review**. They describe intended design, not implemented behavior.
 
 ---
 
@@ -177,11 +188,30 @@ With both running, `http://localhost:5173` should report **Connected — API ver
 
 ```bash
 # Backend
-cd backend && pytest && ruff check . && mypy
+cd backend && pytest && ruff check . && ruff format --check . && mypy
 
 # Frontend
-cd frontend && npm test && npm run lint && npm run typecheck
+cd frontend && npm test && npm run lint && npm run format:check && npm run typecheck
+
+# Shared model -- fails if the generated bindings no longer match the schema
+python shared/generate_bindings.py --check
 ```
+
+The `--check` variants are what CI runs. The rewriting variants (`ruff format`,
+`npm run format`) pass silently by fixing the problem, so a green local run
+proves nothing about CI.
+
+### Changing the circuit model
+
+`shared/schema/circuit.schema.json` is the source of truth. After editing it:
+
+```bash
+python shared/generate_bindings.py
+```
+
+The schema and its regenerated bindings belong in the same commit; CI rejects
+the pair when they drift. Generated files are never edited by hand — see
+[ADR-0004](docs/decisions/ADR0004_SharedModelStrategy.md).
 
 ---
 
