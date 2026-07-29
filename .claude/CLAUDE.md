@@ -237,12 +237,20 @@ reload on both sides.
 No quantum features exist yet. The only endpoint is `GET /api/v1/health`.
 `shared/` has directory structure but no schema — that is Milestone 2's work.
 
-**Before writing any Milestone 2 code, read the *Decisions Awaiting the Owner*
-table in `docs/Roadmap.md`.** Three of its four entries shape the Circuit Model
-itself rather than its implementation: the shared-model strategy, whether
-mid-circuit measurement is permitted at MVP, and whether identifiers are
-client-generated or backend-assigned. Ask rather than assuming the listed
-defaults — picking wrong means redesigning the single source of truth.
+**The Circuit Model design is settled as of 2026-07-29.** ADRs
+[0001](../docs/decisions/ADR0001_CircuitRepresentation.md),
+[0002](../docs/decisions/ADR0002_IdentityModel.md), and
+[0003](../docs/decisions/ADR0003_ExecutionSemantics.md) are **Accepted**, and
+`docs/CircuitModel.md` specifies the model. Read all four before writing
+Milestone 2 code. Mid-circuit measurement (deferred), identifier generation
+(client-side), and `classicalRegisters` (required field, may be empty, no
+implicit register) are resolved — do not reopen them without cause.
+
+**One decision is still open:** the shared-model strategy — JSON Schema
+generation vs. hand-written types with contract tests. It matters more than the
+roadmap originally implied, because ADR-0001 makes the frontend and backend
+share the *cycle derivation algorithm*, not just types. Ask rather than
+assuming the default.
 
 **The project was renamed to Phasor Workbench on 2026-07-28** (commit
 `5d902cf`), and the GitHub repository is now `zpparks314/phasor-workbench`. If
@@ -256,9 +264,12 @@ Start any session by reading, in order:
 2. `docs/Architecture.md` — the rules
 3. `docs/ProjectStructure.md` — where things go and why
 
-Documents marked *draft pending review* (`CircuitModel.md`, `API.md`,
-`Simulation.md`) describe intended design, not implemented behavior. Their
-closing "Open Questions" sections are unresolved.
+`CircuitModel.md` is **Accepted but not implemented** — its design is settled
+and its open questions are resolved, but no code exists behind it.
+
+`API.md` and `Simulation.md` remain *draft pending review*: they describe
+intended design, not implemented behavior, and their closing "Open Questions"
+sections are unresolved.
 
 ---
 
@@ -279,8 +290,11 @@ Two decisions that are easy to accidentally reverse:
 * **Circuit rendering is direct SVG, not a node-graph library.** A library
   that owns node positions would duplicate the layout the Circuit Model must
   derive. See `docs/Frontend.md`.
-* **Operations are a flat ordered list, not moments/columns.** Column layout
-  is derived at render time. See `docs/CircuitModel.md`.
+* **Operations are a flat ordered list; cycles are derived, never stored.**
+  The decomposition is a specified, cross-language-tested component, not a
+  rendering detail. Scheduling intent is expressed as barrier *operations*, not
+  by restructuring the list. The project word is **cycle** — not "moment", not
+  "column". See ADR-0001 and ADR-0003.
 
 ---
 
@@ -399,3 +413,24 @@ Phasor Workbench is intended to become a platform for:
 Design today's implementation so future features can be added without major rewrites.
 
 Every architectural decision should support this long-term vision.
+
+# Architecture Decision Records (ADRs)
+
+The `docs/decisions/` directory contains Architecture Decision Records.
+
+ADRs document the reasoning behind major architectural choices.
+
+Before proposing changes that affect:
+
+- data models
+- APIs
+- serialization
+- project structure
+- technology choices
+- execution semantics
+
+read the relevant ADRs. If they are proposed ADRs, ask first before moving forward to try to accept the ADRs concretely.
+
+If a proposed implementation conflicts with an accepted ADR, do not proceed without explicit approval.
+
+If no ADR exists for a significant architectural decision, recommend creating one before implementation.

@@ -122,16 +122,23 @@ Without that environment variable, frontend hot reload fails silently.
 These block or shape upcoming work and should be answered before the milestone
 they affect begins.
 
-| Decision | Blocks | Default if unanswered |
+| Decision | Blocks | Status |
 |---|---|---|
-| Shared model strategy: JSON Schema generation vs. hand-written types with contract tests | Milestone 2 | JSON Schema as source of truth, per `shared/README.md` |
-| Mid-circuit measurement: permitted at MVP or deferred? | Milestone 2 | Deferred; measurement ends a qubit's usable life |
-| Are identifiers client-generated or backend-assigned? | Milestone 2 | Client-generated |
-| Interpreter for the `simulation` extra (Qiskit lacks 3.14 wheels) | Milestone 4 | Partly answered: the Docker environment pins 3.13, so simulation work happens there. Whether native 3.14 must also be supported is still open |
+| Shared model strategy: JSON Schema generation vs. hand-written types with contract tests | Milestone 2 | **Open.** Default is JSON Schema as source of truth, per `shared/README.md`. More urgent than when first written: ADR-0001 means the frontend and backend now share an *algorithm* as well as types |
+| Mid-circuit measurement: permitted at MVP or deferred? | Milestone 2 | **Resolved 2026-07-29** — deferred. Measurement terminates a qubit; barriers are exempt. See [CircuitModel.md](CircuitModel.md) |
+| Are identifiers client-generated or backend-assigned? | Milestone 2 | **Resolved 2026-07-29** — client-generated, backend-validated. Forced by offline operation and local save |
+| Interpreter for the `simulation` extra (Qiskit lacks 3.14 wheels) | Milestone 4 | **Partly answered.** The Docker environment pins 3.13, so simulation work happens there. Whether native 3.14 must also be supported is still open |
 
-The full set of open questions lives at the end of
-[CircuitModel.md](CircuitModel.md), [API.md](API.md), and
-[Simulation.md](Simulation.md).
+Also resolved on 2026-07-29, by accepted ADR: the canonical circuit
+representation and the cycle derivation
+([ADR-0001](decisions/ADR0001_CircuitRepresentation.md),
+[ADR-0003](decisions/ADR0003_ExecutionSemantics.md)), object identity
+([ADR-0002](decisions/ADR0002_IdentityModel.md)), and whether
+`classicalRegisters` may be absent (required field, may be empty, no implicit
+register).
+
+Remaining open questions live at the end of [API.md](API.md) and
+[Simulation.md](Simulation.md). `CircuitModel.md` no longer has any.
 
 ---
 
@@ -141,6 +148,11 @@ The full set of open questions lives at the end of
 
 Design the application's central data model.
 
+The model is specified in [CircuitModel.md](CircuitModel.md) and its shape is
+settled by ADRs [0001](decisions/ADR0001_CircuitRepresentation.md),
+[0002](decisions/ADR0002_IdentityModel.md), and
+[0003](decisions/ADR0003_ExecutionSemantics.md). Read those before writing code.
+
 ### Tasks
 
 * [ ] Circuit
@@ -148,15 +160,28 @@ Design the application's central data model.
 * [ ] Qubit
 * [ ] Classical Register
 * [ ] Measurement
+* [ ] Barrier
+* [ ] Cycle derivation
 * [ ] Serialization
 * [ ] Validation
 * [ ] Unit tests
+* [ ] Cross-language contract fixtures
+
+Barrier and cycle derivation were added by ADR-0001. Barriers were pulled
+forward from the deferred list because they are how scheduling intent is
+expressed, and retrofitting a concurrency constraint after consumers exist is
+expensive. Cycle derivation is a specified component rather than a rendering
+detail, and it is implemented twice — TypeScript and Python — so the contract
+fixtures are what keep the two honest.
 
 ### Exit Criteria
 
 The Circuit model becomes the single source of truth used throughout the application.
 
 No UI or simulator should maintain its own circuit representation.
+
+The cycle derivation produces identical output in both languages across the
+fixture set in `shared/fixtures/`, enforced from `tests/contract/`.
 
 ---
 
