@@ -38,10 +38,11 @@ It sits deliberately between educational toys that can't express real circuits a
 | Area | State |
 |---|---|
 | Documentation | Written; `UI.md` deferred to Milestone 3 |
-| Backend project | Scaffolded and verified — installs, tests pass, lint and types clean |
-| Frontend project | Scaffolded, **not yet verified** — requires Node, which is not installed |
+| Backend project | Verified — installs, tests pass, lint and types clean |
+| Frontend project | Verified — installs, builds, tests pass, lint and types clean |
+| Frontend ↔ backend | Verified — connects through the dev proxy, degrades gracefully when the backend is down |
 | Shared circuit model | Directory structure only; schema is Milestone 2 |
-| Tooling and tests | Configured for both projects |
+| Tooling and tests | Configured and passing for both projects |
 | CI/CD | Not started |
 | Docker environment | Not started |
 
@@ -143,7 +144,7 @@ npm run dev
 
 Runs on `http://localhost:5173` and proxies `/api` to the backend.
 
-> Not yet verified — Node was unavailable when this was scaffolded, so dependency versions in `package.json` are unconfirmed until a first successful `npm install`.
+With both running, `http://localhost:5173` should report **Connected — API version 0.1.0**.
 
 ### Checks
 

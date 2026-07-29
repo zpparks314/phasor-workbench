@@ -6,7 +6,7 @@
   "description": "Frontend for RogueScholar's Quantum Workbench.",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --build && vite build",
+    "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -26,6 +26,7 @@
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.6.0",
     "@testing-library/react": "^16.1.0",
+    "@types/node": "^22.10.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^5.0.0",

@@ -6,8 +6,10 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function mockFetch(response: Partial<Response> & { json: () => Promise<unknown> }) {
-  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response as Response));
+function mockFetch(
+  response: Partial<Response> & { json: () => Promise<unknown> },
+) {
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response));
 }
 
 describe('request', () => {

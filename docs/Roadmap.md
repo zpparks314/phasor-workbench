@@ -43,28 +43,41 @@ Create a maintainable project structure.
 
 ### Exit Criteria
 
-* [ ] Application builds successfully.
-* [ ] Frontend and backend communicate.
+* [x] Application builds successfully.
+* [x] Frontend and backend communicate.
 * [x] Documentation exists.
 * [x] Tests execute automatically.
 * [ ] Repository is ready for feature development.
 
 ### Status
 
-The backend is scaffolded and **verified**: dependencies install on Python
-3.14, `pytest` passes, and `ruff` and `mypy` are clean. `GET /api/v1/health`
-returns a valid response.
+Both projects are scaffolded and **verified end to end**.
 
-The frontend is scaffolded but **not verified** — Node is not installed on
-the development machine, so nothing has been installed, built, or run. Its
-dependency versions are unconfirmed until `npm install` succeeds.
+**Backend** — installs on Python 3.14, `pytest` passes (3 tests), `ruff` and
+`mypy --strict` clean. `GET /api/v1/health` returns a valid response.
+
+**Frontend** — `npm install` succeeds, `tsc --noEmit` clean, `eslint` clean,
+`vitest` passes (3 tests), production build succeeds.
+
+**Integration** — the running frontend reaches the backend through the Vite
+proxy and reports the API version. With the backend stopped, it degrades to a
+readable message rather than failing blank, satisfying the requirement in
+Architecture.md that the frontend stay functional when the backend is down.
 
 Remaining before this milestone can close:
 
-1. Install Node 20.19+ and verify the frontend builds, lints, and tests.
-2. Confirm the frontend reaches the backend end to end.
-3. Configure CI/CD.
-4. Configure the Docker development environment.
+1. Configure CI/CD.
+2. Configure the Docker development environment.
+
+### Known Issues
+
+* `npm audit` reports 5 high-severity findings, all one root cause
+  (`brace-expansion` DoS) reached through ESLint's dependency chain. Dev-only,
+  never bundled, and the only offered fix is a breaking `eslint@10` upgrade.
+  Deliberately deferred until the plugin ecosystem supports ESLint 10.
+* `docs/architecture.md` and `docs/roadmap.md` are tracked in lowercase while
+  every cross-link uses title case. Works on Windows, breaks on GitHub and
+  Linux CI.
 
 ---
 

@@ -9,8 +9,10 @@
   --color-ink-muted: oklch(50% 0 0);
 }
 
+/* @theme emits these as custom properties on :root, so dark mode overrides
+   them as ordinary CSS. @theme itself cannot be nested inside a media query. */
 @media (prefers-color-scheme: dark) {
-  @theme {
+  :root {
     --color-surface: oklch(18% 0.01 260);
     --color-surface-raised: oklch(23% 0.01 260);
     --color-ink: oklch(96% 0 0);

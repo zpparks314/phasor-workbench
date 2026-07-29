@@ -8,7 +8,7 @@ React + TypeScript + Vite + Tailwind.
 
 ## Setup
 
-Requires Node 20.19+ (not currently installed on this machine).
+Requires Node 20.19+.
 
 ```bash
 cd frontend

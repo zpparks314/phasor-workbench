@@ -25,7 +25,9 @@
       "@/*": ["src/*"]
     },
 
-    "types": ["vitest/globals", "@testing-library/jest-dom"]
+    // vite/client supplies import.meta.env; without it the API client's
+    // env access fails to type-check.
+    "types": ["vite/client", "vitest/globals", "@testing-library/jest-dom"]
   },
-  "include": ["src"]
+  "include": ["src", "vite.config.ts"]
 }

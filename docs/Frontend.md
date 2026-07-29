@@ -1,6 +1,6 @@
 # Frontend
 
-**Status:** Stack chosen and scaffolded. Editor and component design still deferred to Milestone 3.
+**Status:** Stack chosen, scaffolded, and verified. Editor and component design still deferred to Milestone 3.
 
 ---
 
