@@ -75,11 +75,22 @@ nothing to deploy yet, and a pipeline built now would be rewritten once Docker
 exists and the app has features. It belongs with **Deployment** in Milestone 5,
 and should consume the Dockerfile rather than duplicate it.
 
+**Branch protection** — a ruleset on the default branch requires a pull request
+and a passing `CI` check before merging, requires linear history, and blocks
+force pushes and deletion. Only the aggregate `CI` job is required, not the
+four matrix jobs: matrix job names carry their version, so requiring those
+directly would leave a new leg unprotected until someone remembered to update
+the rule.
+
+Repository admin holds an `always` bypass, so the owner can still push directly
+to `main`. That is a deliberate trade for a solo project — the rules exist for
+contributors who arrive later, and the guardrail against accidental force
+pushes and deletions still applies to everyone. Revisit when the project takes
+its first outside contributor.
+
 Remaining before this milestone can close:
 
 1. Configure the Docker development environment.
-2. Enable branch protection on `main` requiring the `CI` status check. CI that
-   cannot block a merge is advisory decoration.
 
 ### Known Issues
 

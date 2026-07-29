@@ -53,6 +53,7 @@ It sits deliberately between educational toys that can't express real circuits a
 | Shared circuit model | Directory structure only; schema is Milestone 2 |
 | Tooling and tests | Configured and passing for both projects |
 | CI | Lint, format, type check, test, and build on every push and PR |
+| Branch protection | `main` requires a PR and a passing `CI` check |
 | Continuous deployment | Deferred to Milestone 5 — nothing to deploy yet |
 | Docker environment | Not started |
 
