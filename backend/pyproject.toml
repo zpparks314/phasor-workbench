@@ -40,7 +40,13 @@ dev = [
     # Generates src/phasor_workbench/models/circuit.py from
     # shared/schema/circuit.schema.json. See ADR-0004 and
     # shared/generate_bindings.py -- never edit the generated file by hand.
-    "datamodel-code-generator>=0.26",
+    #
+    # Pinned to a patch range rather than a floor. CI compares the generated
+    # output byte-for-byte, so a version that differs from the one a developer
+    # generated with fails the check with no real drift to fix. The npm side
+    # gets this for free from package-lock.json. Bumping the minor version is a
+    # deliberate act: regenerate and commit the result in the same change.
+    "datamodel-code-generator~=0.71.0",
 ]
 
 [tool.hatch.build.targets.wheel]

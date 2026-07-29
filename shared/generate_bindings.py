@@ -20,6 +20,7 @@ which would violate the dependency rule in shared/README.md.
 from __future__ import annotations
 
 import argparse
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -60,16 +61,33 @@ PYTHON_ARGS = [
 TYPESCRIPT_ARGS = ["--additionalProperties", "false", "--bannerComment", ""]
 
 
-def _venv_bin(name: str) -> Path:
-    scripts = ROOT / "backend" / ".venv" / ("Scripts" if sys.platform == "win32" else "bin")
-    suffix = ".exe" if sys.platform == "win32" else ""
-    return scripts / f"{name}{suffix}"
+_WINDOWS = sys.platform == "win32"
 
 
-def _node_bin(name: str) -> Path:
-    bin_dir = ROOT / "frontend" / "node_modules" / ".bin"
-    suffix = ".cmd" if sys.platform == "win32" else ""
-    return bin_dir / f"{name}{suffix}"
+def _resolve(local: Path, name: str, install_hint: str) -> str:
+    """Prefer the project-local executable, fall back to PATH.
+
+    Local development runs out of backend/.venv and frontend/node_modules; CI
+    installs into the runner's own environment and has neither, so a hardcoded
+    project-local path would fail there.
+    """
+    if local.is_file():
+        return str(local)
+    found = shutil.which(name)
+    if found is not None:
+        return found
+    sys.exit(f"{name} not found. Install it with: {install_hint}")
+
+
+def _venv_bin(name: str) -> str:
+    scripts = ROOT / "backend" / ".venv" / ("Scripts" if _WINDOWS else "bin")
+    local = scripts / f"{name}{'.exe' if _WINDOWS else ''}"
+    return _resolve(local, name, 'pip install -e "./backend[dev]"')
+
+
+def _node_bin(name: str) -> str:
+    local = ROOT / "frontend" / "node_modules" / ".bin" / f"{name}{'.cmd' if _WINDOWS else ''}"
+    return _resolve(local, name, "npm ci --prefix frontend")
 
 
 def _run(command: list[str]) -> None:
@@ -95,18 +113,18 @@ def _normalize_newlines(path: Path) -> None:
 
 
 def generate_python(output: Path) -> None:
-    _run([str(_venv_bin("datamodel-codegen")), "--input", str(SCHEMA),
+    _run([_venv_bin("datamodel-codegen"), "--input", str(SCHEMA),
           "--output", str(output), *PYTHON_ARGS])
     _normalize_newlines(output)
 
 
 def generate_typescript(output: Path) -> None:
-    _run([str(_node_bin("json2ts")), "--input", str(SCHEMA),
+    _run([_node_bin("json2ts"), "--input", str(SCHEMA),
           "--output", str(output), *TYPESCRIPT_ARGS])
     # json2ts does not read the project's Prettier config, so `format:check`
     # would reject its output. Formatting here mirrors the Python side, which
     # generates through ruff for the same reason.
-    _run([str(_node_bin("prettier")), "--write", "--log-level", "warn", str(output)])
+    _run([_node_bin("prettier"), "--write", "--log-level", "warn", str(output)])
     _normalize_newlines(output)
 
 

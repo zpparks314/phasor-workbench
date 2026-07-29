@@ -76,6 +76,12 @@ across Python 3.11 and 3.14, frontend across Node 20.19 and 22. It enforces the
 mechanical half of the Definition of Done below; documentation and review stay
 human.
 
+Milestone 2 added a **Shared model** job, the only one needing both toolchains.
+It verifies that the bindings committed under each project still match
+`shared/schema/circuit.schema.json`. Nothing else in the workflow would catch
+that drift — both projects lint, type check and build perfectly against a stale
+model.
+
 Continuous *deployment* is deliberately not part of this milestone. There is
 nothing to deploy yet, and a pipeline built now would be rewritten once Docker
 exists and the app has features. It belongs with **Deployment** in Milestone 5,
