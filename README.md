@@ -42,7 +42,7 @@ It sits deliberately between educational toys that can't express real circuits a
 
 ## Current Status
 
-**Milestone 1 — Foundation**, in progress. Focus is a clean, maintainable base before any quantum features are built.
+**Milestone 1 — Foundation: complete.** **Milestone 2 — Circuit Model** is now active. The foundation is deliberately finished before any quantum features are built.
 
 | Area | State |
 |---|---|
@@ -57,7 +57,7 @@ It sits deliberately between educational toys that can't express real circuits a
 | Continuous deployment | Deferred to Milestone 5 — nothing to deploy yet |
 | Docker environment | Both services, hot-reloading, Python 3.13 in-container |
 
-Only `GET /api/v1/health` is implemented. It exists to prove the two halves can talk to each other, which is this milestone's exit criterion.
+Only `GET /api/v1/health` is implemented. It existed to prove the two halves can talk to each other — Milestone 1's exit criterion. Quantum features begin with the Circuit Model in Milestone 2.
 
 Full plan: [Roadmap.md](docs/Roadmap.md).
 

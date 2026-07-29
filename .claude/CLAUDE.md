@@ -225,20 +225,29 @@ Ask for clarification instead of making assumptions.
 
 # Current State
 
-**Milestone 1 (Foundation) — nearly complete.**
+**Milestone 1 (Foundation) is complete** as of 2026-07-28. **Milestone 2 —
+Circuit Model — is the active milestone.**
 
 Both projects are scaffolded and verified end to end: the backend installs and
-serves, the frontend builds, and the two communicate. Remaining before the
-milestone closes: **CI/CD** and **Docker development environment**.
+serves, the frontend builds, and the two communicate. CI runs both projects on
+every push and pull request, `main` is protected, the project is licensed under
+Apache 2.0, and `docker compose up --build` runs the whole stack with hot
+reload on both sides.
 
 No quantum features exist yet. The only endpoint is `GET /api/v1/health`.
-`shared/` has directory structure but no schema — that is Milestone 2.
+`shared/` has directory structure but no schema — that is Milestone 2's work.
+
+**Before writing any Milestone 2 code, read the *Decisions Awaiting the Owner*
+table in `docs/Roadmap.md`.** Three of its four entries shape the Circuit Model
+itself rather than its implementation: the shared-model strategy, whether
+mid-circuit measurement is permitted at MVP, and whether identifiers are
+client-generated or backend-assigned. Ask rather than assuming the listed
+defaults — picking wrong means redesigning the single source of truth.
 
 **The project was renamed to Phasor Workbench on 2026-07-28** (commit
-`5d902cf`). If you are on a machine cloned before that, read the migration
-steps under **Environment Notes** before running anything — the venv will be
-stale. Still open from that work: the GitHub repository may not yet be renamed
-to `phasor-workbench`, and `LICENSE` is still empty.
+`5d902cf`), and the GitHub repository is now `zpparks314/phasor-workbench`. If
+you are on a machine cloned before that, read the migration steps under
+**Environment Notes** before running anything — the venv will be stale.
 
 Start any session by reading, in order:
 
