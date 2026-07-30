@@ -172,7 +172,9 @@
     },
     "Metadata": {
       "description": "Descriptive only. If the simulator would behave differently based on a field here, that field belongs in the model proper.",
+      "$comment": "additionalProperties is false here for the same reason it is everywhere else, and its absence was a bug: Pydantic's default silently discarded unknown metadata keys, so they never round-tripped and no error said so. Unknown fields are the loader's business, not a parser default -- see ADR-0006.",
       "type": "object",
+      "additionalProperties": false,
       "properties": {
         "description": { "type": "string" },
         "author": { "type": "string" },

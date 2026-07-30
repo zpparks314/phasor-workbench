@@ -23,62 +23,96 @@
     "ccx": { "targets": 1, "controls": 2, "parameters": [] }
   },
   "violations": {
-    "$comment": "One code per semantic rule in docs/CircuitModel.md, plus a single code for every shape failure. Fixtures in shared/fixtures/invalid/ name these codes, so both hand-written validators must emit them identically. Descriptions live here rather than in the generated bindings -- they are for whoever reads the source of truth.",
+    "$comment": "One code per semantic rule in docs/CircuitModel.md, plus a single code for every shape failure and the loader's codes from ADR-0006. Fixtures in shared/fixtures/ name these codes, so both hand-written implementations must emit them identically. Every entry declares the phase that produces it -- shape at the parse boundary, semantic in the validator, load in the version-aware loader -- so a consumer can select the codes it is responsible for from data rather than from a hardcoded list. Descriptions live here rather than in the generated bindings; they are for whoever reads the source of truth.",
     "SHAPE_INVALID": {
       "severity": "error",
+      "phase": "shape",
       "description": "The document does not match circuit.schema.json. Every schema-enforced rule reports under this one code, carrying the underlying validator's message and path; see ADR-0005 for why the shape taxonomy is not enumerated here."
     },
     "DUPLICATE_IDENTIFIER": {
       "severity": "error",
+      "phase": "semantic",
       "description": "An identifier is duplicated within its collection."
     },
     "DUPLICATE_QUBIT_INDEX": {
       "severity": "error",
+      "phase": "semantic",
       "description": "Two qubits declare the same index."
     },
     "QUBIT_INDEX_GAP": {
       "severity": "error",
+      "phase": "semantic",
       "description": "Qubit indices are not contiguous starting at 0."
     },
     "UNKNOWN_QUBIT_REFERENCE": {
       "severity": "error",
+      "phase": "semantic",
       "description": "An operation references a qubit identifier that no declared qubit carries."
     },
     "UNKNOWN_REGISTER_REFERENCE": {
       "severity": "error",
+      "phase": "semantic",
       "description": "A measurement references a classical register that is not declared."
     },
     "CLASSICAL_BIT_OUT_OF_RANGE": {
       "severity": "error",
+      "phase": "semantic",
       "description": "A measurement's bit index falls outside its register's size."
     },
     "GATE_ARITY_MISMATCH": {
       "severity": "error",
+      "phase": "semantic",
       "description": "A gate's target or control count disagrees with its signature in this file."
     },
     "QUBIT_REUSED_IN_OPERATION": {
       "severity": "error",
+      "phase": "semantic",
       "description": "One operation names the same qubit more than once across its targets and controls."
     },
     "PARAMETER_MISSING": {
       "severity": "error",
+      "phase": "semantic",
       "description": "A parameter the gate's signature requires is absent."
     },
     "PARAMETER_UNKNOWN": {
       "severity": "error",
+      "phase": "semantic",
       "description": "A parameter is supplied that the gate's signature does not name."
     },
     "PARAMETER_NOT_FINITE": {
       "severity": "error",
+      "phase": "semantic",
       "description": "A parameter is NaN or infinite. Reachable because some JSON parsers accept those literals."
     },
     "OPERATION_AFTER_MEASUREMENT": {
       "severity": "error",
+      "phase": "semantic",
       "description": "A gate or measurement acts on a qubit an earlier measurement already measured. Barriers are exempt; see docs/CircuitModel.md."
     },
     "SCHEMA_VERSION_NEWER_MINOR": {
       "severity": "warning",
-      "description": "The circuit declares a newer minor version than this build. It loads with unknown fields preserved, per the migration policy in docs/CircuitModel.md."
+      "phase": "load",
+      "description": "The circuit declares a newer minor version than this build. It loads in tolerant mode, with unknown fields stripped and preserved rather than rejected. See ADR-0006."
+    },
+    "SCHEMA_VERSION_MALFORMED": {
+      "severity": "error",
+      "phase": "load",
+      "description": "schemaVersion is absent or is not a semantic version. The loader cannot choose a mode without it, so this is refused before anything else is examined."
+    },
+    "SCHEMA_VERSION_UNSUPPORTED": {
+      "severity": "error",
+      "phase": "load",
+      "description": "The circuit declares a newer major version. A major bump means a field was renamed, removed, or changed meaning, so this build cannot read the document at all."
+    },
+    "UNKNOWN_GATE_NAME": {
+      "severity": "error",
+      "phase": "load",
+      "description": "A newer-minor circuit names a gate this build does not know. Reported instead of being tolerated: the gate has no signature to validate against and no definition to execute, so the circuit cannot be interpreted even though its unknown fields could be. See ADR-0006."
+    },
+    "UNKNOWN_OPERATION_KIND": {
+      "severity": "error",
+      "phase": "load",
+      "description": "A newer-minor circuit contains an operation kind this build does not know. Stricter than the gate case: the cycle derivation extracts resources per kind, so an unknown kind leaves the circuit's scheduling -- and therefore its depth -- undefined."
     }
   }
 }

@@ -19,17 +19,24 @@ from typing import Any
 import pytest
 
 from phasor_workbench.models.circuit import Circuit
-from phasor_workbench.models.spec import WARNING_CODES, ViolationCode
+from phasor_workbench.models.spec import (
+    VIOLATION_PHASES,
+    WARNING_CODES,
+    ViolationCode,
+    ViolationPhase,
+)
 from phasor_workbench.validation import validate_circuit
 
 FIXTURES = Path(__file__).resolve().parents[2] / "shared" / "fixtures"
 VALID = sorted((FIXTURES / "valid").glob("*.json"))
 INVALID = sorted((FIXTURES / "invalid" / "semantic").glob("*.json"))
 
-# SHAPE_INVALID belongs to the parse boundary, not to this module, and warnings
-# are produced by the version-aware loader, which is not written yet.
+# Selected from the spec's `phase` field rather than by excluding codes by name.
+# Shape codes belong to the parse boundary and load codes to the version-aware
+# loader; this module owns exactly the semantic ones. Warnings are excluded
+# because this test asserts a fixture is *rejected*, which a warning does not do.
 SEMANTIC_CODES = {
-    code for code in ViolationCode if code is not ViolationCode.SHAPE_INVALID
+    code for code, phase in VIOLATION_PHASES.items() if phase is ViolationPhase.SEMANTIC
 } - set(WARNING_CODES)
 
 

@@ -144,7 +144,12 @@ def generate_typescript(output: Path) -> None:
     _normalize_newlines(output)
 
 
-# --- The spec (ADR-0005) -------------------------------------------------
+# --- The spec (ADR-0005, ADR-0006) ---------------------------------------
+
+# The stage that produces a violation. Fixed rather than inferred from the spec,
+# because a typo in a phase name should fail generation instead of quietly
+# creating a fourth phase that nothing selects.
+PHASES = ("shape", "semantic", "load")
 
 
 def _declarations(section: dict[str, Any]) -> dict[str, Any]:
@@ -194,6 +199,14 @@ def load_spec() -> dict[str, Any]:
     for code, violation in violations.items():
         if violation.get("severity") not in {"error", "warning"}:
             sys.exit(f"Violation '{code}' must declare severity 'error' or 'warning'.")
+        # Per ADR-0006 every code names the phase that produces it, so each
+        # consumer selects the codes it owns from data rather than from a list
+        # hardcoded in two test suites.
+        if violation.get("phase") not in PHASES:
+            sys.exit(
+                f"Violation '{code}' must declare a phase, one of "
+                f"{', '.join(sorted(PHASES))}."
+            )
 
     return {
         "schemaVersion": spec["schemaVersion"],
@@ -243,6 +256,27 @@ def _python_spec_source(spec: dict[str, Any]) -> str:
     ]
     lines += [f'    {code} = "{code}"' for code in spec["violations"]]
     lines += [
+        "",
+        "",
+        "class ViolationPhase(StrEnum):",
+        '    """The stage that produces a code. See ADR-0006."""',
+        "",
+    ]
+    lines += [f'    {phase.upper()} = "{phase}"' for phase in PHASES]
+    lines += [
+        "",
+        "",
+        "#: Each consumer selects the codes it owns from here, not from a hardcoded list.",
+        "VIOLATION_PHASES: Final[Mapping[ViolationCode, ViolationPhase]] = MappingProxyType(",  # noqa: E501
+        "    {",
+    ]
+    lines += [
+        f"        ViolationCode.{code}: ViolationPhase.{violation['phase'].upper()},"
+        for code, violation in spec["violations"].items()
+    ]
+    lines += [
+        "    }",
+        ")",
         "",
         "",
         "WARNING_CODES: Final[frozenset[ViolationCode]] = frozenset(",
@@ -311,6 +345,29 @@ def _typescript_spec_source(spec: dict[str, Any]) -> str:
     lines += [f"  '{code}'," for code in spec["violations"]]
     lines += [
         "];",
+        "",
+        "/** The stage that produces a code. See ADR-0006. */",
+        "export type ViolationPhase =",
+    ]
+    lines += [f"  | '{phase}'" for phase in PHASES]
+    lines[-1] += ";"
+    lines += [
+        "",
+        "/**",
+        " * Each consumer selects the codes it owns from here, not from a hardcoded list.",
+        " *",
+        " * Every ViolationCode must appear, or this file fails to type-check.",
+        " */",
+        "export const VIOLATION_PHASES: Readonly<",
+        "  Record<ViolationCode, ViolationPhase>",
+        "> = {",
+    ]
+    lines += [
+        f"  '{code}': '{violation['phase']}',"
+        for code, violation in spec["violations"].items()
+    ]
+    lines += [
+        "};",
         "",
         "export const WARNING_CODES: readonly ViolationCode[] = [",
     ]

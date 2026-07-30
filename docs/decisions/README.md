@@ -155,9 +155,11 @@ before implementing the change.
 | 0003 | Accepted | Execution semantics and cycle derivation                           |
 | 0004 | Accepted | Shared model strategy — JSON Schema as source of truth             |
 | 0005 | Accepted | Shared specification data and module layout                         |
+| 0006 | Accepted | Version compatibility and loading                                   |
 
-All five govern Milestone 2 and should be read in order. 0001 decides what is
+All six govern Milestone 2 and should be read in order. 0001 decides what is
 stored, 0002 decides how stored objects are referenced, 0003 specifies the
 derivation 0001 relies on, 0004 decides how all of it becomes code in two
-languages, and 0005 covers the hand-written half that 0004's coverage boundary
-leaves out.
+languages, 0005 covers the hand-written half that 0004's coverage boundary leaves
+out, and 0006 decides what happens when a document arrives from a different
+version than the one reading it.

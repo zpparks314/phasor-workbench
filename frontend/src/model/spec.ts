@@ -28,7 +28,11 @@ export type ViolationCode =
   | 'PARAMETER_UNKNOWN'
   | 'PARAMETER_NOT_FINITE'
   | 'OPERATION_AFTER_MEASUREMENT'
-  | 'SCHEMA_VERSION_NEWER_MINOR';
+  | 'SCHEMA_VERSION_NEWER_MINOR'
+  | 'SCHEMA_VERSION_MALFORMED'
+  | 'SCHEMA_VERSION_UNSUPPORTED'
+  | 'UNKNOWN_GATE_NAME'
+  | 'UNKNOWN_OPERATION_KIND';
 
 export const VIOLATION_CODES: readonly ViolationCode[] = [
   'SHAPE_INVALID',
@@ -45,7 +49,41 @@ export const VIOLATION_CODES: readonly ViolationCode[] = [
   'PARAMETER_NOT_FINITE',
   'OPERATION_AFTER_MEASUREMENT',
   'SCHEMA_VERSION_NEWER_MINOR',
+  'SCHEMA_VERSION_MALFORMED',
+  'SCHEMA_VERSION_UNSUPPORTED',
+  'UNKNOWN_GATE_NAME',
+  'UNKNOWN_OPERATION_KIND',
 ];
+
+/** The stage that produces a code. See ADR-0006. */
+export type ViolationPhase = 'shape' | 'semantic' | 'load';
+
+/**
+ * Each consumer selects the codes it owns from here, not from a hardcoded list.
+ *
+ * Every ViolationCode must appear, or this file fails to type-check.
+ */
+export const VIOLATION_PHASES: Readonly<Record<ViolationCode, ViolationPhase>> =
+  {
+    SHAPE_INVALID: 'shape',
+    DUPLICATE_IDENTIFIER: 'semantic',
+    DUPLICATE_QUBIT_INDEX: 'semantic',
+    QUBIT_INDEX_GAP: 'semantic',
+    UNKNOWN_QUBIT_REFERENCE: 'semantic',
+    UNKNOWN_REGISTER_REFERENCE: 'semantic',
+    CLASSICAL_BIT_OUT_OF_RANGE: 'semantic',
+    GATE_ARITY_MISMATCH: 'semantic',
+    QUBIT_REUSED_IN_OPERATION: 'semantic',
+    PARAMETER_MISSING: 'semantic',
+    PARAMETER_UNKNOWN: 'semantic',
+    PARAMETER_NOT_FINITE: 'semantic',
+    OPERATION_AFTER_MEASUREMENT: 'semantic',
+    SCHEMA_VERSION_NEWER_MINOR: 'load',
+    SCHEMA_VERSION_MALFORMED: 'load',
+    SCHEMA_VERSION_UNSUPPORTED: 'load',
+    UNKNOWN_GATE_NAME: 'load',
+    UNKNOWN_OPERATION_KIND: 'load',
+  };
 
 export const WARNING_CODES: readonly ViolationCode[] = [
   'SCHEMA_VERSION_NEWER_MINOR',

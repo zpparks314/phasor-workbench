@@ -109,6 +109,9 @@ rather than also policing vocabulary. What remains hand-written is the logic.
 * `valid/` — circuits that must parse and validate on both sides
 * `invalid/` — circuits that must be rejected, each paired with the
   violation codes it should produce, drawn from `spec/circuit.spec.json`
+* `version/` — documents paired with a load outcome, per ADR-0006. Unlike the
+  others these are not all valid circuits, and some declare versions that do not
+  exist. Empty until the loader lands
 * `decomposition/` — circuits paired with their expected cycle decomposition,
   covering the cases enumerated in ADR-0003
 
@@ -155,3 +158,6 @@ the second requires an ADR revision.
 * adding or removing a gate edits `schema/` and `spec/` together — generation
   fails if the gate sets diverge
 * a violation code exists here or nowhere; neither implementation may invent one
+* every violation code declares the `phase` that produces it — `shape`,
+  `semantic`, or `load` — and each consumer selects the codes it owns from that
+  field rather than from a list hardcoded in its own tests
