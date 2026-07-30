@@ -1,10 +1,17 @@
 # Shared
 
-The Circuit Model, serialization format, and validation rules.
+The Circuit Model, the serialization format, and the data that validation reads.
 
-**Status:** the schema exists and bindings generate from it. Fixtures are still
-empty — they land with validation and the cycle derivation, which are the rest
-of Milestone 2. Strategy: [ADR-0004](../docs/decisions/ADR0004_SharedModelStrategy.md).
+**Nothing here executes.** Validation and the cycle derivation are implemented in
+each project, not in this directory; what lives here is the schema, the
+specification data both implementations read, and the fixtures that hold them to
+one behavior.
+
+**Status:** both sources of truth exist and bindings generate from them. Fixtures
+are still empty — they land with validation and the cycle derivation, which are
+the rest of Milestone 2. Strategy:
+[ADR-0004](../docs/decisions/ADR0004_SharedModelStrategy.md) and
+[ADR-0005](../docs/decisions/ADR0005_SharedSpecification.md).
 
 ---
 
@@ -28,19 +35,33 @@ its version.
 **Decided: JSON Schema is the source of truth for the wire format.**
 ([ADR-0004](../docs/decisions/ADR0004_SharedModelStrategy.md))
 
+**Decided: a second source carries what a JSON Schema cannot express.**
+([ADR-0005](../docs/decisions/ADR0005_SharedSpecification.md))
+
 ```text
 shared/
-├── schema/       Canonical JSON Schema -- the source of truth
+├── schema/       Canonical JSON Schema -- a circuit's shape
+├── spec/         Gate signatures, violation codes, current model version
 └── fixtures/     Circuits consumed by both sides' test suites
 ```
 
-Language bindings are generated from the schema **into each consuming project**,
-not into a directory here:
+The two are complementary, not redundant: the schema says what a circuit looks
+like, the spec says what its parts mean. Generation reads both and **fails if
+they disagree about the gate set**, so adding a gate stays one logical edit even
+though it touches two files.
+
+Language bindings are generated from both **into each consuming project**, not
+into a directory here:
 
 | Project | Destination | Tool |
 |---|---|---|
-| Frontend | `frontend/src/model/` | `json-schema-to-typescript` |
-| Backend | `backend/src/phasor_workbench/models/` | `datamodel-code-generator` |
+| Frontend | `frontend/src/model/circuit.ts` | `json-schema-to-typescript` |
+| Backend | `backend/src/phasor_workbench/models/circuit.py` | `datamodel-code-generator` |
+| Frontend | `frontend/src/model/spec.ts` | `generate_bindings.py` |
+| Backend | `backend/src/phasor_workbench/models/spec.py` | `generate_bindings.py` |
+
+The spec is emitted by this project's own script because the two third-party
+tools generate types from schemas, not constants from data.
 
 Neither language can import cleanly from a sibling directory outside its package
 root, and forcing it would add packaging complexity to every install path on a
@@ -72,6 +93,11 @@ This is why fixtures below are not optional. Choosing schema generation narrows
 what is shared-by-construction to the wire format — the layer where drift is
 silent and worst — and does not reduce the testing burden anywhere else.
 
+`spec/` widens that guarantee by one step. The two implementations still contain
+every interesting rule, but they no longer *decide* anything: their violation
+codes and gate signatures are generated constants, so the fixtures test behavior
+rather than also policing vocabulary. What remains hand-written is the logic.
+
 ---
 
 ## Fixtures
@@ -80,9 +106,14 @@ silent and worst — and does not reduce the testing burden anywhere else.
 
 * `valid/` — circuits that must parse and validate on both sides
 * `invalid/` — circuits that must be rejected, each paired with the
-  violation codes it should produce
+  violation codes it should produce, drawn from `spec/circuit.spec.json`
 * `decomposition/` — circuits paired with their expected cycle decomposition,
   covering the cases enumerated in ADR-0003
+
+`invalid/` is split by phase. Semantic fixtures run on both sides; shape fixtures
+— anything the schema itself rejects, reported as `SHAPE_INVALID` — are
+backend-only until the frontend gains a runtime shape validator in Milestone 3.
+See ADR-0005 section 6.
 
 Shared fixtures are what make "the frontend and backend agree" a testable
 claim rather than an aspiration. They are the *only* thing making it testable
@@ -100,4 +131,7 @@ the second requires an ADR revision.
 * generated files are never hand-edited, and CI rejects it
 * a change to the schema requires a `schemaVersion` decision — see the
   versioning table in [CircuitModel.md](../docs/CircuitModel.md)
-* a schema change and its regenerated output belong in the same commit
+* a change to either source and its regenerated output belong in the same commit
+* adding or removing a gate edits `schema/` and `spec/` together — generation
+  fails if the gate sets diverge
+* a violation code exists here or nowhere; neither implementation may invent one

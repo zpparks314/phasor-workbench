@@ -1,0 +1,84 @@
+{
+  "$comment": "Model facts the JSON Schema cannot express, and the second source of truth for the Circuit Model. Decided in ADR-0005. circuit.schema.json defines a circuit's shape; this file defines the semantics that shape cannot hold -- what a gate's signature is, what a validator may report, and which model version is current. Bindings are generated into each project by shared/generate_bindings.py and are never hand-edited. Generation fails if the gate names here are not exactly the GateName enum in circuit.schema.json.",
+  "schemaVersion": "0.1.0",
+  "gates": {
+    "$comment": "Signatures for the gate set in docs/CircuitModel.md. Controlled gates split their qubits across targets and controls rather than encoding control count in the name, which is why cx and swap both take two qubits but do not have the same signature. Parameter names are data, never generated symbols -- p takes lambda, a Python reserved word.",
+    "i": { "targets": 1, "controls": 0, "parameters": [] },
+    "h": { "targets": 1, "controls": 0, "parameters": [] },
+    "x": { "targets": 1, "controls": 0, "parameters": [] },
+    "y": { "targets": 1, "controls": 0, "parameters": [] },
+    "z": { "targets": 1, "controls": 0, "parameters": [] },
+    "s": { "targets": 1, "controls": 0, "parameters": [] },
+    "sdg": { "targets": 1, "controls": 0, "parameters": [] },
+    "t": { "targets": 1, "controls": 0, "parameters": [] },
+    "tdg": { "targets": 1, "controls": 0, "parameters": [] },
+    "rx": { "targets": 1, "controls": 0, "parameters": ["theta"] },
+    "ry": { "targets": 1, "controls": 0, "parameters": ["theta"] },
+    "rz": { "targets": 1, "controls": 0, "parameters": ["theta"] },
+    "p": { "targets": 1, "controls": 0, "parameters": ["lambda"] },
+    "cx": { "targets": 1, "controls": 1, "parameters": [] },
+    "cy": { "targets": 1, "controls": 1, "parameters": [] },
+    "cz": { "targets": 1, "controls": 1, "parameters": [] },
+    "swap": { "targets": 2, "controls": 0, "parameters": [] },
+    "ccx": { "targets": 1, "controls": 2, "parameters": [] }
+  },
+  "violations": {
+    "$comment": "One code per semantic rule in docs/CircuitModel.md, plus a single code for every shape failure. Fixtures in shared/fixtures/invalid/ name these codes, so both hand-written validators must emit them identically. Descriptions live here rather than in the generated bindings -- they are for whoever reads the source of truth.",
+    "SHAPE_INVALID": {
+      "severity": "error",
+      "description": "The document does not match circuit.schema.json. Every schema-enforced rule reports under this one code, carrying the underlying validator's message and path; see ADR-0005 for why the shape taxonomy is not enumerated here."
+    },
+    "DUPLICATE_IDENTIFIER": {
+      "severity": "error",
+      "description": "An identifier is duplicated within its collection."
+    },
+    "DUPLICATE_QUBIT_INDEX": {
+      "severity": "error",
+      "description": "Two qubits declare the same index."
+    },
+    "QUBIT_INDEX_GAP": {
+      "severity": "error",
+      "description": "Qubit indices are not contiguous starting at 0."
+    },
+    "UNKNOWN_QUBIT_REFERENCE": {
+      "severity": "error",
+      "description": "An operation references a qubit identifier that no declared qubit carries."
+    },
+    "UNKNOWN_REGISTER_REFERENCE": {
+      "severity": "error",
+      "description": "A measurement references a classical register that is not declared."
+    },
+    "CLASSICAL_BIT_OUT_OF_RANGE": {
+      "severity": "error",
+      "description": "A measurement's bit index falls outside its register's size."
+    },
+    "GATE_ARITY_MISMATCH": {
+      "severity": "error",
+      "description": "A gate's target or control count disagrees with its signature in this file."
+    },
+    "QUBIT_REUSED_IN_OPERATION": {
+      "severity": "error",
+      "description": "One operation names the same qubit more than once across its targets and controls."
+    },
+    "PARAMETER_MISSING": {
+      "severity": "error",
+      "description": "A parameter the gate's signature requires is absent."
+    },
+    "PARAMETER_UNKNOWN": {
+      "severity": "error",
+      "description": "A parameter is supplied that the gate's signature does not name."
+    },
+    "PARAMETER_NOT_FINITE": {
+      "severity": "error",
+      "description": "A parameter is NaN or infinite. Reachable because some JSON parsers accept those literals."
+    },
+    "OPERATION_AFTER_MEASUREMENT": {
+      "severity": "error",
+      "description": "A gate or measurement acts on a qubit an earlier measurement already measured. Barriers are exempt; see docs/CircuitModel.md."
+    },
+    "SCHEMA_VERSION_NEWER_MINOR": {
+      "severity": "warning",
+      "description": "The circuit declares a newer minor version than this build. It loads with unknown fields preserved, per the migration policy in docs/CircuitModel.md."
+    }
+  }
+}

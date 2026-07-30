@@ -79,6 +79,27 @@ Future additions may include:
 
 The model should be versioned to maintain backward compatibility.
 
+## Two Shared Concerns Cross the Layer Split
+
+The responsibility lists above give validation to the backend. That is true of
+*trust* but not of *code*: model validation and cycle derivation are each
+implemented in both projects, because each project needs them for a different
+reason and neither can borrow the other's.
+
+| Concern | Frontend runs it for | Backend runs it for |
+|---|---|---|
+| Validation | fast editor feedback | it cannot trust its input |
+| Cycle derivation | render columns | depth, analysis, simulation |
+
+Neither is a violation of the split. The frontend still does not simulate, and
+the backend still does not render. Both implementations are held to one
+specification by the fixtures in `shared/fixtures/`.
+
+Settled by [ADR-0003](decisions/ADR0003_ExecutionSemantics.md),
+[ADR-0004](decisions/ADR0004_SharedModelStrategy.md), and
+[ADR-0005](decisions/ADR0005_SharedSpecification.md), which postdate the lists
+above.
+
 ---
 
 # Module Organization
@@ -104,12 +125,18 @@ Shared
 ├── Circuit Model
 ├── Serialization
 ├── Types
-└── Validation Rules
+├── Specification
+└── Fixtures
 ```
 
 Each module should expose a clear public interface.
 
 Avoid cross-module implementation dependencies.
+
+**Nothing under Shared executes.** It holds the schema, the specification data
+(gate signatures, violation codes, the current model version), and the fixtures
+both projects test against. Validation *rules* are specified there as data;
+validation itself is implemented in each project. See ADR-0004 and ADR-0005.
 
 ---
 

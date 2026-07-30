@@ -8,9 +8,10 @@
 
 Milestone 1 (Foundation) closed on 2026-07-28. The architecture, tooling, CI, branch protection, licensing, and development environments are in place, so feature work can begin.
 
-Milestone 2 is **in progress.** Its design is settled by ADRs 0001–0004, and its
-schema and generated bindings are done. Validation, the cycle derivation, and
-the cross-language contract fixtures remain — see *Status* under Milestone 2.
+Milestone 2 is **in progress.** Its design is settled by ADRs 0001–0005, and its
+two shared sources, generated bindings, and module layout are done. Validation,
+the cycle derivation, and the cross-language contract fixtures remain — see
+*Status* under Milestone 2.
 
 Every decision that blocked this milestone has been answered. The one entry
 still open in **Decisions Awaiting the Owner** is scoped to Milestone 4.
@@ -139,6 +140,8 @@ they affect begins.
 | Mid-circuit measurement: permitted at MVP or deferred? | Milestone 2 | **Resolved 2026-07-29** — deferred. Measurement terminates a qubit; barriers are exempt. See [CircuitModel.md](CircuitModel.md) |
 | Are identifiers client-generated or backend-assigned? | Milestone 2 | **Resolved 2026-07-29** — client-generated, backend-validated. Forced by offline operation and local save |
 | Interpreter for the `simulation` extra (Qiskit lacks 3.14 wheels) | Milestone 4 | **Partly answered.** The Docker environment pins 3.13, so simulation work happens there. Whether native 3.14 must also be supported is still open |
+| Do `invalid/` fixtures assert `path` as well as `code`? | Milestone 2 fixtures | **Open.** Asserting paths catches more divergence but makes path construction a third piece of behavior both languages must implement identically. ADR-0005 recommends codes alone to start |
+| Which CI job runs `tests/contract/`? | Milestone 2 fixtures | **Open.** Nothing runs that directory today, and the backend's pytest, ruff, and mypy are all scoped to `backend/`. Needs both toolchains, so it resembles the existing `Shared model` job |
 
 Also resolved on 2026-07-29, by accepted ADR: the canonical circuit
 representation and the cycle derivation
@@ -148,8 +151,16 @@ representation and the cycle derivation
 `classicalRegisters` may be absent (required field, may be empty, no implicit
 register).
 
-**Nothing now blocks Milestone 2.** The only remaining entry above is scoped to
-Milestone 4.
+Also resolved on 2026-07-29, by accepted
+[ADR-0005](decisions/ADR0005_SharedSpecification.md): where violation codes, gate
+signatures, and the current model version live; where the hand-written validation
+and cycle derivation live in each project; and that frontend runtime *shape*
+validation is deferred to Milestone 3.
+
+**Nothing blocks starting validation.** Of the three entries above still open,
+one is scoped to Milestone 4 and two are needed when the fixtures are written
+rather than before — and ADR-0005 records a recommended default for the first of
+those.
 
 Remaining open questions live at the end of [API.md](API.md) and
 [Simulation.md](Simulation.md). `CircuitModel.md` no longer has any.
@@ -170,6 +181,7 @@ settled by ADRs [0001](decisions/ADR0001_CircuitRepresentation.md),
 ### Tasks
 
 * [x] JSON Schema and generated bindings
+* [x] Shared specification data — gate signatures, violation codes, version
 * [x] Circuit
 * [x] Gate
 * [x] Qubit
@@ -205,12 +217,27 @@ fixture set in `shared/fixtures/`, enforced from `tests/contract/`.
 
 ### Status
 
-**The schema and its generated bindings are done.**
-`shared/schema/circuit.schema.json` is the source of truth;
-`shared/generate_bindings.py` generates Pydantic models into the backend and
-TypeScript types into the frontend; and a **Shared model** CI job fails the
-build if either is stale. ADR-0004's gating task — proving the `Operation`
-discriminated union survives generation on both sides — is confirmed.
+**Both shared sources and their generated bindings are done.**
+`shared/schema/circuit.schema.json` defines a circuit's shape and
+`shared/spec/circuit.spec.json` defines the semantics a schema cannot express —
+gate signatures, violation codes, and the current model version.
+`shared/generate_bindings.py` generates Pydantic models and TypeScript types from
+the first and typed constants from the second, and a **Shared model** CI job
+fails the build if any of the four outputs is stale. ADR-0004's gating task —
+proving the `Operation` discriminated union survives generation on both sides —
+is confirmed.
+
+**The module layout for the hand-written half is settled**
+([ADR-0005](decisions/ADR0005_SharedSpecification.md)). `validation/` and
+`cycles/` exist in both projects, carry the same names, and are empty pending the
+next two tasks. Generation refuses to run if the schema and spec disagree about
+the gate set, so adding a gate is now guarded end to end rather than half of it
+being a hand edit.
+
+One scope decision worth knowing before writing frontend code: Milestone 2 gives
+the frontend **semantic validation only**. Runtime shape validation is deferred to
+Milestone 3, when the frontend first reads a circuit it did not build — see
+ADR-0005 section 6.
 
 Three findings from that work are worth not rediscovering:
 
