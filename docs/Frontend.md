@@ -86,6 +86,12 @@ an existing one.
 exactly; [ADR-0005](decisions/ADR0005_SharedSpecification.md) explains why they
 sit here rather than inside `model/` or `editor/`.
 
+Both are implemented. `deriveCycles(circuit)` returns the decomposition specified
+in [ADR-0003](decisions/ADR0003_ExecutionSemantics.md) — cycles, barrier
+placements, and depth — and the editor will consume it for render columns without
+storing it. That constraint is the reason this project draws circuits with direct
+SVG rather than a node-graph library, as below.
+
 ## Validation Scope
 
 **Implemented.** `validateCircuit(circuit)` returns every violation, each with a

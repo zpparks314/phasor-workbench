@@ -8,9 +8,8 @@ specification data both implementations read, and the fixtures that hold them to
 one behavior.
 
 **Status:** both sources of truth exist and bindings generate from them.
-`fixtures/valid/` and `fixtures/invalid/semantic/` are populated and enforced from
-**both** suites, which agree on every case. `fixtures/decomposition/` is populated
-and enforced from the backend suite; the TypeScript derivation is next.
+`fixtures/valid/`, `fixtures/invalid/semantic/`, and `fixtures/decomposition/` are
+populated and enforced from **both** suites, which agree on every case.
 `fixtures/invalid/shape/` is still empty, landing with the validation endpoint.
 Strategy:
 [ADR-0004](../docs/decisions/ADR0004_SharedModelStrategy.md) and

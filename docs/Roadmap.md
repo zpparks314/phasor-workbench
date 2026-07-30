@@ -190,10 +190,10 @@ settled by ADRs [0001](decisions/ADR0001_CircuitRepresentation.md),
 * [x] Barrier
 * [ ] Serialization
 * [x] Validation — both languages, agreeing on the shared fixtures
-* [ ] Cycle derivation
-* [ ] Unit tests
-* [ ] Cross-language contract fixtures — `valid/` and `invalid/semantic/` done;
-  `decomposition/` lands with the derivation
+* [x] Cycle derivation — both languages, agreeing on the shared fixtures
+* [x] Unit tests — 190 backend, 168 frontend
+* [ ] Cross-language contract fixtures — `valid/`, `invalid/semantic/`, and
+  `decomposition/` done; `invalid/shape/` lands with the validation endpoint
 
 A checked entity means it is **defined in the schema and generated into both
 languages**. It does not mean the entity behaves correctly: nothing validates a
@@ -258,7 +258,7 @@ job, so `shared/fixtures/invalid/shape/` stays empty until the endpoint that map
 a parse failure into the error envelope exists. And parity needs no
 cross-language runner — see the table entry above and `tests/README.md`.
 
-**The cycle derivation is done in Python**, with 12 fixtures in
+**The cycle derivation is done in both languages**, with 12 fixtures in
 `shared/fixtures/decomposition/` covering the nine cases ADR-0003 enumerates.
 Every expected decomposition was hand-computed from the ADR's algorithm rather
 than recorded from the implementation. ADR-0003's guaranteed properties are
@@ -275,7 +275,15 @@ general, and `barrier_levels_unequal_frontiers.json` is the counterexample. ADR-
 the note under the worked decomposition in
 [CircuitModel.md](CircuitModel.md).
 
-**The TypeScript derivation is next.**
+The two implementations agree on all 17 circuits in the repository — the 12
+decomposition fixtures plus the 5 in `valid/`. That second group matters: those
+have no declared decomposition, so a direct diff of both implementations' output
+is the only thing checking they agree there.
+
+**Remaining in Milestone 2:** serialization and the versioned loader. That loader
+is the piece that reconciles the schema's `additionalProperties: false` with the
+forward-compatibility policy, and it is the last unwritten item under *Known
+Issues* below.
 
 Three findings from that work are worth not rediscovering:
 

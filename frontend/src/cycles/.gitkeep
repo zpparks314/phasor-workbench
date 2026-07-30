@@ -1,8 +1,0 @@
-Cycle derivation: the decomposition specified in ADR-0003.
-
-Consumed by the editor for render columns, but not owned by it -- ADR-0001
-makes this a specified component rather than a rendering detail, and no
-component may store its output.
-
-Mirrors backend/src/phasor_workbench/cycles/, and is held to it by the
-fixtures in shared/fixtures/decomposition/. Empty until Milestone 2.
