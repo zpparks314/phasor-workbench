@@ -17,8 +17,10 @@ from phasor_workbench.models.circuit import GateName
 from phasor_workbench.models.spec import (
     GATE_SIGNATURES,
     SCHEMA_VERSION,
+    VIOLATION_PHASES,
     WARNING_CODES,
     ViolationCode,
+    ViolationPhase,
 )
 
 SEMVER = re.compile(r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$")
@@ -47,6 +49,20 @@ def test_signature_is_self_consistent(name: GateName) -> None:
 def test_schema_version_is_semver() -> None:
     """It is compared against a circuit's declared version, so it must parse."""
     assert SEMVER.match(SCHEMA_VERSION)
+
+
+def test_every_code_declares_a_phase() -> None:
+    """A code with no phase is a code no consumer selects -- see ADR-0006.
+
+    The frontend gets this from `Record<ViolationCode, ViolationPhase>`, where a
+    missing entry is a compile error. Python has no equivalent.
+    """
+    assert set(VIOLATION_PHASES) == set(ViolationCode)
+
+
+def test_every_phase_is_used() -> None:
+    """Three phases exist because three stages report. An empty one is a mistake."""
+    assert set(VIOLATION_PHASES.values()) == set(ViolationPhase)
 
 
 def test_warning_codes_are_violation_codes() -> None:

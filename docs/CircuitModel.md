@@ -116,6 +116,14 @@ timestamps, author notes.
 Metadata must never carry semantics. If the simulator would behave differently
 based on a metadata field, that field belongs in the model proper.
 
+Unknown metadata keys are **rejected**, like unknown keys anywhere else. This was
+not always true: `Metadata` was the one object in the schema without
+`additionalProperties: false`, so Pydantic's default silently discarded them —
+they never round-tripped and nothing reported it. Fixed under
+[ADR-0006](decisions/ADR0006_VersionCompatibility.md), which makes unknown fields
+the loader's business rather than a parser default, so there is one rule for
+unknown data and one place that implements it.
+
 ---
 
 # Structural Decision: Ordered Operations With Derived Cycles
@@ -340,20 +348,44 @@ and export land in Milestone 5.
 
 The model carries `schemaVersion` using semantic versioning.
 
-| Change | Version bump |
+| Change | Version bump | Older build can load |
+|---|---|---|
+| Adding an optional field | minor | yes, field preserved |
+| Adding a gate to the standard set | minor | **no** — rejected by name |
+| Adding an operation kind | minor | **no** — rejected by kind |
+| Renaming or removing a field | major | no |
+| Changing the meaning of an existing field | major | no |
+
+The second column exists because the first does not answer it, and an earlier
+version of this table implied that it did. "Minor" means what semantic versioning
+says about the *producer* — nothing was removed and nothing changed meaning. It
+does not mean every older consumer can read the result. A build that does not know
+a gate has no signature to validate it against and no definition to execute it; a
+build that does not know an operation kind cannot even derive cycles for it, since
+resource extraction is per-kind, which leaves the circuit's depth undefined.
+Decided in [ADR-0006](decisions/ADR0006_VersionCompatibility.md).
+
+Loading rules. The declared version selects a **mode**; the content still decides
+the outcome:
+
+| Declared version | Outcome |
 |---|---|
-| Adding an optional field | minor |
-| Adding a gate to the standard set | minor |
-| Adding an operation kind | minor |
-| Renaming or removing a field | major |
-| Changing the meaning of an existing field | major |
+| absent, or not semver | rejected — `SCHEMA_VERSION_MALFORMED` |
+| newer major | rejected — `SCHEMA_VERSION_UNSUPPORTED` |
+| older, same major | migrated forward, then loaded in strict mode |
+| equal | loaded in strict mode |
+| newer minor | loaded in **tolerant** mode, warning `SCHEMA_VERSION_NEWER_MINOR` |
 
-Loading rules:
+**Strict mode** applies the schema as written; an unknown field is an error.
 
-* a circuit with an **older compatible** version is migrated forward on load
-* a circuit with a **newer minor** version loads, with unknown fields preserved
-  and a warning surfaced
-* a circuit with a **newer major** version is rejected with an explicit error
+**Tolerant mode** differs in exactly one way: unknown *fields* are removed from the
+document, retained separately, and reported as a warning. It does **not** tolerate
+unknown *content* — a gate name or operation kind this build does not know is an
+error even there, reported as `UNKNOWN_GATE_NAME` or `UNKNOWN_OPERATION_KIND`. An
+unknown field is inert; an unknown operation is not.
+
+Tolerance is gated on the version claim deliberately. A document declaring *this*
+version with an unknown field is a typo or a bug, and reporting it is correct.
 
 Migrations are one-way, explicit, and individually tested. Silent coercion is not
 acceptable — see the error handling rules in `CLAUDE.md`.

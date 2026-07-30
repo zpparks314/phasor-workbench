@@ -309,15 +309,19 @@ deferring them means writing the second implementation blind.
 
 ### Known Issues
 
-* **Strict schema versus the forward-compatibility policy.** The schema sets
-  `additionalProperties: false`, so a circuit written by a newer *minor* version
-  is rejected — but the versioning rules in
-  [CircuitModel.md](CircuitModel.md) say it should load with unknown fields
-  preserved and a warning surfaced. These are reconcilable: the schema defines
-  what a circuit of *its own* version looks like, and the loader inspects
-  `schemaVersion` first and applies the schema strictly only for an exact
-  match. That loader is specified and unwritten, and the interaction should be
-  settled before it is built rather than discovered afterwards.
+* ~~**Strict schema versus the forward-compatibility policy.**~~ **Resolved in
+  design 2026-07-30** by [ADR-0006](decisions/ADR0006_VersionCompatibility.md).
+  The tension was never real: `schemaVersion` is a top-level string, so the loader
+  reads and compares it *before* handing anything to a validator, and strictness
+  never has to relax. Settling it did surface a real problem — the versioning
+  table classified gate and operation-kind additions as minor while implying an
+  older build could still load them, which is false. The table now states the
+  version bump and the loadability separately. **The loader itself is still
+  unwritten.**
+* **`Metadata` silently discarded unknown keys** — the one object in the schema
+  without `additionalProperties: false`, so Pydantic dropped them without an
+  error, contradicting both the round-trip rule and `CLAUDE.md`. **Fixed
+  2026-07-30** under ADR-0006.
 * `register` generates as `register_` in Python, aliased back to `register` on
   the wire. Cosmetic, and confined to the Python API.
 

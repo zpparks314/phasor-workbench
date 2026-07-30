@@ -153,6 +153,9 @@ class Metadata(BaseModel):
     Descriptive only. If the simulator would behave differently based on a field here, that field belongs in the model proper.
     """
 
+    model_config = ConfigDict(
+        extra="forbid",
+    )
     description: str | None = None
     author: str | None = None
     created_at: Annotated[AwareDatetime | None, Field(alias="createdAt")] = None

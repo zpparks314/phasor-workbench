@@ -37,6 +37,43 @@ class ViolationCode(StrEnum):
     PARAMETER_NOT_FINITE = "PARAMETER_NOT_FINITE"
     OPERATION_AFTER_MEASUREMENT = "OPERATION_AFTER_MEASUREMENT"
     SCHEMA_VERSION_NEWER_MINOR = "SCHEMA_VERSION_NEWER_MINOR"
+    SCHEMA_VERSION_MALFORMED = "SCHEMA_VERSION_MALFORMED"
+    SCHEMA_VERSION_UNSUPPORTED = "SCHEMA_VERSION_UNSUPPORTED"
+    UNKNOWN_GATE_NAME = "UNKNOWN_GATE_NAME"
+    UNKNOWN_OPERATION_KIND = "UNKNOWN_OPERATION_KIND"
+
+
+class ViolationPhase(StrEnum):
+    """The stage that produces a code. See ADR-0006."""
+
+    SHAPE = "shape"
+    SEMANTIC = "semantic"
+    LOAD = "load"
+
+
+#: Each consumer selects the codes it owns from here, not from a hardcoded list.
+VIOLATION_PHASES: Final[Mapping[ViolationCode, ViolationPhase]] = MappingProxyType(
+    {
+        ViolationCode.SHAPE_INVALID: ViolationPhase.SHAPE,
+        ViolationCode.DUPLICATE_IDENTIFIER: ViolationPhase.SEMANTIC,
+        ViolationCode.DUPLICATE_QUBIT_INDEX: ViolationPhase.SEMANTIC,
+        ViolationCode.QUBIT_INDEX_GAP: ViolationPhase.SEMANTIC,
+        ViolationCode.UNKNOWN_QUBIT_REFERENCE: ViolationPhase.SEMANTIC,
+        ViolationCode.UNKNOWN_REGISTER_REFERENCE: ViolationPhase.SEMANTIC,
+        ViolationCode.CLASSICAL_BIT_OUT_OF_RANGE: ViolationPhase.SEMANTIC,
+        ViolationCode.GATE_ARITY_MISMATCH: ViolationPhase.SEMANTIC,
+        ViolationCode.QUBIT_REUSED_IN_OPERATION: ViolationPhase.SEMANTIC,
+        ViolationCode.PARAMETER_MISSING: ViolationPhase.SEMANTIC,
+        ViolationCode.PARAMETER_UNKNOWN: ViolationPhase.SEMANTIC,
+        ViolationCode.PARAMETER_NOT_FINITE: ViolationPhase.SEMANTIC,
+        ViolationCode.OPERATION_AFTER_MEASUREMENT: ViolationPhase.SEMANTIC,
+        ViolationCode.SCHEMA_VERSION_NEWER_MINOR: ViolationPhase.LOAD,
+        ViolationCode.SCHEMA_VERSION_MALFORMED: ViolationPhase.LOAD,
+        ViolationCode.SCHEMA_VERSION_UNSUPPORTED: ViolationPhase.LOAD,
+        ViolationCode.UNKNOWN_GATE_NAME: ViolationPhase.LOAD,
+        ViolationCode.UNKNOWN_OPERATION_KIND: ViolationPhase.LOAD,
+    }
+)
 
 
 WARNING_CODES: Final[frozenset[ViolationCode]] = frozenset(

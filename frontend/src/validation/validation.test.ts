@@ -17,7 +17,11 @@ import process from 'node:process';
 import { describe, expect, it } from 'vitest';
 
 import type { Circuit } from '../model/circuit';
-import { VIOLATION_CODES, WARNING_CODES } from '../model/spec';
+import {
+  VIOLATION_CODES,
+  VIOLATION_PHASES,
+  WARNING_CODES,
+} from '../model/spec';
 import { validateCircuit } from './index';
 
 // Resolved from the working directory rather than `import.meta.url`, which is
@@ -65,10 +69,14 @@ function declaredCodes(path: string): string[] {
 const VALID = fixturePaths('valid');
 const INVALID = fixturePaths('invalid', 'semantic');
 
-// SHAPE_INVALID belongs to the parse boundary, which this side does not have,
-// and warnings come from the version-aware loader, which is not written yet.
+// Selected from the spec's `phase` field rather than by excluding codes by name.
+// Shape codes belong to the parse boundary, which this side does not have, and
+// load codes to the version-aware loader, which is backend-only in Milestone 2
+// (ADR-0006 section 5). Warnings are excluded because this test asserts a fixture
+// is *rejected*, which a warning does not do.
 const SEMANTIC_CODES = VIOLATION_CODES.filter(
-  (code) => code !== 'SHAPE_INVALID' && !WARNING_CODES.includes(code),
+  (code) =>
+    VIOLATION_PHASES[code] === 'semantic' && !WARNING_CODES.includes(code),
 );
 
 const name = (path: string): string => path.replace(/^.*[\\/]/, '');
