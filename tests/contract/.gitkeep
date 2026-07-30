@@ -1,3 +1,9 @@
-API conformance and shared-model parity tests.
+API conformance tests: recorded frontend mocks validated against the backend's
+live OpenAPI schema.
 
-Empty until Milestone 2. See ../README.md.
+Empty until Milestone 4, when endpoints exist.
+
+Shared-model parity was originally planned here and deliberately does not live
+here. Each fixture in shared/fixtures/ declares its own expected outcome, so each
+project's suite asserts against the same artifact and agreement follows
+transitively -- no cross-language runner, and no new CI job. See ../README.md.

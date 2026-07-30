@@ -225,8 +225,8 @@ Ask for clarification instead of making assumptions.
 
 # Current State
 
-**Milestone 1 (Foundation) is complete** as of 2026-07-28. **Milestone 2 —
-Circuit Model — is the active milestone.**
+**Milestone 1 (Foundation) closed 2026-07-28. Milestone 2 (Circuit Model) closed
+2026-07-30. Milestone 3 — Circuit Editor MVP — is the active milestone.**
 
 Both projects are scaffolded and verified end to end: the backend installs and
 serves, the frontend builds, and the two communicate. CI runs both projects on
@@ -234,55 +234,66 @@ every push and pull request, `main` is protected, the project is licensed under
 Apache 2.0, and `docker compose up --build` runs the whole stack with hot
 reload on both sides.
 
-The only endpoint is still `GET /api/v1/health`. There is no editor, no
-validation, and no simulation.
+**The only endpoint is still `GET /api/v1/health`.** There is no editor and no
+simulation. Validation and the cycle derivation exist as libraries in both
+projects but nothing calls them yet — the `POST /api/v1/circuits/validate`
+endpoint is deliberately scoped to Milestone 4, along with the `invalid/shape/`
+fixtures that go with it.
 
-**The Circuit Model design is settled as of 2026-07-29.** ADRs
+**The Circuit Model is complete.** ADRs
 [0001](../docs/decisions/ADR0001_CircuitRepresentation.md),
 [0002](../docs/decisions/ADR0002_IdentityModel.md),
 [0003](../docs/decisions/ADR0003_ExecutionSemantics.md),
-[0004](../docs/decisions/ADR0004_SharedModelStrategy.md), and
-[0005](../docs/decisions/ADR0005_SharedSpecification.md) are **Accepted**, and
-`docs/CircuitModel.md` specifies the model. Read all six before writing
-Milestone 2 code.
+[0004](../docs/decisions/ADR0004_SharedModelStrategy.md),
+[0005](../docs/decisions/ADR0005_SharedSpecification.md), and
+[0006](../docs/decisions/ADR0006_VersionCompatibility.md) are **Accepted**, and
+`docs/CircuitModel.md` specifies the model. Read all seven before touching the
+model, either shared source, or anything generated from them.
 
 Resolved — do not reopen without cause: mid-circuit measurement (deferred;
 measurement terminates a qubit, barriers exempt), identifier generation
 (client-side, backend-validated), `classicalRegisters` (required field, may be
-empty, no implicit register), and the shared-model strategy (JSON Schema as
-source of truth).
+empty, no implicit register), the shared-model strategy (JSON Schema as source of
+truth), and version compatibility (declared version selects a mode, content
+decides the outcome).
 
-## Milestone 2 progress
+## What Milestone 2 built
 
-**Done.** There are **two** shared sources of truth, not one.
-`shared/schema/circuit.schema.json` defines a circuit's shape;
-`shared/spec/circuit.spec.json` defines the semantics a schema cannot express —
-gate signatures, violation codes, and the current model version (ADR-0005).
-Bindings for both are generated into `models/circuit.py`, `models/spec.py`,
-`model/circuit.ts`, and `model/spec.ts`, and the **Shared model** CI job fails
-the build if any of the four is stale. ADR-0004's gating task — proving the
-`Operation` discriminated union survives generation on both sides — is confirmed
-on both.
+Read this before extending any of it.
 
-The module layout for the hand-written half is settled: `validation/` and
-`cycles/` exist in both projects and carry the same names, generated directories
-stay generated-only, and Milestone 2 gives the frontend semantic validation only
-(runtime shape validation is deferred to Milestone 3). See ADR-0005.
+**Two shared sources of truth, not one.** `shared/schema/circuit.schema.json`
+defines a circuit's shape; `shared/spec/circuit.spec.json` defines the semantics a
+schema cannot express — gate signatures, violation codes with their `phase`, and
+the current model version. Bindings for both generate into `models/circuit.py`,
+`models/spec.py`, `model/circuit.ts`, and `model/spec.ts`, and the **Shared model**
+CI job fails the build if any of the four is stale.
 
-**Next, in this order.** Validation, then the cycle derivation, then the
-contract fixtures. Write each subsystem's fixtures *alongside* it rather than
-after both languages are done: fixtures are the only thing that detects
-divergence, so deferring them means building the second implementation blind.
+**Four hand-written implementations, held to 51 fixtures.**
 
-**JSON Schema covers shape only.** Roughly a third of the validation rules are
-expressible in it, and the cycle derivation none at all. Everything
-cross-referential, semantic, or order-dependent is hand-written in *both*
-languages and held to agreement by fixtures in `shared/fixtures/`. Do not assume
-generation means validation is solved.
+| Concern | Backend | Frontend |
+|---|---|---|
+| Validation | `validation/` | `src/validation/` |
+| Cycle derivation | `cycles/` | `src/cycles/` |
+| Versioned loading | `serialization/` | *Milestone 3* |
 
-The spec narrows that gap without closing it. Both implementations now read the
-same codes and signatures, so the fixtures test *behavior* rather than also
-policing vocabulary — but the logic itself is still written twice.
+Validation and the derivation agree across both languages on every fixture,
+verified beyond what the fixtures enforce by diffing both implementations' output
+directly — 25 violations with identical codes *and* paths, and 17 decompositions
+with identical cycles, barriers, and depth.
+
+**Parity needs no cross-language test runner.** Each fixture declares its own
+expected outcome, so each project's suite asserts against the same artifact and
+agreement follows transitively. `tests/contract/` is left holding API conformance,
+which needs endpoints — Milestone 4. Do not reintroduce a runner there.
+
+**A fixture's declaration is load-bearing.** Editing one to match new output
+defeats the only mechanism that detects divergence. If a fixture fails, either an
+implementation is wrong or an ADR changed, and the second requires an ADR revision.
+
+**JSON Schema covers shape only**, and the spec narrows that gap without closing
+it. Both implementations read the same codes and signatures, so the fixtures test
+*behaviour* rather than also policing vocabulary — but the logic is still written
+twice, and always will be.
 
 ## Working with the generated bindings
 
@@ -326,13 +337,15 @@ Start any session by reading, in order:
    **decisions awaiting the owner**
 2. `docs/Architecture.md` — the rules
 3. `docs/ProjectStructure.md` — where things go and why
-4. `docs/CircuitModel.md` and ADRs 0001–0005 — required before touching the
+4. `docs/CircuitModel.md` and ADRs 0001–0006 — required before touching the
    model, either shared source, or anything generated from them
+5. `docs/Frontend.md` — required for Milestone 3, and it forbids some obvious
+   shortcuts
 
-`CircuitModel.md` is **Accepted and partially implemented**: its types exist as
-generated bindings, but validation and the cycle derivation do not. Where the
-document describes a rule, assume it is specified and unwritten unless you have
-found the code.
+`CircuitModel.md` is **Accepted and implemented**, with one exception: the
+TypeScript loader is deferred to Milestone 3. Its status table names what is built
+and what is not, and is kept current — trust it over the prose, and over this file
+if the two ever disagree.
 
 `API.md` and `Simulation.md` remain *draft pending review*: they describe
 intended design, not implemented behavior, and their closing "Open Questions"
