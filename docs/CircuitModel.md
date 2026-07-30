@@ -14,7 +14,7 @@
 | Core entities, serialization format, gate naming | Implemented — `shared/schema/circuit.schema.json`, generated into both languages |
 | Gate signatures, violation codes, current version | Implemented — `shared/spec/circuit.spec.json`, generated into both languages |
 | Validation rules | Semantic rules implemented in **both** languages and held to `shared/fixtures/`, which they agree on. Shape rules are enforced by the schema |
-| Cycle derivation (ADR-0003) | Implemented in Python (`backend/.../cycles/`), with 12 fixtures and ADR-0003's properties asserted over every circuit in the repository. **TypeScript not written** |
+| Cycle derivation (ADR-0003) | Implemented in **both** languages, with 12 fixtures and ADR-0003's properties asserted over every circuit in the repository. The two agree on all 17 |
 | Versioning and migration | **Specified, not implemented** |
 
 Where this document describes a rule, assume it is unwritten unless you have
