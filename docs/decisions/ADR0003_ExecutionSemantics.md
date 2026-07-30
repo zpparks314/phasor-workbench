@@ -1,6 +1,7 @@
 # ADR-0003: Execution Semantics and Cycle Derivation
 
-**Status:** Accepted
+**Status:** Accepted. Rationale clarified 2026-07-30 — see *Barrier Semantics*. The
+decision itself is unchanged.
 
 **Date:** 2026-07-29
 
@@ -85,11 +86,27 @@ maximum without advancing it. Every operation on those qubits appearing earlier
 in the list lands in a strictly earlier cycle than every operation on those
 qubits appearing later.
 
-**A barrier occupies no cycle of its own and does not contribute to depth.** A
-barrier is an authoring constraint, not a physical operation; it consumes no time
-on hardware. If barriers contributed to depth, adding an optimization boundary
-would change a circuit's reported depth, which would make depth a property of how
-the circuit was annotated rather than of the circuit.
+**A barrier occupies no cycle of its own.** A barrier is an authoring constraint,
+not a physical operation; it consumes no time on hardware. No cycle exists because
+a barrier is present, and a barrier is never a member of a cycle. Were it placed
+and advanced like any other operation, it would inflate depth with something that
+does not run.
+
+*Clarification, 2026-07-30.* This paragraph originally read "occupies no cycle of
+its own **and does not contribute to depth**", and justified that by saying
+otherwise "adding an optimization boundary would change a circuit's reported
+depth". Read as a claim that adding a barrier can never change depth, that is
+false, and implementing the derivation produced the counterexample: a barrier
+levelling an *unequal* frontier delays every later operation on those qubits, and
+the delay is visible in the depth. That is the intended behaviour — a barrier
+incapable of changing depth would be incapable of constraining anything, which is
+its whole purpose. What the algorithm guarantees is the narrower statement above:
+no cycle is created for the barrier itself. Property 7 below was always precise
+about the rest — depth is a property of the circuit rather than of its
+serialization, and a barrier is part of the circuit. See
+`shared/fixtures/decomposition/barrier_levels_unequal_frontiers.json`, which has
+depth 2 without its barrier and 3 with it. **No decision changes here; only the
+reasoning is corrected.**
 
 A barrier is reported as sitting *before* cycle `beforeCycle`, which is what a
 renderer needs in order to draw it on the boundary between two columns. A barrier
