@@ -189,10 +189,11 @@ settled by ADRs [0001](decisions/ADR0001_CircuitRepresentation.md),
 * [x] Measurement
 * [x] Barrier
 * [ ] Serialization
-* [ ] Validation — backend done, frontend next
+* [x] Validation — both languages, agreeing on the shared fixtures
 * [ ] Cycle derivation
 * [ ] Unit tests
-* [ ] Cross-language contract fixtures — `valid/` and `invalid/semantic/` done
+* [ ] Cross-language contract fixtures — `valid/` and `invalid/semantic/` done;
+  `decomposition/` lands with the derivation
 
 A checked entity means it is **defined in the schema and generated into both
 languages**. It does not mean the entity behaves correctly: nothing validates a
@@ -239,21 +240,28 @@ the frontend **semantic validation only**. Runtime shape validation is deferred 
 Milestone 3, when the frontend first reads a circuit it did not build — see
 ADR-0005 section 6.
 
-**Backend semantic validation is done**, with 25 fixtures in
+**Semantic validation is done in both languages**, with 25 fixtures in
 `shared/fixtures/valid/` and `shared/fixtures/invalid/semantic/`. All twelve
-semantic violation codes have fixture coverage, enforced by a test that fails if
-a code is added without one. `validate_circuit` takes an already-parsed
-`Circuit` and reports every violation, each with a code from the generated spec
-and a document path in the format `API.md` specifies.
+semantic violation codes have fixture coverage, enforced in each suite by a test
+that fails if a code is added without one. `validate_circuit` /
+`validateCircuit` take an already-parsed `Circuit` and report every violation,
+each with a code from the generated spec and a document path in the format
+`API.md` specifies.
+
+**The two agree, and it was checked rather than assumed.** Across all 20 invalid
+fixtures the implementations produce the same 25 violations with the same codes
+*and* the same paths. The fixtures only enforce codes, so path agreement was
+verified by diffing both implementations' output directly.
 
 Two consequences worth carrying forward. Shape rejection is the parse boundary's
 job, so `shared/fixtures/invalid/shape/` stays empty until the endpoint that maps
 a parse failure into the error envelope exists. And parity needs no
 cross-language runner — see the table entry above and `tests/README.md`.
 
-**Frontend validation is next**, reading the same fixtures. It is the first real
-test of whether the fixture format carries a contract between two languages
-rather than merely documenting one.
+**The cycle derivation is next**, with the `decomposition/` fixtures alongside
+it. Validation proved the fixture format carries a contract between two
+languages; the derivation is the harder case, because its expected output is a
+structure rather than a list of codes.
 
 Three findings from that work are worth not rediscovering:
 

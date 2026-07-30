@@ -88,6 +88,11 @@ sit here rather than inside `model/` or `editor/`.
 
 ## Validation Scope
 
+**Implemented.** `validateCircuit(circuit)` returns every violation, each with a
+code from `model/spec.ts` and a document path. It mirrors the Python
+implementation module for module and is held to it by the fixtures in
+`shared/fixtures/`, read directly by `src/validation/validation.test.ts`.
+
 The frontend validates for fast editor feedback, and in Milestone 2 that means
 **semantic validation only**. There is no runtime shape validator: TypeScript
 types do not exist at runtime, the editor builds circuits through its own code so

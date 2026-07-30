@@ -9,8 +9,9 @@ one behavior.
 
 **Status:** both sources of truth exist and bindings generate from them.
 `fixtures/valid/` and `fixtures/invalid/semantic/` are populated and enforced from
-the backend suite; `fixtures/invalid/shape/` and `fixtures/decomposition/` are
-still empty, landing with the validation endpoint and the cycle derivation.
+**both** suites, which agree on every case; `fixtures/invalid/shape/` and
+`fixtures/decomposition/` are still empty, landing with the validation endpoint
+and the cycle derivation.
 Strategy:
 [ADR-0004](../docs/decisions/ADR0004_SharedModelStrategy.md) and
 [ADR-0005](../docs/decisions/ADR0005_SharedSpecification.md).
