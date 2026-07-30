@@ -1,0 +1,34 @@
+{
+  "description": "A newer patch is treated like a newer minor: still ahead of this build, so still tolerant.",
+  "document": {
+    "schemaVersion": "0.1.1",
+    "id": "circ_1",
+    "qubits": [
+      {
+        "id": "q_0",
+        "index": 0
+      }
+    ],
+    "classicalRegisters": [],
+    "operations": [
+      {
+        "id": "op_0",
+        "kind": "gate",
+        "name": "h",
+        "targets": [
+          "q_0"
+        ],
+        "controls": [],
+        "parameters": {}
+      }
+    ],
+    "flavor": "vanilla"
+  },
+  "outcome": "loaded",
+  "violations": [
+    "SCHEMA_VERSION_NEWER_MINOR"
+  ],
+  "preserved": [
+    "flavor"
+  ]
+}

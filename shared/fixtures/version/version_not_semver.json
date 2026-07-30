@@ -1,0 +1,30 @@
+{
+  "description": "A version that is not three dot-separated numbers.",
+  "document": {
+    "schemaVersion": "1",
+    "id": "circ_1",
+    "qubits": [
+      {
+        "id": "q_0",
+        "index": 0
+      }
+    ],
+    "classicalRegisters": [],
+    "operations": [
+      {
+        "id": "op_0",
+        "kind": "gate",
+        "name": "h",
+        "targets": [
+          "q_0"
+        ],
+        "controls": [],
+        "parameters": {}
+      }
+    ]
+  },
+  "outcome": "refused",
+  "violations": [
+    "SCHEMA_VERSION_MALFORMED"
+  ]
+}

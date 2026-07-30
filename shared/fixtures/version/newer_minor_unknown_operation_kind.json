@@ -1,0 +1,27 @@
+{
+  "description": "Stricter than the gate case: the cycle derivation extracts resources per kind, so an unknown kind leaves scheduling -- and therefore depth -- undefined.",
+  "document": {
+    "schemaVersion": "0.2.0",
+    "id": "circ_1",
+    "qubits": [
+      {
+        "id": "q_0",
+        "index": 0
+      }
+    ],
+    "classicalRegisters": [],
+    "operations": [
+      {
+        "id": "op_0",
+        "kind": "delay",
+        "targets": [
+          "q_0"
+        ]
+      }
+    ]
+  },
+  "outcome": "refused",
+  "violations": [
+    "UNKNOWN_OPERATION_KIND"
+  ]
+}

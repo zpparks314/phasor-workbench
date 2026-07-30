@@ -115,6 +115,8 @@ Frontend
 Backend
 ├── API
 ├── Validation
+├── Cycles
+├── Serialization
 ├── Simulation
 ├── Importers
 ├── Exporters
@@ -136,7 +138,9 @@ Avoid cross-module implementation dependencies.
 **Nothing under Shared executes.** It holds the schema, the specification data
 (gate signatures, violation codes, the current model version), and the fixtures
 both projects test against. Validation *rules* are specified there as data;
-validation itself is implemented in each project. See ADR-0004 and ADR-0005.
+validation itself is implemented in each project. Likewise Shared defines the
+serialization *format* while the code that reads a document across versions lives
+in each project. See ADR-0004, ADR-0005, and ADR-0006.
 
 ---
 

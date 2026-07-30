@@ -110,8 +110,9 @@ rather than also policing vocabulary. What remains hand-written is the logic.
 * `invalid/` — circuits that must be rejected, each paired with the
   violation codes it should produce, drawn from `spec/circuit.spec.json`
 * `version/` — documents paired with a load outcome, per ADR-0006. Unlike the
-  others these are not all valid circuits, and some declare versions that do not
-  exist. Empty until the loader lands
+  others these are not all valid circuits: one is a JSON array, and several
+  declare versions that have never existed. They carry a `document` key rather
+  than a `circuit` key for exactly that reason
 * `decomposition/` — circuits paired with their expected cycle decomposition,
   covering the cases enumerated in ADR-0003
 

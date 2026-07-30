@@ -1,0 +1,8 @@
+{
+  "description": "A JSON array where a circuit should be. There is no schemaVersion to read, so this is a shape failure rather than a version one.",
+  "document": [],
+  "outcome": "refused",
+  "violations": [
+    "SHAPE_INVALID"
+  ]
+}

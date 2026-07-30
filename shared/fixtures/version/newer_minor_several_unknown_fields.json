@@ -1,0 +1,38 @@
+{
+  "description": "Every unknown field is preserved, not just the first.",
+  "document": {
+    "schemaVersion": "0.2.0",
+    "id": "circ_1",
+    "qubits": [
+      {
+        "id": "q_0",
+        "index": 0,
+        "colour": "blue"
+      }
+    ],
+    "classicalRegisters": [],
+    "operations": [
+      {
+        "id": "op_0",
+        "kind": "gate",
+        "name": "h",
+        "targets": [
+          "q_0"
+        ],
+        "controls": [],
+        "parameters": {}
+      }
+    ],
+    "flavor": "vanilla",
+    "tempo": 120
+  },
+  "outcome": "loaded",
+  "violations": [
+    "SCHEMA_VERSION_NEWER_MINOR"
+  ],
+  "preserved": [
+    "flavor",
+    "qubits[0].colour",
+    "tempo"
+  ]
+}

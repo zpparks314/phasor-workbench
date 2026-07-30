@@ -1,0 +1,31 @@
+{
+  "description": "The same unknown field that newer_minor_unknown_field preserves, on a document claiming this build's own version. Refused, because tolerance is a response to a claim about provenance rather than general looseness -- here it is a typo, not a newer writer.",
+  "document": {
+    "schemaVersion": "0.1.0",
+    "id": "circ_1",
+    "qubits": [
+      {
+        "id": "q_0",
+        "index": 0
+      }
+    ],
+    "classicalRegisters": [],
+    "operations": [
+      {
+        "id": "op_0",
+        "kind": "gate",
+        "name": "h",
+        "targets": [
+          "q_0"
+        ],
+        "controls": [],
+        "parameters": {}
+      }
+    ],
+    "flavor": "vanilla"
+  },
+  "outcome": "refused",
+  "violations": [
+    "SHAPE_INVALID"
+  ]
+}
