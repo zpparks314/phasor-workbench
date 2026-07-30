@@ -141,6 +141,7 @@ they affect begins.
 | Are identifiers client-generated or backend-assigned? | Milestone 2 | **Resolved 2026-07-29** — client-generated, backend-validated. Forced by offline operation and local save |
 | Interpreter for the `simulation` extra (Qiskit lacks 3.14 wheels) | Milestone 4 | **Partly answered.** The Docker environment pins 3.13, so simulation work happens there. Whether native 3.14 must also be supported is still open |
 | Do `invalid/` fixtures assert `path` as well as `code`? | Milestone 2 fixtures | **Resolved 2026-07-30** — codes only. Fixtures compare sorted code lists; paths are asserted in each project's own unit tests, where a format difference is a local bug rather than a contract break |
+| What `schemaVersion` does an *edited* newer-minor circuit declare on save? | Milestone 3 | **Open.** Round-tripping preserves the declared version, which is right for read-then-write. Editing is different: the document still carries preserved fields this build does not understand, so claiming our own version would be a lie, and keeping theirs claims features we did not write. Surfaced by the loader; ADR-0006 does not address it |
 | Which CI job runs `tests/contract/`? | Milestone 4 | **Moot for Milestone 2.** Each fixture declares its own expectation, so each project's suite asserts against the same artifact and parity follows transitively — no cross-language runner and no new CI job. `tests/contract/` is left holding API conformance, which needs endpoints. See `tests/README.md` |
 
 Also resolved on 2026-07-29, by accepted ADR: the canonical circuit
@@ -188,7 +189,7 @@ settled by ADRs [0001](decisions/ADR0001_CircuitRepresentation.md),
 * [x] Classical Register
 * [x] Measurement
 * [x] Barrier
-* [ ] Serialization
+* [x] Serialization — versioned loader, backend; frontend deferred to Milestone 3
 * [x] Validation — both languages, agreeing on the shared fixtures
 * [x] Cycle derivation — both languages, agreeing on the shared fixtures
 * [x] Unit tests — 190 backend, 168 frontend
@@ -280,10 +281,24 @@ decomposition fixtures plus the 5 in `valid/`. That second group matters: those
 have no declared decomposition, so a direct diff of both implementations' output
 is the only thing checking they agree there.
 
-**Remaining in Milestone 2:** serialization and the versioned loader. That loader
-is the piece that reconciles the schema's `additionalProperties: false` with the
-forward-compatibility policy, and it is the last unwritten item under *Known
-Issues* below.
+**The versioned loader is done in Python**, implementing
+[ADR-0006](decisions/ADR0006_VersionCompatibility.md), with 14 fixtures in
+`shared/fixtures/version/` covering all five load-phase codes. The declared
+version selects a mode and the content decides the outcome: unknown *fields* on a
+newer-minor document are stripped, preserved with their document paths, and warned
+about; an unknown gate or operation kind is refused with its own code.
+
+Two details worth carrying forward. **Unknown-ness is decided by Pydantic**, not
+by a second description of the schema — parsing reports every `extra_forbidden`
+error with its exact location, so the thing that rejects unknown fields is also
+the authority on what they are, and there is no list to drift. And the **migration
+registry ships empty**, since `0.1.0` is the first version; its shape is exercised
+by synthetic migrations in the tests, including one that fails to advance the
+version, which would otherwise loop forever.
+
+**Remaining in Milestone 2:** nothing substantive. `invalid/shape/` fixtures
+belong to the validation endpoint rather than the loader, and the TypeScript
+loader is deferred to Milestone 3 with the local-save requirement in hand.
 
 Three findings from that work are worth not rediscovering:
 

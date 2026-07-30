@@ -1,0 +1,30 @@
+{
+  "description": "An older version with no migration registered. Refused rather than read hopefully: migrations are explicit by design and silent coercion is not acceptable. The registry is empty because 0.1.0 is the first version.",
+  "document": {
+    "schemaVersion": "0.0.9",
+    "id": "circ_1",
+    "qubits": [
+      {
+        "id": "q_0",
+        "index": 0
+      }
+    ],
+    "classicalRegisters": [],
+    "operations": [
+      {
+        "id": "op_0",
+        "kind": "gate",
+        "name": "h",
+        "targets": [
+          "q_0"
+        ],
+        "controls": [],
+        "parameters": {}
+      }
+    ]
+  },
+  "outcome": "refused",
+  "violations": [
+    "SCHEMA_VERSION_UNSUPPORTED"
+  ]
+}

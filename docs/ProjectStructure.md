@@ -125,6 +125,7 @@ backend/
 │   ├── models/          Circuit types, spec constants  (GENERATED)
 │   ├── validation/      Circuit validation       (Milestone 2)
 │   ├── cycles/          Cycle derivation         (Milestone 2)
+│   ├── serialization/   Versioned load and dump  (Milestone 2)
 │   ├── simulation/
 │   │   └── backends/    Simulator adapters       (Milestone 4)
 │   ├── analysis/        Gate counts, depth       (Milestone 4)
@@ -153,9 +154,17 @@ both sides:
 |---|---|---|
 | Validation | `validation/` | `src/validation/` |
 | Cycle derivation | `cycles/` | `src/cycles/` |
+| Versioned loading | `serialization/` | *deferred to Milestone 3* |
 
 Entry points match too, under each language's naming convention:
 `validate_circuit` / `validateCircuit`, `derive_cycles` / `deriveCycles`.
+
+`serialization/` is deliberately backend-only for now. A frontend loader reads a
+circuit the frontend did not build, which is the runtime shape validation
+[ADR-0005](decisions/ADR0005_SharedSpecification.md) section 6 deferred to
+Milestone 3's local save — the loader is what makes that question come due. The
+backend needs it regardless, because it cannot trust its input. See
+[ADR-0006](decisions/ADR0006_VersionCompatibility.md) section 5.
 
 The symmetry is not tidiness. These four artifacts must agree permanently, the
 fixtures in `shared/fixtures/` are what detect a disagreement, and mirrored names

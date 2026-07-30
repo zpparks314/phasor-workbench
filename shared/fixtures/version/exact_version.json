@@ -1,0 +1,28 @@
+{
+  "description": "The version this build reads. Loads strictly, with nothing to warn about.",
+  "document": {
+    "schemaVersion": "0.1.0",
+    "id": "circ_1",
+    "qubits": [
+      {
+        "id": "q_0",
+        "index": 0
+      }
+    ],
+    "classicalRegisters": [],
+    "operations": [
+      {
+        "id": "op_0",
+        "kind": "gate",
+        "name": "h",
+        "targets": [
+          "q_0"
+        ],
+        "controls": [],
+        "parameters": {}
+      }
+    ]
+  },
+  "outcome": "loaded",
+  "violations": []
+}
