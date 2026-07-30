@@ -1,0 +1,103 @@
+{
+  "description": "The worked decomposition printed in docs/CircuitModel.md. The barrier here is inert -- the frontier was already level at cycle 2 -- which is why the document says depth is 3 with or without it.",
+  "circuit": {
+    "schemaVersion": "0.1.0",
+    "id": "circ_1",
+    "name": "Bell State",
+    "qubits": [
+      {
+        "id": "q_0",
+        "index": 0
+      },
+      {
+        "id": "q_1",
+        "index": 1
+      }
+    ],
+    "classicalRegisters": [
+      {
+        "id": "c_0",
+        "size": 2
+      }
+    ],
+    "operations": [
+      {
+        "id": "op_0",
+        "kind": "gate",
+        "name": "h",
+        "targets": [
+          "q_0"
+        ],
+        "controls": [],
+        "parameters": {}
+      },
+      {
+        "id": "op_1",
+        "kind": "gate",
+        "name": "cx",
+        "targets": [
+          "q_1"
+        ],
+        "controls": [
+          "q_0"
+        ],
+        "parameters": {}
+      },
+      {
+        "id": "op_2",
+        "kind": "barrier",
+        "targets": [
+          "q_0",
+          "q_1"
+        ]
+      },
+      {
+        "id": "op_3",
+        "kind": "measurement",
+        "targets": [
+          "q_0"
+        ],
+        "classicalTarget": {
+          "register": "c_0",
+          "bit": 0
+        }
+      },
+      {
+        "id": "op_4",
+        "kind": "measurement",
+        "targets": [
+          "q_1"
+        ],
+        "classicalTarget": {
+          "register": "c_0",
+          "bit": 1
+        }
+      }
+    ]
+  },
+  "decomposition": {
+    "cycles": [
+      [
+        "op_0"
+      ],
+      [
+        "op_1"
+      ],
+      [
+        "op_3",
+        "op_4"
+      ]
+    ],
+    "barriers": [
+      {
+        "operationId": "op_2",
+        "beforeCycle": 2,
+        "qubits": [
+          "q_0",
+          "q_1"
+        ]
+      }
+    ],
+    "depth": 3
+  }
+}

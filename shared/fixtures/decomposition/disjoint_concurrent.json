@@ -1,0 +1,50 @@
+{
+  "description": "Two operations sharing no resource occupy the same cycle.",
+  "circuit": {
+    "schemaVersion": "0.1.0",
+    "id": "circ_1",
+    "qubits": [
+      {
+        "id": "q_0",
+        "index": 0
+      },
+      {
+        "id": "q_1",
+        "index": 1
+      }
+    ],
+    "classicalRegisters": [],
+    "operations": [
+      {
+        "id": "op_0",
+        "kind": "gate",
+        "name": "h",
+        "targets": [
+          "q_0"
+        ],
+        "controls": [],
+        "parameters": {}
+      },
+      {
+        "id": "op_1",
+        "kind": "gate",
+        "name": "h",
+        "targets": [
+          "q_1"
+        ],
+        "controls": [],
+        "parameters": {}
+      }
+    ]
+  },
+  "decomposition": {
+    "cycles": [
+      [
+        "op_0",
+        "op_1"
+      ]
+    ],
+    "barriers": [],
+    "depth": 1
+  }
+}

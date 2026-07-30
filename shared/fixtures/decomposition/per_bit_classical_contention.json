@@ -1,0 +1,75 @@
+{
+  "description": "Two measurements into different bits of one register are concurrent; a third writing to an already-used bit is pushed to the next cycle. The third qubit is free, so only the classical bit can be forcing this.",
+  "circuit": {
+    "schemaVersion": "0.1.0",
+    "id": "circ_1",
+    "qubits": [
+      {
+        "id": "q_0",
+        "index": 0
+      },
+      {
+        "id": "q_1",
+        "index": 1
+      },
+      {
+        "id": "q_2",
+        "index": 2
+      }
+    ],
+    "classicalRegisters": [
+      {
+        "id": "c_0",
+        "size": 2
+      }
+    ],
+    "operations": [
+      {
+        "id": "op_0",
+        "kind": "measurement",
+        "targets": [
+          "q_0"
+        ],
+        "classicalTarget": {
+          "register": "c_0",
+          "bit": 0
+        }
+      },
+      {
+        "id": "op_1",
+        "kind": "measurement",
+        "targets": [
+          "q_1"
+        ],
+        "classicalTarget": {
+          "register": "c_0",
+          "bit": 1
+        }
+      },
+      {
+        "id": "op_2",
+        "kind": "measurement",
+        "targets": [
+          "q_2"
+        ],
+        "classicalTarget": {
+          "register": "c_0",
+          "bit": 0
+        }
+      }
+    ]
+  },
+  "decomposition": {
+    "cycles": [
+      [
+        "op_0",
+        "op_1"
+      ],
+      [
+        "op_2"
+      ]
+    ],
+    "barriers": [],
+    "depth": 2
+  }
+}

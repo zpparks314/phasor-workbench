@@ -258,10 +258,24 @@ job, so `shared/fixtures/invalid/shape/` stays empty until the endpoint that map
 a parse failure into the error envelope exists. And parity needs no
 cross-language runner — see the table entry above and `tests/README.md`.
 
-**The cycle derivation is next**, with the `decomposition/` fixtures alongside
-it. Validation proved the fixture format carries a contract between two
-languages; the derivation is the harder case, because its expected output is a
-structure rather than a list of codes.
+**The cycle derivation is done in Python**, with 12 fixtures in
+`shared/fixtures/decomposition/` covering the nine cases ADR-0003 enumerates.
+Every expected decomposition was hand-computed from the ADR's algorithm rather
+than recorded from the implementation. ADR-0003's guaranteed properties are
+asserted over every circuit in the repository — the decomposition fixtures and
+the `valid/` fixtures alike, since the latter are valid circuits and therefore
+free extra inputs.
+
+Building those fixtures corrected a claim this document had been making: a
+barrier contributes no cycle *of its own*, but a barrier levelling an unequal
+frontier delays later operations and **can** raise depth. The previous wording —
+"annotating a circuit must never change its reported depth" — was false in
+general, and `barrier_levels_unequal_frontiers.json` is the counterexample. ADR-
+0003's normative statement is correct; only the prose around it overstated. See
+the note under the worked decomposition in
+[CircuitModel.md](CircuitModel.md).
+
+**The TypeScript derivation is next.**
 
 Three findings from that work are worth not rediscovering:
 
