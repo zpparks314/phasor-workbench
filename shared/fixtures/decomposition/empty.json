@@ -1,0 +1,15 @@
+{
+  "description": "Nothing to schedule. Depth 0, which is the base case for contiguity.",
+  "circuit": {
+    "schemaVersion": "0.1.0",
+    "id": "circ_1",
+    "qubits": [],
+    "classicalRegisters": [],
+    "operations": []
+  },
+  "decomposition": {
+    "cycles": [],
+    "barriers": [],
+    "depth": 0
+  }
+}

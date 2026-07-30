@@ -14,7 +14,7 @@
 | Core entities, serialization format, gate naming | Implemented — `shared/schema/circuit.schema.json`, generated into both languages |
 | Gate signatures, violation codes, current version | Implemented — `shared/spec/circuit.spec.json`, generated into both languages |
 | Validation rules | Semantic rules implemented in **both** languages and held to `shared/fixtures/`, which they agree on. Shape rules are enforced by the schema |
-| Cycle derivation (ADR-0003) | **Specified, not implemented** |
+| Cycle derivation (ADR-0003) | Implemented in Python (`backend/.../cycles/`), with 12 fixtures and ADR-0003's properties asserted over every circuit in the repository. **TypeScript not written** |
 | Versioning and migration | **Specified, not implemented** |
 
 Where this document describes a rule, assume it is unwritten unless you have
@@ -95,9 +95,14 @@ parameters, no classical target. Operations on those qubits appearing before the
 barrier are guaranteed to occupy strictly earlier cycles than operations on those
 qubits appearing after it.
 
-A barrier is not a physical operation. It consumes no time, occupies no cycle,
-and does not contribute to circuit depth. It is also not a gate, and is excluded
-from gate counts.
+A barrier is not a physical operation. It consumes no time and occupies no cycle,
+so it never adds a cycle of its own to the circuit's depth. It is also not a gate,
+and is excluded from gate counts.
+
+That is narrower than "a barrier cannot change depth," which is false: by
+constraining when later operations may be scheduled, a barrier can push them into
+cycles they would not otherwise occupy. See the note under the worked
+decomposition below.
 
 There is no implicit "all qubits" barrier, because its meaning would silently
 change when a qubit is added to the circuit. An importer reading OpenQASM's bare
@@ -275,8 +280,20 @@ The two measurements share a cycle because they contend for different classical
 bits of `c_0`; contention is tracked per bit, not per register.
 
 The barrier in this example is inert — the frontier was already level at cycle 2
-— and depth is 3 with or without it. That is the intended behavior: annotating a
-circuit must never change its reported depth.
+— and depth is 3 with or without it.
+
+**Inert is not the general case, and the guarantee is narrower than it looks.**
+What holds for every barrier is that it contributes no cycle *of its own*: no
+cycle exists because a barrier is present, and a barrier is never a member of a
+cycle. It does not follow that adding a barrier cannot change depth. A barrier
+levelling an *unequal* frontier delays every later operation on those qubits, and
+that delay is visible in the depth — which is the entire reason barriers exist.
+`shared/fixtures/decomposition/barrier_levels_unequal_frontiers.json` is a worked
+case: depth 2 without the barrier, depth 3 with it.
+
+The property worth relying on is the one ADR-0003 actually proves — depth is a
+function of the circuit, including its barriers, and not of the order in which
+operations happened to be serialized.
 
 ---
 

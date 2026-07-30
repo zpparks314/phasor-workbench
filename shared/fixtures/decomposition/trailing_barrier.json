@@ -1,0 +1,50 @@
+{
+  "description": "A barrier at the end reports beforeCycle == depth, meaning the trailing edge. It still contributes no cycle of its own.",
+  "circuit": {
+    "schemaVersion": "0.1.0",
+    "id": "circ_1",
+    "qubits": [
+      {
+        "id": "q_0",
+        "index": 0
+      }
+    ],
+    "classicalRegisters": [],
+    "operations": [
+      {
+        "id": "op_0",
+        "kind": "gate",
+        "name": "h",
+        "targets": [
+          "q_0"
+        ],
+        "controls": [],
+        "parameters": {}
+      },
+      {
+        "id": "op_1",
+        "kind": "barrier",
+        "targets": [
+          "q_0"
+        ]
+      }
+    ]
+  },
+  "decomposition": {
+    "cycles": [
+      [
+        "op_0"
+      ]
+    ],
+    "barriers": [
+      {
+        "operationId": "op_1",
+        "beforeCycle": 1,
+        "qubits": [
+          "q_0"
+        ]
+      }
+    ],
+    "depth": 1
+  }
+}

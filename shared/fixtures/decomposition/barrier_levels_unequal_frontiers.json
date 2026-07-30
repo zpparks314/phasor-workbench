@@ -1,0 +1,93 @@
+{
+  "description": "q_0 has advanced to cycle 2 and q_1 to cycle 1 when the barrier is reached. It levels both to 2 without consuming a cycle, so the following operation on q_1 lands at cycle 2 instead of the cycle 1 it would otherwise have taken.",
+  "circuit": {
+    "schemaVersion": "0.1.0",
+    "id": "circ_1",
+    "qubits": [
+      {
+        "id": "q_0",
+        "index": 0
+      },
+      {
+        "id": "q_1",
+        "index": 1
+      }
+    ],
+    "classicalRegisters": [],
+    "operations": [
+      {
+        "id": "op_0",
+        "kind": "gate",
+        "name": "h",
+        "targets": [
+          "q_0"
+        ],
+        "controls": [],
+        "parameters": {}
+      },
+      {
+        "id": "op_1",
+        "kind": "gate",
+        "name": "h",
+        "targets": [
+          "q_0"
+        ],
+        "controls": [],
+        "parameters": {}
+      },
+      {
+        "id": "op_2",
+        "kind": "gate",
+        "name": "h",
+        "targets": [
+          "q_1"
+        ],
+        "controls": [],
+        "parameters": {}
+      },
+      {
+        "id": "op_3",
+        "kind": "barrier",
+        "targets": [
+          "q_0",
+          "q_1"
+        ]
+      },
+      {
+        "id": "op_4",
+        "kind": "gate",
+        "name": "h",
+        "targets": [
+          "q_1"
+        ],
+        "controls": [],
+        "parameters": {}
+      }
+    ]
+  },
+  "decomposition": {
+    "cycles": [
+      [
+        "op_0",
+        "op_2"
+      ],
+      [
+        "op_1"
+      ],
+      [
+        "op_4"
+      ]
+    ],
+    "barriers": [
+      {
+        "operationId": "op_3",
+        "beforeCycle": 2,
+        "qubits": [
+          "q_0",
+          "q_1"
+        ]
+      }
+    ],
+    "depth": 3
+  }
+}

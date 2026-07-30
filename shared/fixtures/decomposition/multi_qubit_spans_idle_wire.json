@@ -1,0 +1,56 @@
+{
+  "description": "A two-qubit gate on q_0 and q_2 does not reserve q_1, so an operation on q_1 stays concurrent with it. Resources are the qubits an operation names, not the span it is drawn across.",
+  "circuit": {
+    "schemaVersion": "0.1.0",
+    "id": "circ_1",
+    "qubits": [
+      {
+        "id": "q_0",
+        "index": 0
+      },
+      {
+        "id": "q_1",
+        "index": 1
+      },
+      {
+        "id": "q_2",
+        "index": 2
+      }
+    ],
+    "classicalRegisters": [],
+    "operations": [
+      {
+        "id": "op_0",
+        "kind": "gate",
+        "name": "cx",
+        "targets": [
+          "q_2"
+        ],
+        "controls": [
+          "q_0"
+        ],
+        "parameters": {}
+      },
+      {
+        "id": "op_1",
+        "kind": "gate",
+        "name": "h",
+        "targets": [
+          "q_1"
+        ],
+        "controls": [],
+        "parameters": {}
+      }
+    ]
+  },
+  "decomposition": {
+    "cycles": [
+      [
+        "op_0",
+        "op_1"
+      ]
+    ],
+    "barriers": [],
+    "depth": 1
+  }
+}

@@ -1,0 +1,85 @@
+{
+  "description": "The second barrier over the same qubits computes the same level and changes nothing. Both are still reported, because both are operations an editor can select.",
+  "circuit": {
+    "schemaVersion": "0.1.0",
+    "id": "circ_1",
+    "qubits": [
+      {
+        "id": "q_0",
+        "index": 0
+      },
+      {
+        "id": "q_1",
+        "index": 1
+      }
+    ],
+    "classicalRegisters": [],
+    "operations": [
+      {
+        "id": "op_0",
+        "kind": "gate",
+        "name": "h",
+        "targets": [
+          "q_0"
+        ],
+        "controls": [],
+        "parameters": {}
+      },
+      {
+        "id": "op_1",
+        "kind": "barrier",
+        "targets": [
+          "q_0",
+          "q_1"
+        ]
+      },
+      {
+        "id": "op_2",
+        "kind": "barrier",
+        "targets": [
+          "q_0",
+          "q_1"
+        ]
+      },
+      {
+        "id": "op_3",
+        "kind": "gate",
+        "name": "h",
+        "targets": [
+          "q_1"
+        ],
+        "controls": [],
+        "parameters": {}
+      }
+    ]
+  },
+  "decomposition": {
+    "cycles": [
+      [
+        "op_0"
+      ],
+      [
+        "op_3"
+      ]
+    ],
+    "barriers": [
+      {
+        "operationId": "op_1",
+        "beforeCycle": 1,
+        "qubits": [
+          "q_0",
+          "q_1"
+        ]
+      },
+      {
+        "operationId": "op_2",
+        "beforeCycle": 1,
+        "qubits": [
+          "q_0",
+          "q_1"
+        ]
+      }
+    ],
+    "depth": 2
+  }
+}
