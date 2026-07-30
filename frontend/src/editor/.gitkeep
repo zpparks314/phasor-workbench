@@ -1,7 +1,0 @@
-Circuit editor: wire rendering, gate palette, placement, selection.
-
-Rendering is direct SVG. Gate positions are derived from the Circuit Model
-via deterministic column packing -- see docs/CircuitModel.md. No component
-may store its own copy of gate coordinates.
-
-Empty until Milestone 3.

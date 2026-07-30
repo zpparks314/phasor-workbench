@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { getHealth } from './api/health';
 import { ApiError } from './api/client';
+import { CircuitEditor } from './editor/CircuitEditor';
+import { createDemoCircuit } from './editor/demoCircuit';
 
 type BackendState =
   | { status: 'checking' }
@@ -9,13 +11,18 @@ type BackendState =
   | { status: 'unavailable'; message: string };
 
 /**
- * Foundation shell. Its only job is to prove that the frontend builds and
- * can reach the backend -- Milestone 1's exit criterion.
+ * Application shell.
  *
- * The circuit editor, gate palette, and visualizations arrive in Milestone 3.
+ * The circuit canvas renders here read-only; the palette, placement, and the
+ * three-region layout specified in docs/UI.md arrive with the interaction work.
+ *
+ * The backend check stays because Architecture.md requires the frontend to remain
+ * functional when the backend is down -- and Milestone 3 makes that easy to
+ * demonstrate, since the editor makes no backend calls at all.
  */
 export default function App() {
   const [backend, setBackend] = useState<BackendState>({ status: 'checking' });
+  const circuit = useMemo(() => createDemoCircuit(), []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -39,30 +46,28 @@ export default function App() {
   }, []);
 
   return (
-    <main className="flex min-h-full flex-col items-center justify-center gap-6 bg-surface p-8 text-ink">
-      <header className="text-center">
-        <h1 className="text-3xl font-semibold tracking-tight">
+    <div className="flex min-h-full flex-col bg-surface text-ink">
+      <header className="border-b border-ink-muted/20 px-8 py-4">
+        <h1 className="text-xl font-semibold tracking-tight">
           Phasor Workbench
         </h1>
-        <p className="mt-2 text-ink-muted">
-          Foundation scaffolding. No circuit features are implemented yet.
+        <p className="mt-1 text-sm text-ink-muted">
+          Circuit editor — rendering only. Placement arrives next.
         </p>
       </header>
 
-      <section
-        aria-labelledby="backend-status-heading"
-        className="rounded-lg border border-ink-muted/20 bg-surface-raised px-6 py-4"
-      >
-        <h2 id="backend-status-heading" className="text-sm font-medium">
-          Backend status
-        </h2>
-        <p className="mt-1 text-sm text-ink-muted" role="status">
-          {backend.status === 'checking' && 'Checking…'}
+      <main className="flex-1 p-8">
+        <CircuitEditor initialCircuit={circuit} />
+      </main>
+
+      <footer className="border-t border-ink-muted/20 px-8 py-3">
+        <p className="text-sm text-ink-muted" role="status">
+          {backend.status === 'checking' && 'Checking backend…'}
           {backend.status === 'connected' &&
-            `Connected — API version ${backend.version}`}
-          {backend.status === 'unavailable' && backend.message}
+            `Backend connected — API version ${backend.version}`}
+          {backend.status === 'unavailable' && `Backend: ${backend.message}`}
         </p>
-      </section>
-    </main>
+      </footer>
+    </div>
   );
 }
