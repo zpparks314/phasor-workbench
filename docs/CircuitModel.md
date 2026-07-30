@@ -3,14 +3,16 @@
 **Status:** Accepted, partially implemented. The design is settled by
 [ADR-0001](decisions/ADR0001_CircuitRepresentation.md),
 [ADR-0002](decisions/ADR0002_IdentityModel.md),
-[ADR-0003](decisions/ADR0003_ExecutionSemantics.md), and
-[ADR-0004](decisions/ADR0004_SharedModelStrategy.md).
+[ADR-0003](decisions/ADR0003_ExecutionSemantics.md),
+[ADR-0004](decisions/ADR0004_SharedModelStrategy.md), and
+[ADR-0005](decisions/ADR0005_SharedSpecification.md).
 
 **Target milestone:** Milestone 2 (Circuit Model).
 
 | Section | State |
 |---|---|
 | Core entities, serialization format, gate naming | Implemented — `shared/schema/circuit.schema.json`, generated into both languages |
+| Gate signatures, violation codes, current version | Implemented — `shared/spec/circuit.spec.json`, generated into both languages |
 | Validation rules | **Specified, not implemented** |
 | Cycle derivation (ADR-0003) | **Specified, not implemented** |
 | Versioning and migration | **Specified, not implemented** |
@@ -297,9 +299,18 @@ Initial set:
 | `swap` | 2 | — |
 | `ccx` | 3 | — |
 
-Controlled gates express their control qubits in `controls`, not by encoding
-control count into the gate name. `cx` therefore has one entry in `targets` and
-one in `controls`.
+The `Qubits` column above is a **total**, and it is not sufficient to validate
+against. Controlled gates express their control qubits in `controls` rather than
+encoding control count into the gate name, so `cx` and `swap` both take two
+qubits but do not have the same signature: `cx` is one target and one control,
+`swap` is two targets and no controls.
+
+The machine-readable signatures — targets, controls, and required parameters per
+gate — live in `shared/spec/circuit.spec.json` and are generated into both
+projects. **That file is authoritative.** The table above is the human-readable
+reference, and where the two disagree the table is wrong. Adding a gate means
+editing the schema's `GateName` enum and the spec together; generation fails if
+they diverge. See [ADR-0005](decisions/ADR0005_SharedSpecification.md).
 
 Aligning names with OpenQASM now avoids a translation table later, when import
 and export land in Milestone 5.
@@ -340,9 +351,22 @@ accepting the new output.
 
 # Validation Rules
 
-Validation is defined once in `shared/` and executed on both sides of the API.
-The frontend validates for fast feedback; the backend validates because it cannot
-trust its input.
+Validation is **implemented twice** — once in TypeScript, once in Python — and
+held to this specification by the fixtures in `shared/fixtures/`. The frontend
+validates for fast feedback; the backend validates because it cannot trust its
+input.
+
+What `shared/` holds is the *inputs* to validation, not validation itself:
+`schema/circuit.schema.json` covers shape ([ADR-0004](decisions/ADR0004_SharedModelStrategy.md)),
+and `spec/circuit.spec.json` holds the violation codes and gate signatures both
+implementations must use ([ADR-0005](decisions/ADR0005_SharedSpecification.md)).
+Nothing in `shared/` executes.
+
+Each rule below reports a code from the spec. Every rule the schema itself
+enforces — identifier length, negative qubit index, register size, unknown gate
+name or operation kind, empty barrier targets, and a barrier carrying `controls`,
+`parameters`, or `classicalTarget` — reports the single code `SHAPE_INVALID`,
+carrying the underlying validator's message and path.
 
 A circuit is invalid if any of the following hold:
 
@@ -449,6 +473,7 @@ Recorded so they are not relitigated. Each was open at the start of Milestone 2.
 | Identifiers client- or backend-generated? | Client-generated, backend-validated | This document |
 | May `classicalRegisters` be absent? | Field required, may be empty; no implicit register | This document |
 | How does this become code in two languages? | JSON Schema as source of truth, bindings generated per project | ADR-0004 |
+| Where do violation codes and gate signatures live? | A second shared source, `shared/spec/`, generated into both projects | ADR-0005 |
 
 No decisions affecting this document remain open.
 
@@ -457,3 +482,7 @@ rules above, but every cross-referential, semantic, and order-dependent rule in
 this document is hand-written in both languages, as is the cycle derivation. The
 fixtures in `shared/fixtures/` are what hold the two implementations to this
 specification.
+
+ADR-0005 narrows what those implementations may disagree about. Both read their
+violation codes and gate signatures from generated constants, so the fixtures are
+left to test *behavior* rather than also policing vocabulary.

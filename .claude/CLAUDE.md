@@ -240,9 +240,10 @@ validation, and no simulation.
 **The Circuit Model design is settled as of 2026-07-29.** ADRs
 [0001](../docs/decisions/ADR0001_CircuitRepresentation.md),
 [0002](../docs/decisions/ADR0002_IdentityModel.md),
-[0003](../docs/decisions/ADR0003_ExecutionSemantics.md), and
-[0004](../docs/decisions/ADR0004_SharedModelStrategy.md) are **Accepted**, and
-`docs/CircuitModel.md` specifies the model. Read all five before writing
+[0003](../docs/decisions/ADR0003_ExecutionSemantics.md),
+[0004](../docs/decisions/ADR0004_SharedModelStrategy.md), and
+[0005](../docs/decisions/ADR0005_SharedSpecification.md) are **Accepted**, and
+`docs/CircuitModel.md` specifies the model. Read all six before writing
 Milestone 2 code.
 
 Resolved — do not reopen without cause: mid-circuit measurement (deferred;
@@ -253,11 +254,20 @@ source of truth).
 
 ## Milestone 2 progress
 
-**Done.** `shared/schema/circuit.schema.json` exists and is the source of truth.
-Bindings are generated from it into `backend/src/phasor_workbench/models/circuit.py`
-and `frontend/src/model/circuit.ts`, and a **Shared model** CI job fails the
-build if either is stale. ADR-0004's gating task — proving the `Operation`
-discriminated union survives generation on both sides — is confirmed on both.
+**Done.** There are **two** shared sources of truth, not one.
+`shared/schema/circuit.schema.json` defines a circuit's shape;
+`shared/spec/circuit.spec.json` defines the semantics a schema cannot express —
+gate signatures, violation codes, and the current model version (ADR-0005).
+Bindings for both are generated into `models/circuit.py`, `models/spec.py`,
+`model/circuit.ts`, and `model/spec.ts`, and the **Shared model** CI job fails
+the build if any of the four is stale. ADR-0004's gating task — proving the
+`Operation` discriminated union survives generation on both sides — is confirmed
+on both.
+
+The module layout for the hand-written half is settled: `validation/` and
+`cycles/` exist in both projects and carry the same names, generated directories
+stay generated-only, and Milestone 2 gives the frontend semantic validation only
+(runtime shape validation is deferred to Milestone 3). See ADR-0005.
 
 **Next, in this order.** Validation, then the cycle derivation, then the
 contract fixtures. Write each subsystem's fixtures *alongside* it rather than
@@ -270,11 +280,24 @@ cross-referential, semantic, or order-dependent is hand-written in *both*
 languages and held to agreement by fixtures in `shared/fixtures/`. Do not assume
 generation means validation is solved.
 
+The spec narrows that gap without closing it. Both implementations now read the
+same codes and signatures, so the fixtures test *behavior* rather than also
+policing vocabulary — but the logic itself is still written twice.
+
 ## Working with the generated bindings
 
-**Never hand-edit a generated file.** Change the schema and run
+**Never hand-edit a generated file.** Change the schema or the spec and run
 `python shared/generate_bindings.py`. CI rejects a hand edit, and so does the
 next regeneration.
+
+**Adding a gate touches both shared sources.** The `GateName` enum in the schema
+and the signature in the spec must agree, and generation exits with an error
+naming the difference if they do not. Do not work around that error by editing
+only one file.
+
+**Violation codes come from the spec, never from a string literal.** Both
+validators and every `invalid/` fixture read the same generated constants, which
+is what lets a fixture be written once for two languages.
 
 **Every flag in `generate_bindings.py` is load-bearing and was found
 empirically.** Do not tidy them away. In particular:
@@ -303,8 +326,8 @@ Start any session by reading, in order:
    **decisions awaiting the owner**
 2. `docs/Architecture.md` — the rules
 3. `docs/ProjectStructure.md` — where things go and why
-4. `docs/CircuitModel.md` and ADRs 0001–0004 — required before touching the
-   model, the schema, or anything generated from it
+4. `docs/CircuitModel.md` and ADRs 0001–0005 — required before touching the
+   model, either shared source, or anything generated from them
 
 `CircuitModel.md` is **Accepted and partially implemented**: its types exist as
 generated bindings, but validation and the cycle derivation do not. Where the
@@ -375,9 +398,10 @@ python shared/generate_bindings.py            # regenerate bindings
 python shared/generate_bindings.py --check    # verify not stale -- what CI runs
 ```
 
-Run this after **any** edit to `shared/schema/circuit.schema.json`. The schema
-and its regenerated output belong in the same commit, and `--check` fails the
-build otherwise. Never edit a generated file by hand; see ADR-0004.
+Run this after **any** edit to `shared/schema/circuit.schema.json` or
+`shared/spec/circuit.spec.json`. A source and its regenerated output belong in
+the same commit, and `--check` fails the build otherwise. Never edit a generated
+file by hand; see ADR-0004 and ADR-0005.
 
 Docker, from the repository root:
 

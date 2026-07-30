@@ -66,6 +66,9 @@ library would be appropriate *there*. It should not be adopted for the editor.
 ```text
 frontend/src/
 ├── api/            API client -- the only place that calls fetch
+├── model/          Circuit types and spec constants -- GENERATED
+├── validation/     Circuit validation                  (Milestone 2)
+├── cycles/         Cycle derivation                    (Milestone 2)
 ├── components/     Shared presentational components   (Milestone 3)
 ├── editor/         Circuit editor, SVG rendering       (Milestone 3)
 ├── visualization/  State visualization                 (Milestone 4)
@@ -76,6 +79,27 @@ frontend/src/
 Each directory maps to a module named in Architecture.md's frontend
 breakdown. New concerns get a new directory rather than being absorbed into
 an existing one.
+
+`model/` is generated from `shared/` and never hand-edited — see
+[ADR-0004](decisions/ADR0004_SharedModelStrategy.md). `validation/` and
+`cycles/` mirror backend modules of the same name and must agree with them
+exactly; [ADR-0005](decisions/ADR0005_SharedSpecification.md) explains why they
+sit here rather than inside `model/` or `editor/`.
+
+## Validation Scope
+
+The frontend validates for fast editor feedback, and in Milestone 2 that means
+**semantic validation only**. There is no runtime shape validator: TypeScript
+types do not exist at runtime, the editor builds circuits through its own code so
+they are shape-valid by construction, and the backend validates regardless
+because it cannot trust its input.
+
+That changes the first time the frontend reads a circuit it did not build —
+Milestone 3's local save. Deferred deliberately, per ADR-0005 section 6, so the
+dependency question is answered with that requirement in hand.
+
+Violation codes come from generated constants in `model/spec.ts`. Never
+hand-write a code string.
 
 ---
 

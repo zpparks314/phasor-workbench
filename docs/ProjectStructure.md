@@ -37,7 +37,8 @@ arrows point inward only.
 
 ```text
 shared/
-├── schema/               Canonical JSON Schema -- the source of truth
+├── schema/               Canonical JSON Schema -- the wire format
+├── spec/                 Gate signatures, violation codes, current version
 ├── fixtures/
 │   ├── valid/            Circuits both sides must accept
 │   ├── invalid/          Circuits both sides must reject, with violation codes
@@ -46,11 +47,17 @@ shared/
 └── README.md
 ```
 
+There are **two** sources of truth, and the split is deliberate. `schema/`
+defines a circuit's shape; `spec/` defines the semantics a JSON Schema cannot
+express. Generation fails if the two disagree about the gate set, which is what
+keeps adding a gate a single logical edit. See
+[ADR-0005](decisions/ADR0005_SharedSpecification.md).
+
 Generated bindings live **in the consuming projects**, not here. Neither
 language can import cleanly from a sibling directory outside its package root,
-and forcing it would add packaging complexity to every install path. The schema
-stays the single source; only its output is co-located with its consumers. See
-[ADR-0004](decisions/ADR0004_SharedModelStrategy.md).
+and forcing it would add packaging complexity to every install path. The two
+sources stay authoritative; only their output is co-located with its consumers.
+See [ADR-0004](decisions/ADR0004_SharedModelStrategy.md).
 
 `generate_bindings.py` invokes each project's toolchain as a subprocess. That
 is not an import, so the rule above still holds.
@@ -86,7 +93,9 @@ would imply that project owns the contract.
 frontend/
 ├── src/
 │   ├── api/            The only module permitted to call fetch
-│   ├── model/          Circuit types -- GENERATED, never hand-edited
+│   ├── model/          Circuit types and spec constants -- GENERATED
+│   ├── validation/     Circuit validation                (Milestone 2)
+│   ├── cycles/         Cycle derivation                  (Milestone 2)
 │   ├── components/     Shared presentational components  (Milestone 3)
 │   ├── editor/         Circuit editor, SVG rendering     (Milestone 3)
 │   ├── visualization/  State visualization               (Milestone 4)
@@ -113,8 +122,9 @@ backend/
 │   ├── api/
 │   │   ├── errors.py    The single documented error envelope
 │   │   └── routes/      One module per resource group
-│   ├── models/          Circuit Model types      (GENERATED)
+│   ├── models/          Circuit types, spec constants  (GENERATED)
 │   ├── validation/      Circuit validation       (Milestone 2)
+│   ├── cycles/          Cycle derivation         (Milestone 2)
 │   ├── simulation/
 │   │   └── backends/    Simulator adapters       (Milestone 4)
 │   ├── analysis/        Gate counts, depth       (Milestone 4)
@@ -131,6 +141,29 @@ installed package rather than a copy that happens to be on the path.
 Each subpackage corresponds to a backend module named in Architecture.md.
 They exist while empty so the intended shape is visible, and each carries a
 docstring stating its responsibility and the milestone that fills it.
+
+---
+
+# Mirrored Modules
+
+Two concerns are implemented in both languages, and they carry the same name on
+both sides:
+
+| Concern | Backend | Frontend |
+|---|---|---|
+| Validation | `validation/` | `src/validation/` |
+| Cycle derivation | `cycles/` | `src/cycles/` |
+
+Entry points match too, under each language's naming convention:
+`validate_circuit` / `validateCircuit`, `derive_cycles` / `deriveCycles`.
+
+The symmetry is not tidiness. These four artifacts must agree permanently, the
+fixtures in `shared/fixtures/` are what detect a disagreement, and mirrored names
+are what make the disagreeing half findable by name instead of by search. Decided
+in [ADR-0005](decisions/ADR0005_SharedSpecification.md).
+
+The generated directories — `models/` and `src/model/` — stay generated-only.
+Hand-written code that consumes the model does not live beside it.
 
 ---
 
