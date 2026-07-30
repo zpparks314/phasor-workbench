@@ -1,0 +1,51 @@
+{
+  "description": "Unitary operations and no measurement, so no classical register is declared. There is no implicit default register to fall back on.",
+  "circuit": {
+    "schemaVersion": "0.1.0",
+    "id": "circ_1",
+    "qubits": [
+      {
+        "id": "q_0",
+        "index": 0
+      },
+      {
+        "id": "q_1",
+        "index": 1
+      }
+    ],
+    "classicalRegisters": [],
+    "operations": [
+      {
+        "id": "op_0",
+        "kind": "gate",
+        "name": "h",
+        "targets": [
+          "q_0"
+        ]
+      },
+      {
+        "id": "op_1",
+        "kind": "gate",
+        "name": "rz",
+        "targets": [
+          "q_1"
+        ],
+        "controls": [],
+        "parameters": {
+          "theta": 1.5707963267948966
+        }
+      },
+      {
+        "id": "op_2",
+        "kind": "gate",
+        "name": "cz",
+        "targets": [
+          "q_1"
+        ],
+        "controls": [
+          "q_0"
+        ]
+      }
+    ]
+  }
+}

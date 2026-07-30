@@ -1,0 +1,35 @@
+{
+  "description": "A measurement writes past the end of its register.",
+  "circuit": {
+    "schemaVersion": "0.1.0",
+    "id": "circ_1",
+    "qubits": [
+      {
+        "id": "q_0",
+        "index": 0
+      }
+    ],
+    "classicalRegisters": [
+      {
+        "id": "c_0",
+        "size": 1
+      }
+    ],
+    "operations": [
+      {
+        "id": "op_0",
+        "kind": "measurement",
+        "targets": [
+          "q_0"
+        ],
+        "classicalTarget": {
+          "register": "c_0",
+          "bit": 1
+        }
+      }
+    ]
+  },
+  "violations": [
+    "CLASSICAL_BIT_OUT_OF_RANGE"
+  ]
+}

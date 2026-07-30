@@ -1,0 +1,22 @@
+{
+  "description": "Qubit indices skip 1, so they are not contiguous from 0.",
+  "circuit": {
+    "schemaVersion": "0.1.0",
+    "id": "circ_1",
+    "qubits": [
+      {
+        "id": "q_0",
+        "index": 0
+      },
+      {
+        "id": "q_1",
+        "index": 2
+      }
+    ],
+    "classicalRegisters": [],
+    "operations": []
+  },
+  "violations": [
+    "QUBIT_INDEX_GAP"
+  ]
+}

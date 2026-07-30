@@ -1,0 +1,20 @@
+{
+  "description": "A parameter that is not a finite number. The angle is written as 1e400 rather than Infinity deliberately: Infinity is a Python json extension, not valid JSON, and JavaScript's JSON.parse rejects it -- a fixture using it could never be read by both languages. 1e400 is valid JSON syntax that overflows to infinity in both.",
+  "circuit": {
+    "schemaVersion": "0.1.0",
+    "id": "circ_1",
+    "qubits": [{ "id": "q_0", "index": 0 }],
+    "classicalRegisters": [],
+    "operations": [
+      {
+        "id": "op_0",
+        "kind": "gate",
+        "name": "rx",
+        "targets": ["q_0"],
+        "controls": [],
+        "parameters": { "theta": 1e400 }
+      }
+    ]
+  },
+  "violations": ["PARAMETER_NOT_FINITE"]
+}

@@ -1,0 +1,60 @@
+{
+  "description": "A barrier may span a qubit an earlier measurement already measured. Without this exemption an importer expanding OpenQASM's bare 'barrier;' to every qubit would turn valid input into an invalid circuit.",
+  "circuit": {
+    "schemaVersion": "0.1.0",
+    "id": "circ_1",
+    "qubits": [
+      {
+        "id": "q_0",
+        "index": 0
+      },
+      {
+        "id": "q_1",
+        "index": 1
+      }
+    ],
+    "classicalRegisters": [
+      {
+        "id": "c_0",
+        "size": 1
+      }
+    ],
+    "operations": [
+      {
+        "id": "op_0",
+        "kind": "gate",
+        "name": "h",
+        "targets": [
+          "q_0"
+        ]
+      },
+      {
+        "id": "op_1",
+        "kind": "measurement",
+        "targets": [
+          "q_0"
+        ],
+        "classicalTarget": {
+          "register": "c_0",
+          "bit": 0
+        }
+      },
+      {
+        "id": "op_2",
+        "kind": "barrier",
+        "targets": [
+          "q_0",
+          "q_1"
+        ]
+      },
+      {
+        "id": "op_3",
+        "kind": "gate",
+        "name": "x",
+        "targets": [
+          "q_1"
+        ]
+      }
+    ]
+  }
+}

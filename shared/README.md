@@ -7,9 +7,11 @@ each project, not in this directory; what lives here is the schema, the
 specification data both implementations read, and the fixtures that hold them to
 one behavior.
 
-**Status:** both sources of truth exist and bindings generate from them. Fixtures
-are still empty — they land with validation and the cycle derivation, which are
-the rest of Milestone 2. Strategy:
+**Status:** both sources of truth exist and bindings generate from them.
+`fixtures/valid/` and `fixtures/invalid/semantic/` are populated and enforced from
+the backend suite; `fixtures/invalid/shape/` and `fixtures/decomposition/` are
+still empty, landing with the validation endpoint and the cycle derivation.
+Strategy:
 [ADR-0004](../docs/decisions/ADR0004_SharedModelStrategy.md) and
 [ADR-0005](../docs/decisions/ADR0005_SharedSpecification.md).
 
@@ -118,6 +120,24 @@ See ADR-0005 section 6.
 Shared fixtures are what make "the frontend and backend agree" a testable
 claim rather than an aspiration. They are the *only* thing making it testable
 for validation and derivation, which the schema cannot reach.
+
+Each fixture is one JSON file that **declares its own expectation**:
+
+```json
+{ "description": "why this case exists", "circuit": { }, "violations": ["CODE"] }
+```
+
+That declaration is what removes the need for a cross-language test runner. Both
+suites assert against the same file, so agreement follows transitively without
+either side reading the other's output — see `../tests/README.md`. It also means
+the declaration is load-bearing: **editing one to match new output defeats the
+only mechanism that detects divergence.**
+
+`violations` is compared as a sorted multiset, so a fixture expecting a code
+twice gets it twice, and reordering the rules inside an implementation is not a
+fixture change. Paths are deliberately not asserted here; each project checks its
+own path format in its own unit tests, where a difference is a local bug rather
+than a contract break.
 
 A failing decomposition fixture is never repaired by regenerating it to match
 the new output. Either the implementation is wrong or ADR-0003 has changed, and

@@ -13,7 +13,7 @@
 |---|---|
 | Core entities, serialization format, gate naming | Implemented — `shared/schema/circuit.schema.json`, generated into both languages |
 | Gate signatures, violation codes, current version | Implemented — `shared/spec/circuit.spec.json`, generated into both languages |
-| Validation rules | **Specified, not implemented** |
+| Validation rules | Semantic rules implemented in Python (`backend/.../validation/`) and held to `shared/fixtures/`. **TypeScript not written.** Shape rules are enforced by the schema |
 | Cycle derivation (ADR-0003) | **Specified, not implemented** |
 | Versioning and migration | **Specified, not implemented** |
 
