@@ -1,0 +1,28 @@
+{
+  "description": "A controlled gate is given no control. Control count is carried by the controls array, not by the gate name, so this is not a naming error.",
+  "circuit": {
+    "schemaVersion": "0.1.0",
+    "id": "circ_1",
+    "qubits": [
+      {
+        "id": "q_0",
+        "index": 0
+      }
+    ],
+    "classicalRegisters": [],
+    "operations": [
+      {
+        "id": "op_0",
+        "kind": "gate",
+        "name": "cx",
+        "targets": [
+          "q_0"
+        ],
+        "controls": []
+      }
+    ]
+  },
+  "violations": [
+    "GATE_ARITY_MISMATCH"
+  ]
+}

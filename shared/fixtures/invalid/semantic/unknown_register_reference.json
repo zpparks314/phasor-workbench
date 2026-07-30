@@ -1,0 +1,35 @@
+{
+  "description": "A measurement writes to a register that is not declared. The bit range is not also reported -- it is meaningless without a register.",
+  "circuit": {
+    "schemaVersion": "0.1.0",
+    "id": "circ_1",
+    "qubits": [
+      {
+        "id": "q_0",
+        "index": 0
+      }
+    ],
+    "classicalRegisters": [
+      {
+        "id": "c_0",
+        "size": 1
+      }
+    ],
+    "operations": [
+      {
+        "id": "op_0",
+        "kind": "measurement",
+        "targets": [
+          "q_0"
+        ],
+        "classicalTarget": {
+          "register": "c_9",
+          "bit": 0
+        }
+      }
+    ]
+  },
+  "violations": [
+    "UNKNOWN_REGISTER_REFERENCE"
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "description": "Two qubits claim the same position on the wire stack. Reported alone: a duplicate necessarily implies a gap, and one mistake is one violation.",
+  "circuit": {
+    "schemaVersion": "0.1.0",
+    "id": "circ_1",
+    "qubits": [
+      {
+        "id": "q_0",
+        "index": 0
+      },
+      {
+        "id": "q_1",
+        "index": 0
+      }
+    ],
+    "classicalRegisters": [],
+    "operations": []
+  },
+  "violations": [
+    "DUPLICATE_QUBIT_INDEX"
+  ]
+}

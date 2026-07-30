@@ -2,7 +2,10 @@
 
 Tests that span more than one project.
 
-**Status:** structure only. No tests here yet.
+**Status:** structure only, and less will live here than originally planned —
+see *Parity Does Not Require a Cross-Language Runner* below. Shared-model parity
+runs from each project's own suite against `shared/fixtures/`. API conformance
+lands in Milestone 4.
 
 ---
 
@@ -64,7 +67,27 @@ A failing decomposition fixture is never repaired by regenerating it to match
 the new output. Either an implementation is wrong or ADR-0003 has changed, and
 the second requires an ADR revision.
 
-Planned for Milestone 2, alongside validation and the cycle derivation. The
-*wire format* half of the shared-model contract is already enforced, but by the
-`Shared model` CI job rather than from here: it checks that the committed
-bindings still match the schema they were generated from.
+## Parity Does Not Require a Cross-Language Runner
+
+This was expected to need machinery here, and it does not.
+
+Each fixture **declares** its own expectation — the codes it must produce, or
+the decomposition it must yield. Each project's own suite asserts against that
+declaration, so both are measured against the same artifact and agreement
+follows transitively. Neither side needs to see the other's output, and no test
+here has to drive two toolchains.
+
+Two things follow. Validation and derivation parity is enforced from
+`backend/tests/` and `frontend/src/**/*.test.ts` against `shared/fixtures/`, and
+it is enforced by the *existing* per-project CI jobs. And a fixture's declaration
+is load-bearing: editing one to match new output defeats the only mechanism that
+detects divergence.
+
+What still belongs here is **API conformance**, which genuinely spans both
+projects and cannot be reduced to a declaration — recorded frontend mocks
+validated against the backend's live OpenAPI schema. That needs endpoints, so it
+lands in Milestone 4.
+
+The *wire format* half of the contract is enforced elsewhere again: the
+`Shared model` CI job checks that the committed bindings still match the two
+shared sources they were generated from.

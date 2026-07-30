@@ -1,0 +1,11 @@
+Circuits the schema itself rejects, each expecting the single code
+SHAPE_INVALID.
+
+Backend-only, and empty for a reason. Shape rejection happens at the parse
+boundary rather than inside a validator, so these fixtures land with the
+endpoint that maps a parse failure into the error envelope -- not with the
+semantic validator in ../semantic/, which only ever sees circuits that already
+parsed.
+
+The frontend runs none of these until it gains a runtime shape validator in
+Milestone 3. See ADR-0005 section 6.

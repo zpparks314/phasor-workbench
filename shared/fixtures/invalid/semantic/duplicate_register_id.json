@@ -1,0 +1,27 @@
+{
+  "description": "Two classical registers share an identifier.",
+  "circuit": {
+    "schemaVersion": "0.1.0",
+    "id": "circ_1",
+    "qubits": [
+      {
+        "id": "q_0",
+        "index": 0
+      }
+    ],
+    "classicalRegisters": [
+      {
+        "id": "c_0",
+        "size": 1
+      },
+      {
+        "id": "c_0",
+        "size": 2
+      }
+    ],
+    "operations": []
+  },
+  "violations": [
+    "DUPLICATE_IDENTIFIER"
+  ]
+}

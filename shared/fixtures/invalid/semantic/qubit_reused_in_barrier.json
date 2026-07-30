@@ -1,0 +1,27 @@
+{
+  "description": "A barrier names the same wire twice.",
+  "circuit": {
+    "schemaVersion": "0.1.0",
+    "id": "circ_1",
+    "qubits": [
+      {
+        "id": "q_0",
+        "index": 0
+      }
+    ],
+    "classicalRegisters": [],
+    "operations": [
+      {
+        "id": "op_0",
+        "kind": "barrier",
+        "targets": [
+          "q_0",
+          "q_0"
+        ]
+      }
+    ]
+  },
+  "violations": [
+    "QUBIT_REUSED_IN_OPERATION"
+  ]
+}

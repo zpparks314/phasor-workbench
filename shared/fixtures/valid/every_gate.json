@@ -1,0 +1,198 @@
+{
+  "description": "One operation per gate in the known set, each with the arity its signature in shared/spec/circuit.spec.json declares. Fails if a gate is added to the schema without a correct signature.",
+  "circuit": {
+    "schemaVersion": "0.1.0",
+    "id": "circ_1",
+    "qubits": [
+      {
+        "id": "q_0",
+        "index": 0
+      },
+      {
+        "id": "q_1",
+        "index": 1
+      },
+      {
+        "id": "q_2",
+        "index": 2
+      }
+    ],
+    "classicalRegisters": [],
+    "operations": [
+      {
+        "id": "op_0",
+        "kind": "gate",
+        "name": "i",
+        "targets": [
+          "q_0"
+        ]
+      },
+      {
+        "id": "op_1",
+        "kind": "gate",
+        "name": "h",
+        "targets": [
+          "q_0"
+        ]
+      },
+      {
+        "id": "op_2",
+        "kind": "gate",
+        "name": "x",
+        "targets": [
+          "q_0"
+        ]
+      },
+      {
+        "id": "op_3",
+        "kind": "gate",
+        "name": "y",
+        "targets": [
+          "q_0"
+        ]
+      },
+      {
+        "id": "op_4",
+        "kind": "gate",
+        "name": "z",
+        "targets": [
+          "q_0"
+        ]
+      },
+      {
+        "id": "op_5",
+        "kind": "gate",
+        "name": "s",
+        "targets": [
+          "q_0"
+        ]
+      },
+      {
+        "id": "op_6",
+        "kind": "gate",
+        "name": "sdg",
+        "targets": [
+          "q_0"
+        ]
+      },
+      {
+        "id": "op_7",
+        "kind": "gate",
+        "name": "t",
+        "targets": [
+          "q_0"
+        ]
+      },
+      {
+        "id": "op_8",
+        "kind": "gate",
+        "name": "tdg",
+        "targets": [
+          "q_0"
+        ]
+      },
+      {
+        "id": "op_9",
+        "kind": "gate",
+        "name": "rx",
+        "targets": [
+          "q_0"
+        ],
+        "controls": [],
+        "parameters": {
+          "theta": 0.5
+        }
+      },
+      {
+        "id": "op_10",
+        "kind": "gate",
+        "name": "ry",
+        "targets": [
+          "q_0"
+        ],
+        "controls": [],
+        "parameters": {
+          "theta": 0.5
+        }
+      },
+      {
+        "id": "op_11",
+        "kind": "gate",
+        "name": "rz",
+        "targets": [
+          "q_0"
+        ],
+        "controls": [],
+        "parameters": {
+          "theta": 0.5
+        }
+      },
+      {
+        "id": "op_12",
+        "kind": "gate",
+        "name": "p",
+        "targets": [
+          "q_0"
+        ],
+        "controls": [],
+        "parameters": {
+          "lambda": 0.25
+        }
+      },
+      {
+        "id": "op_13",
+        "kind": "gate",
+        "name": "cx",
+        "targets": [
+          "q_1"
+        ],
+        "controls": [
+          "q_0"
+        ]
+      },
+      {
+        "id": "op_14",
+        "kind": "gate",
+        "name": "cy",
+        "targets": [
+          "q_1"
+        ],
+        "controls": [
+          "q_0"
+        ]
+      },
+      {
+        "id": "op_15",
+        "kind": "gate",
+        "name": "cz",
+        "targets": [
+          "q_1"
+        ],
+        "controls": [
+          "q_0"
+        ]
+      },
+      {
+        "id": "op_16",
+        "kind": "gate",
+        "name": "swap",
+        "targets": [
+          "q_0",
+          "q_1"
+        ]
+      },
+      {
+        "id": "op_17",
+        "kind": "gate",
+        "name": "ccx",
+        "targets": [
+          "q_2"
+        ],
+        "controls": [
+          "q_0",
+          "q_1"
+        ]
+      }
+    ]
+  }
+}

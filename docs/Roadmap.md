@@ -140,8 +140,8 @@ they affect begins.
 | Mid-circuit measurement: permitted at MVP or deferred? | Milestone 2 | **Resolved 2026-07-29** — deferred. Measurement terminates a qubit; barriers are exempt. See [CircuitModel.md](CircuitModel.md) |
 | Are identifiers client-generated or backend-assigned? | Milestone 2 | **Resolved 2026-07-29** — client-generated, backend-validated. Forced by offline operation and local save |
 | Interpreter for the `simulation` extra (Qiskit lacks 3.14 wheels) | Milestone 4 | **Partly answered.** The Docker environment pins 3.13, so simulation work happens there. Whether native 3.14 must also be supported is still open |
-| Do `invalid/` fixtures assert `path` as well as `code`? | Milestone 2 fixtures | **Open.** Asserting paths catches more divergence but makes path construction a third piece of behavior both languages must implement identically. ADR-0005 recommends codes alone to start |
-| Which CI job runs `tests/contract/`? | Milestone 2 fixtures | **Open.** Nothing runs that directory today, and the backend's pytest, ruff, and mypy are all scoped to `backend/`. Needs both toolchains, so it resembles the existing `Shared model` job |
+| Do `invalid/` fixtures assert `path` as well as `code`? | Milestone 2 fixtures | **Resolved 2026-07-30** — codes only. Fixtures compare sorted code lists; paths are asserted in each project's own unit tests, where a format difference is a local bug rather than a contract break |
+| Which CI job runs `tests/contract/`? | Milestone 4 | **Moot for Milestone 2.** Each fixture declares its own expectation, so each project's suite asserts against the same artifact and parity follows transitively — no cross-language runner and no new CI job. `tests/contract/` is left holding API conformance, which needs endpoints. See `tests/README.md` |
 
 Also resolved on 2026-07-29, by accepted ADR: the canonical circuit
 representation and the cycle derivation
@@ -189,10 +189,10 @@ settled by ADRs [0001](decisions/ADR0001_CircuitRepresentation.md),
 * [x] Measurement
 * [x] Barrier
 * [ ] Serialization
-* [ ] Validation
+* [ ] Validation — backend done, frontend next
 * [ ] Cycle derivation
 * [ ] Unit tests
-* [ ] Cross-language contract fixtures
+* [ ] Cross-language contract fixtures — `valid/` and `invalid/semantic/` done
 
 A checked entity means it is **defined in the schema and generated into both
 languages**. It does not mean the entity behaves correctly: nothing validates a
@@ -238,6 +238,22 @@ One scope decision worth knowing before writing frontend code: Milestone 2 gives
 the frontend **semantic validation only**. Runtime shape validation is deferred to
 Milestone 3, when the frontend first reads a circuit it did not build — see
 ADR-0005 section 6.
+
+**Backend semantic validation is done**, with 25 fixtures in
+`shared/fixtures/valid/` and `shared/fixtures/invalid/semantic/`. All twelve
+semantic violation codes have fixture coverage, enforced by a test that fails if
+a code is added without one. `validate_circuit` takes an already-parsed
+`Circuit` and reports every violation, each with a code from the generated spec
+and a document path in the format `API.md` specifies.
+
+Two consequences worth carrying forward. Shape rejection is the parse boundary's
+job, so `shared/fixtures/invalid/shape/` stays empty until the endpoint that maps
+a parse failure into the error envelope exists. And parity needs no
+cross-language runner — see the table entry above and `tests/README.md`.
+
+**Frontend validation is next**, reading the same fixtures. It is the first real
+test of whether the fixture format carries a contract between two languages
+rather than merely documenting one.
 
 Three findings from that work are worth not rediscovering:
 
