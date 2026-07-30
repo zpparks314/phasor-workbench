@@ -1,6 +1,8 @@
 # Frontend
 
-**Status:** Stack chosen, scaffolded, and verified. Editor and component design still deferred to Milestone 3.
+**Status:** Stack chosen, scaffolded, and verified. Editor and component design are
+specified in [UI.md](UI.md) and [ADR-0007](decisions/ADR0007_EditingModel.md), and
+are being built in Milestone 3.
 
 ---
 
@@ -69,10 +71,12 @@ frontend/src/
 ├── model/          Circuit types and spec constants -- GENERATED
 ├── validation/     Circuit validation                  (Milestone 2)
 ├── cycles/         Cycle derivation                    (Milestone 2)
-├── components/     Shared presentational components   (Milestone 3)
+├── serialization/  Versioned load and dump             (Milestone 3)
+├── persistence/    Local storage adapter               (Milestone 3)
+├── state/          Circuit state, edits, undo/redo     (Milestone 3)
+├── components/     Shared presentational components    (Milestone 3)
 ├── editor/         Circuit editor, SVG rendering       (Milestone 3)
 ├── visualization/  State visualization                 (Milestone 4)
-├── state/          Circuit state, undo/redo            (Milestone 3)
 └── test/           Test setup
 ```
 
@@ -92,6 +96,43 @@ placements, and depth — and the editor will consume it for render columns with
 storing it. That constraint is the reason this project draws circuits with direct
 SVG rather than a node-graph library, as below.
 
+## The Milestone 3 Modules
+
+**`state/` owns every change to the circuit.** The store, the edit vocabulary, and
+the history stack live here, specified by
+[ADR-0007](decisions/ADR0007_EditingModel.md): an edit is a pure
+`Circuit → Circuit` function, history is a bounded stack of labeled snapshots, and
+coalescing during a drag is declared by the interaction rather than inferred from
+timing.
+
+Its core imports nothing from React — the React binding is a thin adapter over it.
+That is what makes the undo property test in the Milestone 3 exit criteria
+possible without a DOM, and it keeps the module replaceable in the sense
+`CLAUDE.md` requires of every subsystem.
+
+**`state/` has no backend counterpart, and that is deliberate.** `validation/`,
+`cycles/`, and `serialization/` mirror backend modules because both sides need
+them; the backend does not author circuits. Recorded in ADR-0007 section 8 so it
+does not read as an oversight, in the same way ADR-0006 recorded the first such
+asymmetry.
+
+**`editor/` renders and interprets input.** `editor/layout.ts` is a pure function
+of `(circuit, decomposition)` producing pixel geometry, kept out of the components
+so it is testable without a DOM. It decides where a column sits on screen. It never
+decides *which* column an operation occupies — that is the derivation's answer.
+Interaction design is in [UI.md](UI.md).
+
+**`serialization/` mirrors `backend/src/phasor_workbench/serialization/`** and is
+held to the same 14 fixtures in `shared/fixtures/version/`, which declare their
+expected outcome in a language-neutral form. See
+[ADR-0006](decisions/ADR0006_VersionCompatibility.md) section 5.
+
+**`persistence/` is the `localStorage` adapter** and the only module that touches
+browser storage, on the same principle that confines `fetch` to `api/`. It is the
+working-set store; files are the interchange format and arrive with Milestone 5's
+JSON import/export. Storage can be unavailable or full, and both surface as errors
+rather than silence — the editor stays fully usable without it.
+
 ## Validation Scope
 
 **Implemented.** `validateCircuit(circuit)` returns every violation, each with a
@@ -108,6 +149,21 @@ because it cannot trust its input.
 That changes the first time the frontend reads a circuit it did not build —
 Milestone 3's local save. Deferred deliberately, per ADR-0005 section 6, so the
 dependency question is answered with that requirement in hand.
+
+**That question is now due, and it is narrower than "a dependency or not."**
+Hand-writing a shape checker is a second hand-maintained description of the
+schema, which is what [ADR-0004](decisions/ADR0004_SharedModelStrategy.md) exists
+to prevent — the backend avoids it by letting Pydantic decide unknown-ness, so
+there is no list to drift. The frontend gets that property only by validating
+against `circuit.schema.json` itself, which makes the open choice *which*
+schema-driven mechanism: a runtime validator library, or a validator compiled from
+the schema during `generate_bindings.py`. Lands in ADR-0008.
+
+**Choosing `localStorage` does not remove the requirement.** A stored document was
+written by *some* build — possibly older, possibly a partial write, possibly
+hand-edited through devtools — so it is still a circuit this build did not
+construct. ADR-0006's argument that a version claim is unverifiable evidence
+applies to it unchanged.
 
 Violation codes come from generated constants in `model/spec.ts`. Never
 hand-write a code string.
@@ -144,7 +200,11 @@ unavailable.
 recordings are validated against the backend's OpenAPI schema by the contract
 tests in `tests/contract/`, so they cannot silently drift.
 
-Not yet implemented — lands with the first real endpoint in Milestone 2.
+Not yet implemented. It was expected to land with the first real endpoint in
+Milestone 2, and did not — Milestone 2 added no endpoints, and Milestone 3 makes
+no backend calls at all, since validation, cycles, and local save are all
+client-side. It lands with the first circuit endpoint in Milestone 4, which is
+also when `tests/contract/` gains something to run.
 
 ---
 
@@ -158,15 +218,21 @@ path. CORS is still configured on the backend for deployed environments.
 
 # Still Deferred
 
-Component design, editor interaction, and visual language belong to Milestone
-3 and are documented in [UI.md](UI.md) when that work begins:
+Component design, editor interaction, and visual language are now written in
+[UI.md](UI.md) — screen regions, palette organization, placement and movement,
+multi-qubit control assignment, selection, the keyboard model and shortcut map,
+empty and error states, and the visual language.
 
-* editor layout and screen regions
-* gate palette organization
-* placement, movement, selection, undo/redo interaction
-* results panel and visualization placement
-* keyboard model and shortcut map
-* accessibility implementation specifics
+What UI.md still defers, and why:
+
+* **results panel and visualization placement** — Milestone 4. The three-column
+  grid reserves the space; nothing else about them is designed, because designing
+  a results panel before results exist is the speculation that kept UI.md empty
+  through two milestones.
+* **responsive and small-screen layout** — Milestone 5, where `Roadmap.md` places
+  it
+* **multi-select** — changes what `Delete` and drag mean, and is not needed to
+  build a simple circuit
 
 ---
 
@@ -174,6 +240,11 @@ Component design, editor interaction, and visual language belong to Milestone
 
 * never implement simulation logic here
 * never call `fetch` outside `src/api/`
+* never touch browser storage outside `src/persistence/`
 * never store a second copy of the circuit
 * never let a rendering library own circuit layout
-* the app must degrade gracefully when the backend is unavailable
+* never store a coordinate or a column index — geometry is derived every render
+* every change to the circuit goes through the edit vocabulary in `src/state/`,
+  so that history and labeling cannot be bypassed
+* the app must degrade gracefully when the backend is unavailable, and when local
+  storage is unavailable

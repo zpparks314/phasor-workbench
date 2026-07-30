@@ -1,0 +1,12 @@
+Versioned loading and dumping of circuit documents.
+
+Mirrors backend/src/phasor_workbench/serialization/ and must agree with it.
+Held to the same fixtures in shared/fixtures/version/, which declare their
+expected outcome in a language-neutral form -- see
+docs/decisions/ADR0006_VersionCompatibility.md section 5.
+
+Reading a circuit this build did not construct is the first time TypeScript's
+compile-time types are insufficient, so the runtime shape validation deferred
+by ADR-0005 section 6 is decided here. That decision lands in ADR-0008.
+
+Empty until Milestone 3.
