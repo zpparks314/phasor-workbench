@@ -2,19 +2,25 @@
 
 ## Project Status
 
-**Current Phase:** Circuit Model
+**Current Phase:** Circuit Editor
 
-**Current Milestone:** Milestone 2 — design the application's central data model.
+**Current Milestone:** Milestone 3 — allow users to visually construct circuits.
 
-Milestone 1 (Foundation) closed on 2026-07-28. The architecture, tooling, CI, branch protection, licensing, and development environments are in place, so feature work can begin.
+Milestone 1 (Foundation) closed on 2026-07-28. Milestone 2 (Circuit Model) closed
+on 2026-07-30.
 
-Milestone 2 is **in progress.** Its design is settled by ADRs 0001–0005, and its
-two shared sources, generated bindings, and module layout are done. Validation,
-the cycle derivation, and the cross-language contract fixtures remain — see
-*Status* under Milestone 2.
+**The Circuit Model is complete and enforced.** Its design is settled by ADRs
+0001–0006. Both languages validate circuits and derive cycles, agreeing on every
+fixture; the backend loads documents across versions. 256 backend tests and 168
+frontend tests, with 51 fixtures in `shared/fixtures/` holding the two
+implementations to one specification.
 
-Every decision that blocked this milestone has been answered. The one entry
-still open in **Decisions Awaiting the Owner** is scoped to Milestone 4.
+Nothing in the model is provisional, which was the point of finishing it before
+the editor: Milestone 3 builds on a settled foundation rather than on something it
+will have to renegotiate.
+
+Three entries remain in **Decisions Awaiting the Owner** — two scoped to Milestone
+3, one to Milestone 4. None blocks starting the editor.
 
 ---
 
@@ -24,11 +30,14 @@ The highest priorities are:
 
 1. ~~Repository setup~~ — done
 2. ~~Development environment~~ — done, native and Docker
-3. ~~Documentation~~ — done; `UI.md` deferred to Milestone 3
-4. **Core data model** — active, Milestone 2
+3. ~~Documentation~~ — done; `UI.md` written during Milestone 3
+4. ~~Core data model~~ — done, Milestone 2
 5. ~~Testing infrastructure~~ — done; enforced by CI
+6. **Circuit editor** — active, Milestone 3
 
-Do **not** begin implementing advanced quantum features until the core data model is complete. It is the single source of truth every other subsystem reads from, and building on a provisional version means rewriting all of them.
+The rule that gated Milestone 3 — do not build on a provisional data model — is
+satisfied. The model is settled, and the editor is the first subsystem to read
+from it.
 
 ---
 
@@ -140,6 +149,7 @@ they affect begins.
 | Mid-circuit measurement: permitted at MVP or deferred? | Milestone 2 | **Resolved 2026-07-29** — deferred. Measurement terminates a qubit; barriers are exempt. See [CircuitModel.md](CircuitModel.md) |
 | Are identifiers client-generated or backend-assigned? | Milestone 2 | **Resolved 2026-07-29** — client-generated, backend-validated. Forced by offline operation and local save |
 | Interpreter for the `simulation` extra (Qiskit lacks 3.14 wheels) | Milestone 4 | **Partly answered.** The Docker environment pins 3.13, so simulation work happens there. Whether native 3.14 must also be supported is still open |
+| Does the frontend gain a runtime shape validator, and at what dependency cost? | Milestone 3 | **Open, and now due.** Deferred by ADR-0005 section 6 until local save made it concrete. Local save is that requirement: reading a file the editor did not write is the first time compile-time types are insufficient. Answering it also decides whether `frontend/src/serialization/` mirrors the backend loader |
 | Do `invalid/` fixtures assert `path` as well as `code`? | Milestone 2 fixtures | **Resolved 2026-07-30** — codes only. Fixtures compare sorted code lists; paths are asserted in each project's own unit tests, where a format difference is a local bug rather than a contract break |
 | What `schemaVersion` does an *edited* newer-minor circuit declare on save? | Milestone 3 | **Open.** Round-tripping preserves the declared version, which is right for read-then-write. Editing is different: the document still carries preserved fields this build does not understand, so claiming our own version would be a lie, and keeping theirs claims features we did not write. Surfaced by the loader; ADR-0006 does not address it |
 | Which CI job runs `tests/contract/`? | Milestone 4 | **Moot for Milestone 2.** Each fixture declares its own expectation, so each project's suite asserts against the same artifact and parity follows transitively — no cross-language runner and no new CI job. `tests/contract/` is left holding API conformance, which needs endpoints. See `tests/README.md` |
@@ -158,10 +168,9 @@ signatures, and the current model version live; where the hand-written validatio
 and cycle derivation live in each project; and that frontend runtime *shape*
 validation is deferred to Milestone 3.
 
-**Nothing blocks starting validation.** Of the three entries above still open,
-one is scoped to Milestone 4 and two are needed when the fixtures are written
-rather than before — and ADR-0005 records a recommended default for the first of
-those.
+**Nothing blocks starting Milestone 3.** Of the entries above still open, one is
+scoped to Milestone 4 and two land during Milestone 3 itself — see *Starting
+Points* under that milestone.
 
 Remaining open questions live at the end of [API.md](API.md) and
 [Simulation.md](Simulation.md). `CircuitModel.md` no longer has any.
@@ -210,12 +219,25 @@ fixtures are what keep the two honest.
 
 ### Exit Criteria
 
-The Circuit model becomes the single source of truth used throughout the application.
+* [x] The cycle derivation produces identical output in both languages across the
+  fixture set in `shared/fixtures/`. Enforced from each project's own suite rather
+  than from `tests/contract/` — each fixture declares its expected decomposition,
+  so both sides measure against the same artifact and agreement follows
+  transitively. Verified beyond the fixtures by diffing both implementations'
+  output over all 17 circuits in the repository.
+* [x] The Circuit model is the single source of truth, and nothing maintains a
+  second representation.
+* [x] Validation agrees across both languages on all 25 validation fixtures,
+  including paths, which the fixtures do not themselves enforce.
 
-No UI or simulator should maintain its own circuit representation.
+**A caveat worth stating rather than glossing.** The middle criterion is currently
+satisfied *vacuously*: there is no UI and no simulator, so nothing exists that
+could hold a competing representation. It becomes a real constraint in Milestone 3,
+when the editor is the first consumer with a reason to want its own copy. The rule
+is in place — `Architecture.md`, `Frontend.md`, and ADR-0001 all forbid it — but it
+has not yet been tested by anything that would be tempted to break it.
 
-The cycle derivation produces identical output in both languages across the
-fixture set in `shared/fixtures/`, enforced from `tests/contract/`.
+**Milestone 2 is complete.** Milestone 3 (Circuit Editor MVP) may begin.
 
 ### Status
 
@@ -363,6 +385,33 @@ Allow users to visually construct quantum circuits.
 ### Exit Criteria
 
 Users can build simple circuits entirely within the browser.
+
+### Starting Points
+
+Nothing here is designed yet. What Milestone 2 leaves in place, and what it leaves
+open:
+
+**Available to build on.** `frontend/src/model/` for the types,
+`frontend/src/validation/` for inline feedback, and `frontend/src/cycles/` for
+render columns. `deriveCycles` returns the barrier placements a renderer needs to
+draw on a column boundary, so the editor should never compute layout itself — see
+[Frontend.md](Frontend.md) and [ADR-0001](decisions/ADR0001_CircuitRepresentation.md).
+
+**Three decisions this milestone must make**, all recorded in *Decisions Awaiting
+the Owner*:
+
+1. **Runtime shape validation on the frontend.** Deferred by
+   [ADR-0005](decisions/ADR0005_SharedSpecification.md) section 6 until local save
+   gave it a concrete requirement. Local save is that requirement: reading a file
+   the editor did not write is the first time TypeScript's compile-time types are
+   not enough. Decides whether a runtime validator dependency is warranted.
+2. **The TypeScript loader.** Follows directly from (1), and mirrors
+   `backend/src/phasor_workbench/serialization/`. See
+   [ADR-0006](decisions/ADR0006_VersionCompatibility.md) section 5.
+3. **What `schemaVersion` an edited newer-minor circuit declares on save.**
+
+**`UI.md` is written during this milestone**, not before — it was deliberately
+deferred rather than filled with speculation. See [UI.md](UI.md).
 
 ---
 

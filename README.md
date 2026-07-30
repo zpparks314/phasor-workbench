@@ -47,21 +47,28 @@ It sits deliberately between educational toys that can't express real circuits a
 
 ## Current Status
 
-**Milestone 1 — Foundation: complete.** **Milestone 2 — Circuit Model: in progress.** The foundation was deliberately finished before any quantum features were built.
+**Milestone 1 — Foundation: complete.** **Milestone 2 — Circuit Model: complete.** **Milestone 3 — Circuit Editor MVP: next.** The foundation and the data model were deliberately finished before any user-facing feature was built.
 
 | Area | State |
 |---|---|
-| Documentation | Written; `UI.md` deferred to Milestone 3 |
-| Backend project | Verified — installs, tests pass, lint and types clean |
-| Frontend project | Verified — installs, builds, tests pass, lint and types clean |
+| Documentation | Written; `UI.md` lands with the editor |
+| Backend project | Verified — 256 tests pass, lint and types clean |
+| Frontend project | Verified — 168 tests pass, builds, lint and types clean |
 | Frontend ↔ backend | Verified — connects through the dev proxy, degrades gracefully when the backend is down |
-| Circuit model design | Settled — ADRs 0001–0004 accepted |
-| Circuit schema | Done — `shared/schema/`, the single source of truth for the wire format |
-| Generated bindings | Done — Pydantic models and TypeScript types, generated into both projects |
-| Circuit validation | **Not started** |
-| Cycle derivation | **Not started** |
-| Contract fixtures | **Not started** |
+| Circuit model design | Settled — ADRs 0001–0006 accepted |
+| Circuit schema and spec | Done — `shared/schema/` and `shared/spec/`, the two sources of truth |
+| Generated bindings | Done — Pydantic models, TypeScript types, and spec constants, generated into both projects |
+| Circuit validation | Done — both languages, agreeing on every fixture |
+| Cycle derivation | Done — both languages, agreeing on every fixture |
+| Versioned loading | Done — backend; frontend lands with local save in Milestone 3 |
+| Contract fixtures | Done — 51 in `shared/fixtures/`, holding both languages to one specification |
+| Circuit editor | **Not started** |
+| Simulation | **Not started** |
 | Tooling and tests | Configured and passing for both projects |
+
+The only HTTP endpoint is `GET /api/v1/health`. Validation and the cycle
+derivation exist as libraries that nothing calls yet — the API surface arrives
+with simulation in Milestone 4.
 | CI | Lint, format, type check, test, build, and generated-binding freshness on every push and PR |
 | Branch protection | `main` requires a PR and a passing `CI` check |
 | Continuous deployment | Deferred to Milestone 5 — nothing to deploy yet |
