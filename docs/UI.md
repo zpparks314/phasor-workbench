@@ -138,6 +138,40 @@ occupies that qubit in that cycle. It is not inferred from geometry.
 Ordering them per operation makes the result depend on document order, so
 whichever gate happened to render last drew its line across the other.
 
+## Layering, and Why It Keeps Mattering
+
+The canvas is stacked, bottom to top:
+
+```text
+connectors and control dots
+glyphs
+cells            <- a transparent rectangle over every (qubit, column)
+barrier hit targets
+the remove button
+```
+
+**Anything interactive must sit at or above the cell layer, or be reachable
+through it.** The cells cover the whole canvas, and a transparent fill still
+receives pointer events, so anything drawn below them is visually present and
+completely unclickable. This has caused three separate bugs — a barrier that
+could not be selected, a gate that could not be picked up, and a barrier that
+could not be dragged — each looking like a missing feature rather than a
+layering mistake.
+
+Two consequences worth stating so they are not rediscovered:
+
+* Glyphs are **purely visual**. Pointer handling for a gate or measurement lives
+  on its cell, which already knows the operation it contains.
+* **A barrier is in no cell.** It sits on the boundary *between* columns and
+  appears in no cycle, so `describeCells` cannot place it and the cell layer can
+  never hand one back. Its hit target is the only surface that knows where it is,
+  which is why selecting and dragging a barrier both go through that layer.
+
+**A test that dispatches an event directly on an element proves nothing about
+whether a pointer can reach it.** The gate drag shipped broken with a passing
+test for precisely this reason. Interaction tests fire on the element a browser
+would actually hit.
+
 ## Classical Registers
 
 Registers render as lanes below the qubits, separated by a horizontal rule, drawn
@@ -175,6 +209,27 @@ operation touching `q` that occupies a cycle before `c`, and before the first
 operation touching `q` at or after `c`. A qubit's operations are strictly ordered,
 so this range always exists and is unambiguous.
 
+The rule has two bounds and needs both: **after** the last operation on an
+involved wire that runs before the column, and **before** the first that runs at
+or after it. Along a single wire either phrasing alone would do, because a
+qubit's operations appear in the list in the order they run.
+
+**Across wires, list order and cycle order come apart**, and that is where this
+goes wrong quietly. Two measurements on different qubits can be listed in one
+order and run in the other. Scanning only for the last operation before the
+column then walks past one that has to follow, and the moved operation lands on
+its far side — a barrier dropped beside two measurements stops constraining one
+of them, which reads as the measurement moving by itself.
+
+**Every qubit the operation uses counts, not just its target.** A `cx` occupies
+its control wire as surely as its target; an index computed from the target alone
+ignores everything on the control, and a two-qubit gate dragged rightwards lands
+far to the left.
+
+Both of these are the same underlying trap: the operation list is canonical and
+cycles are derived, so **list position is not execution time**. Any rule phrased
+in terms of "the last thing before" should be read with that in mind.
+
 Re-deriving may then place the operation **earlier than the drop column**, because
 ASAP packing pulls it left onto whatever cycle its resources allow. Dropping an
 `h` at column 5 of an empty wire lands it in column 0.
@@ -211,10 +266,21 @@ driven by the signature, never by the gate's name or qubit total.
 
 ## Moving and Removing
 
-**Move** — drag a placed operation to a new cell. Resolution uses the same rule as
-placement, and the same left-settle animation applies. Under ADR-0007 the drag
-emits transient edits coalescing on `move:<operationId>`, so the whole drag is one
-undo step.
+**Move** — drag a placed operation to a new cell, or select it and press
+`Ctrl/Cmd` + an arrow. Resolution uses the same rule as placement, and the same
+settle animation applies.
+
+A drag emits transient edits coalescing on `move:<operationId>`, so the whole
+gesture is one undo step. **A keyboard move declares no coalescing**, and that
+asymmetry is the point of ADR-0007's rule that the interaction decides: a drag has
+a beginning and an end, while each key press is a complete action and deserves its
+own undo step.
+
+Moving combines two changes that a single gesture happens to express — a
+different wire is `retargetOperation`, a different column is `moveOperation`.
+**A multi-qubit operation only does the second.** Which of its qubits a drag to
+another wire meant to move is ambiguous, and guessing would produce a circuit
+nobody asked for.
 
 **Remove** — select and press `Delete` or `Backspace`, or click the `×` that
 appears on the selection. The `×` is `aria-hidden`: it is a redundant mouse path
@@ -285,6 +351,7 @@ markup being right on paper proves little.
 | `Enter` / `Space` | place the armed gate, or select the operation under the cursor |
 | `Delete` / `Backspace` | remove the selection |
 | `Escape` | disarm, cancel a pending multi-qubit gate, or clear selection |
+| `Ctrl/Cmd` + arrow | move the selected operation |
 | `Ctrl/Cmd` + `Z` | undo |
 | `Ctrl/Cmd` + `Shift` + `Z` | redo |
 | `Ctrl/Cmd` + `S` | save |

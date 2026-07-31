@@ -384,15 +384,15 @@ Allow users to visually construct quantum circuits.
 ### Tasks
 
 * [x] Editing model and history — pure edits, snapshot stack, coalescing
-* [ ] Undo — model done, no UI yet
-* [ ] Redo — model done, no UI yet
+* [ ] Undo — keyboard done, no button yet
+* [ ] Redo — keyboard done, no button yet
 * [x] Render quantum wires — read-only canvas, all glyph kinds
 * [ ] Add and remove qubits
 * [ ] Add and remove classical registers
 * [x] Gate palette
 * [x] Place gates
 * [x] Remove gates
-* [ ] Move gates
+* [x] Move gates — drag and keyboard
 * [ ] Multi-qubit gates
 * [ ] Place measurements
 * [ ] Place barriers
@@ -495,6 +495,36 @@ Everything below assumes both.
   with a real screen reader before Milestone 3 closes.
 * **`editor/demoCircuit.ts` is scaffolding** and should be deleted once the editor
   opens on an empty circuit or on restored local storage.
+
+**Move and the settle animation are built.** Dragging works by pointer and by
+`Ctrl/Cmd` + arrow; the settle animates an operation from where it was requested
+to the column the derivation gave it, which is the piece of `UI.md` doing the
+educational work and was the oldest outstanding gap. Keyboard undo/redo landed
+with it — not scope creep, but because "a drag is one undo step" is untestable
+without it, and ADR-0007's coalescing would otherwise have shipped unexercised.
+
+**Three ordering bugs came out of that work, all the same mistake.** Each was a
+rule that reads correctly in prose while quietly assuming list position tracks
+execution time. It does not: the list is canonical and cycles are derived.
+
+1. The move index was computed from an operation's **target only**, so a `cx`'s
+   control wire was ignored and a two-qubit gate dragged right landed far left.
+2. The index was computed with the moving operation **still in the list**, so it
+   was its own predecessor and never moved.
+3. The rule took "after the last operation before the column", which is only
+   equivalent to "before the first at or after it" **along a single wire**.
+   Across wires the two disagree, and a barrier dragged beside two measurements
+   landed on the wrong side of one and stopped constraining it.
+
+**A fourth class, three times over: the cell layer.** Transparent cells cover the
+canvas and swallow anything drawn beneath them. That broke barrier selection, gate
+pick-up, and barrier dragging in turn. The stacking order and the rule it implies
+are now written down in `UI.md`.
+
+**One of those shipped with a passing test**, which is the finding worth keeping:
+the drag test dispatched `pointerDown` directly on the glyph element, bypassing
+hit-testing entirely. It asserted that a handler works when called, not that a
+user can call it. Interaction tests now fire on the element a browser would hit.
 
 **Milestone 3's two open decisions are still open** and are unblocked — see
 *Decisions Awaiting the Owner*. They land together in ADR-0008 with the frontend
