@@ -167,6 +167,10 @@ export function moveOperation(
   const { operation, index } = locate(circuit, operationId);
   requirePosition(toIndex, circuit.operations.length - 1);
 
+  // Already there. Returning the input means the store records nothing, so a
+  // drag that wanders without changing the order does not cost an undo step.
+  if (index === toIndex) return circuit;
+
   const operations = circuit.operations.filter((_, at) => at !== index);
   operations.splice(toIndex, 0, operation);
   return { ...circuit, operations };
@@ -193,6 +197,44 @@ export function setParameters(
   const operations = [...circuit.operations];
   operations[index] = { ...operation, parameters: { ...parameters } };
   return { ...circuit, operations };
+}
+
+/**
+ * Move an operation onto a different qubit, preserving its identifier.
+ *
+ * Only for operations naming exactly one qubit. Retargeting a `cx` is ambiguous
+ * -- moving it to another wire could mean moving the target, the control, or
+ * both -- and guessing would silently produce a circuit the user did not ask
+ * for. Multi-qubit retargeting needs its own interaction before it needs an
+ * edit.
+ *
+ * Distinct from `moveOperation`, which changes position in the list. Dragging a
+ * gate to a different column and to a different wire are two different changes
+ * that a single gesture happens to combine.
+ */
+export function retargetOperation(
+  circuit: Circuit,
+  operationId: string,
+  qubitId: string,
+): Circuit {
+  const { operation, index } = locate(circuit, operationId);
+  const controls = operation.kind === 'gate' ? (operation.controls ?? []) : [];
+
+  if (operation.targets.length !== 1 || controls.length > 0) {
+    throw new Error(
+      `Operation ${operationId} names more than one qubit; retargeting it is ambiguous.`,
+    );
+  }
+
+  const operations = [...circuit.operations];
+  operations[index] = { ...operation, targets: [qubitId] };
+  return { ...circuit, operations };
+}
+
+/** Whether `retargetOperation` accepts this operation. */
+export function isRetargetable(operation: Operation): boolean {
+  const controls = operation.kind === 'gate' ? (operation.controls ?? []) : [];
+  return operation.targets.length === 1 && controls.length === 0;
 }
 
 /** Metadata only -- the name never affects execution. */
