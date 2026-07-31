@@ -37,17 +37,35 @@ export interface CellPosition {
   readonly column: number;
 }
 
+/**
+ * An operation that should slide from where it was requested to where the
+ * derivation put it. `nonce` changes per settle so the element remounts and the
+ * animation runs again; a CSS animation does not restart on re-render alone.
+ */
+export interface Settle {
+  readonly operationId: string;
+  readonly fromColumn: number;
+  readonly nonce: number;
+}
+
 export interface CircuitCanvasProps {
   readonly layout: CircuitLayout;
   readonly cells: readonly (readonly CellContent[])[];
   readonly cursor: CellPosition;
   readonly selection: string | null;
   readonly armed: GateName | null;
+  readonly dragging: string | null;
+  readonly settle: Settle | null;
   readonly onCursorChange: (cell: CellPosition) => void;
   readonly onActivate: (cell: CellPosition) => void;
   readonly onSelectOperation: (operationId: string) => void;
   readonly onRemoveSelection: () => void;
   readonly onCancel: () => void;
+  readonly onPickUp: (operationId: string) => void;
+  readonly onDropDrag: () => void;
+  readonly onNudgeSelection: (rows: number, columns: number) => void;
+  readonly onUndo: () => void;
+  readonly onRedo: () => void;
 }
 
 export function CircuitCanvas({
@@ -56,11 +74,18 @@ export function CircuitCanvas({
   cursor,
   selection,
   armed,
+  dragging,
+  settle,
   onCursorChange,
   onActivate,
   onSelectOperation,
   onRemoveSelection,
   onCancel,
+  onPickUp,
+  onDropDrag,
+  onNudgeSelection,
+  onUndo,
+  onRedo,
 }: CircuitCanvasProps): React.JSX.Element {
   const { lane, column: columnWidth, glyph } = layout.metrics;
 
@@ -77,6 +102,23 @@ export function CircuitCanvas({
   const removeAt = removePosition(layout, selection);
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLDivElement>): void {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
+      event.preventDefault();
+      if (event.shiftKey) onRedo();
+      else onUndo();
+      return;
+    }
+
+    // Ctrl/Cmd + arrow moves the selected operation; a bare arrow moves the
+    // cursor. Each press is a complete action, so unlike a drag it declares no
+    // coalescing -- one press, one undo step.
+    const nudge = NUDGES[event.key];
+    if (nudge !== undefined && (event.ctrlKey || event.metaKey)) {
+      event.preventDefault();
+      onNudgeSelection(nudge.rows, nudge.columns);
+      return;
+    }
+
     const moved = nextCursor(event.key, active, layout);
     if (moved !== undefined) {
       event.preventDefault();
@@ -102,7 +144,11 @@ export function CircuitCanvas({
       aria-activedescendant={cellId(active)}
       tabIndex={0}
       onKeyDown={handleKeyDown}
-      className="inline-block overflow-x-auto rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current"
+      onPointerUp={onDropDrag}
+      onPointerLeave={onDropDrag}
+      className={`inline-block overflow-x-auto rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current ${
+        dragging === null ? '' : 'cursor-grabbing'
+      }`}
     >
       <svg
         role="none"
@@ -141,30 +187,46 @@ export function CircuitCanvas({
 
           {/* Every connector, beneath every glyph. See OperationLines. */}
           {layout.operations.map((operation) => (
-            <OperationLines
+            <Settling
               key={operation.operationId}
-              operation={operation}
-              layout={layout}
-            />
+              offset={settleOffset(
+                settle,
+                operation.operationId,
+                operation.x,
+                layout,
+              )}
+              nonce={settle?.nonce ?? 0}
+            >
+              <OperationLines operation={operation} layout={layout} />
+            </Settling>
           ))}
 
-          {layout.operations.map((operation) =>
-            operation.kind === 'gate' ? (
-              <Gate
-                key={operation.operationId}
-                gate={operation}
-                layout={layout}
-                selected={selection === operation.operationId}
-              />
-            ) : (
-              <Measurement
-                key={operation.operationId}
-                measurement={operation}
-                layout={layout}
-                selected={selection === operation.operationId}
-              />
-            ),
-          )}
+          {layout.operations.map((operation) => (
+            <Settling
+              key={operation.operationId}
+              offset={settleOffset(
+                settle,
+                operation.operationId,
+                operation.x,
+                layout,
+              )}
+              nonce={settle?.nonce ?? 0}
+            >
+              {operation.kind === 'gate' ? (
+                <Gate
+                  gate={operation}
+                  layout={layout}
+                  selected={selection === operation.operationId}
+                />
+              ) : (
+                <Measurement
+                  measurement={operation}
+                  layout={layout}
+                  selected={selection === operation.operationId}
+                />
+              )}
+            </Settling>
+          ))}
 
           {armed !== null && (
             <Preview
@@ -192,12 +254,21 @@ export function CircuitCanvas({
                 y={wire.y - lane / 2}
                 width={columnWidth}
                 height={lane}
-                className={
+                className={[
                   isCursor(active, row, column)
                     ? 'fill-current opacity-10'
-                    : 'fill-transparent'
-                }
+                    : 'fill-transparent',
+                  content.operationId === undefined ? '' : 'cursor-grab',
+                ].join(' ')}
+                onPointerDown={() => {
+                  if (content.operationId !== undefined) {
+                    onPickUp(content.operationId);
+                  }
+                }}
                 onPointerEnter={() => {
+                  onCursorChange({ row, column });
+                }}
+                onPointerMove={() => {
                   onCursorChange({ row, column });
                 }}
                 onClick={() => {
@@ -227,6 +298,7 @@ export function CircuitCanvas({
             key={barrier.operationId}
             barrier={barrier}
             onSelect={onSelectOperation}
+            onPickUp={onPickUp}
           />
         ))}
 
@@ -319,16 +391,25 @@ function RemoveAffordance({
   );
 }
 
-/** An invisible, generously wide stroke so a 2px dashed rule can be clicked. */
+/**
+ * An invisible, generously wide stroke so a 2px dashed rule can be clicked.
+ *
+ * Also where a barrier is picked up for dragging. A barrier sits on the boundary
+ * *between* columns and is in no cycle, so `describeCells` cannot put it in a
+ * cell and the cell layer can never hand one back. This is the only surface that
+ * knows where a barrier is.
+ */
 function BarrierHitTarget({
   barrier,
   onSelect,
+  onPickUp,
 }: {
   readonly barrier: BarrierLayout;
   readonly onSelect: (operationId: string) => void;
+  readonly onPickUp: (operationId: string) => void;
 }): React.JSX.Element {
   return (
-    <g data-barrier-hit={barrier.operationId} className="cursor-pointer">
+    <g data-barrier-hit={barrier.operationId} className="cursor-grab">
       {barrier.segments.map((segment) => (
         <line
           key={`${String(segment.y1)}-${String(segment.y2)}`}
@@ -338,6 +419,9 @@ function BarrierHitTarget({
           y2={segment.y2}
           stroke="transparent"
           strokeWidth={10}
+          onPointerDown={() => {
+            onPickUp(barrier.operationId);
+          }}
           onClick={() => {
             onSelect(barrier.operationId);
           }}
@@ -386,6 +470,55 @@ function clampCursor(
     row: clamp(cursor.row, layout.wires.length),
     column: clamp(cursor.column, layout.columnCount),
   };
+}
+
+const NUDGES: Readonly<
+  Record<string, { readonly rows: number; readonly columns: number }>
+> = {
+  ArrowUp: { rows: -1, columns: 0 },
+  ArrowDown: { rows: 1, columns: 0 },
+  ArrowLeft: { rows: 0, columns: -1 },
+  ArrowRight: { rows: 0, columns: 1 },
+};
+
+/**
+ * How far an operation should appear to travel, and nothing if it should not.
+ *
+ * Zero when the derivation put the operation exactly where it was requested,
+ * which is the common case -- animating a move of no distance would flash for no
+ * reason.
+ */
+function settleOffset(
+  settle: Settle | null,
+  operationId: string,
+  x: number,
+  layout: CircuitLayout,
+): number {
+  if (settle === null || settle.operationId !== operationId) return 0;
+  return columnCenter(settle.fromColumn, layout.metrics) - x;
+}
+
+/** Applies the settle animation, remounting per nonce so it replays. */
+function Settling({
+  offset,
+  nonce,
+  children,
+}: {
+  readonly offset: number;
+  readonly nonce: number;
+  readonly children: React.ReactNode;
+}): React.JSX.Element {
+  if (offset === 0) return <g>{children}</g>;
+
+  return (
+    <g
+      key={nonce}
+      className="settling"
+      style={{ '--settle-from': `${String(offset)}px` } as React.CSSProperties}
+    >
+      {children}
+    </g>
+  );
 }
 
 const cellId = (cell: CellPosition): string =>

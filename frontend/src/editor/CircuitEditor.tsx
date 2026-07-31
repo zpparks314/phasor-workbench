@@ -21,10 +21,15 @@ import { deriveCycles } from '../cycles';
 import type { Circuit, GateName } from '../model/circuit';
 import { GATE_SIGNATURES } from '../model/spec';
 import { createCircuitStore, insertOperation, newIdentifier } from '../state';
-import { removeOperation } from '../state/edits';
+import {
+  isRetargetable,
+  moveOperation,
+  removeOperation,
+  retargetOperation,
+} from '../state/edits';
 import { useCircuitStore } from '../state/useCircuitStore';
 import { validateCircuit } from '../validation';
-import { CircuitCanvas, type CellPosition } from './CircuitCanvas';
+import { CircuitCanvas, type CellPosition, type Settle } from './CircuitCanvas';
 import { GatePalette } from './GatePalette';
 import { ProblemsStrip } from './ProblemsStrip';
 import { layoutCircuit } from './layout';
@@ -32,8 +37,10 @@ import { defaultParameters } from './palette';
 import {
   describeCells,
   insertionIndexFor,
+  moveDestinationIndex,
   operationAt,
   operationIdFromPath,
+  qubitsOf,
 } from './placement';
 
 export interface CircuitEditorProps {
@@ -48,6 +55,20 @@ export function CircuitEditor({
 
   const [armed, setArmed] = useState<GateName | null>(null);
   const [cursor, setCursor] = useState<CellPosition>({ row: 0, column: 0 });
+  const [dragging, setDragging] = useState<string | null>(null);
+  const [settle, setSettle] = useState<Settle | null>(null);
+
+  /**
+   * The column the last drag step asked for, so the settle animation can play
+   * once when the gesture ends rather than on every intermediate position.
+   */
+  const requested = useRef<number | null>(null);
+  const settles = useRef(0);
+
+  function scheduleSettle(operationId: string, fromColumn: number): void {
+    settles.current += 1;
+    setSettle({ operationId, fromColumn, nonce: settles.current });
+  }
 
   const decomposition = useMemo(() => deriveCycles(circuit), [circuit]);
   const layout = useMemo(
@@ -103,10 +124,133 @@ export function CircuitEditor({
     place(armed, qubitId, cell.column);
   }
 
+  /**
+   * Move an operation to a cell.
+   *
+   * Two changes a single gesture combines: `retargetOperation` moves it to
+   * another wire, `moveOperation` changes its position in the canonical list.
+   * A multi-qubit operation only does the second -- which of its qubits a drag
+   * meant to move is ambiguous, and guessing would produce a circuit nobody
+   * asked for.
+   */
+  function moveTo(
+    operationId: string,
+    cell: CellPosition,
+    drag: boolean,
+  ): void {
+    const operation = circuit.operations.find(
+      (candidate) => candidate.id === operationId,
+    );
+    const wire = layout.wires[cell.row]?.qubitId;
+    if (operation === undefined || wire === undefined) return;
+
+    const retarget =
+      isRetargetable(operation) && !operation.targets.includes(wire);
+
+    // Every qubit it uses, not just its target: a cx occupies its control wire
+    // too, and an index computed from the target alone can place it before an
+    // operation on the control that it has to follow.
+    const qubitIds = retarget ? [wire] : qubitsOf(operation);
+
+    store.apply(
+      `Move ${describeOperation(operation)}`,
+      (current) => {
+        const index = moveDestinationIndex(
+          current,
+          operationId,
+          qubitIds,
+          cell.column,
+        );
+        const retargeted = retarget
+          ? retargetOperation(current, operationId, wire)
+          : current;
+        return moveOperation(retargeted, operationId, index);
+      },
+      drag ? { coalescingKey: `move:${operationId}` } : {},
+    );
+
+    if (drag) requested.current = cell.column;
+    else scheduleSettle(operationId, cell.column);
+  }
+
+  /**
+   * Move the selection one cell, from wherever the derivation currently puts it.
+   *
+   * Its column is read from the decomposition rather than inverted out of a
+   * pixel coordinate -- the cycle index *is* the column, and asking the geometry
+   * to give it back would make the keyboard depend on the rendering constants.
+   */
+  function nudgeSelection(rows: number, columns: number): void {
+    if (selection === null) return;
+
+    const cycle = decomposition.cycles.findIndex((ids) =>
+      ids.includes(selection),
+    );
+    const barrier = decomposition.barriers.find(
+      (placement) => placement.operationId === selection,
+    );
+    const column = cycle >= 0 ? cycle : (barrier?.beforeCycle ?? 0);
+
+    // Read the row from the operation's own first qubit rather than from the
+    // rendered anchors: a barrier has no entry in `layout.operations`, and
+    // defaulting its row to 0 made a vertical nudge silently retarget it.
+    const operation = circuit.operations.find(
+      (candidate) => candidate.id === selection,
+    );
+    const row = Math.max(
+      0,
+      layout.wires.findIndex((wire) => wire.qubitId === operation?.targets[0]),
+    );
+
+    const clamp = (value: number, count: number): number =>
+      Math.max(0, Math.min(value, count - 1));
+
+    moveTo(
+      selection,
+      {
+        row: clamp(row + rows, layout.wires.length),
+        column: clamp(column + columns, layout.columnCount),
+      },
+      false,
+    );
+  }
+
+  /**
+   * Begin dragging an operation.
+   *
+   * Called by whichever layer knows where the operation is: the cells for gates
+   * and measurements, the barrier hit-target for barriers, which sit on the
+   * boundary between columns and so are in no cell at all.
+   *
+   * Ignored while a palette gate is armed -- a press on an occupied cell then
+   * means "place here", not "pick that up".
+   */
+  function pickUp(operationId: string): void {
+    if (armed !== null) return;
+    store.select(operationId);
+    setDragging(operationId);
+  }
+
+  function endDrag(): void {
+    if (dragging === null) return;
+    const operationId = dragging;
+    const from = requested.current;
+
+    setDragging(null);
+    requested.current = null;
+    store.endCoalescing();
+    if (from !== null) scheduleSettle(operationId, from);
+  }
+
+  function describeOperation(operation: { readonly kind: string }): string {
+    return operation.kind === 'gate' ? 'gate' : operation.kind;
+  }
+
   function place(name: GateName, qubitId: string, column: number): void {
     const signature = GATE_SIGNATURES[name];
     const id = newIdentifier();
-    const index = insertionIndexFor(circuit, decomposition, qubitId, column);
+    const index = insertionIndexFor(circuit, decomposition, [qubitId], column);
+    scheduleSettle(id, column);
 
     store.apply(`Place ${name} on ${describeWire(qubitId)}`, (current) =>
       insertOperation(
@@ -151,8 +295,29 @@ export function CircuitEditor({
           cursor={cursor}
           selection={selection}
           armed={armed}
-          onCursorChange={moveCursor}
+          dragging={dragging}
+          settle={settle}
+          onCursorChange={(cell) => {
+            const changed =
+              cell.row !== cursor.row || cell.column !== cursor.column;
+            moveCursor(cell);
+            // A drag applies as it goes, coalescing into one undo step, so the
+            // gate follows the pointer instead of jumping at the end. Guarded:
+            // pointer-move fires continuously over a single cell.
+            if (dragging !== null && changed) moveTo(dragging, cell, true);
+          }}
           onActivate={activate}
+          onPickUp={pickUp}
+          onDropDrag={endDrag}
+          onNudgeSelection={nudgeSelection}
+          onUndo={() => {
+            setSettle(null);
+            store.undo();
+          }}
+          onRedo={() => {
+            setSettle(null);
+            store.redo();
+          }}
           onSelectOperation={(id) => {
             store.select(id);
           }}

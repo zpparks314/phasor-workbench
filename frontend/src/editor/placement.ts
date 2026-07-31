@@ -18,23 +18,38 @@
  */
 
 import type { Circuit, Operation } from '../model/circuit';
-import type { Decomposition } from '../cycles';
+import { deriveCycles, type Decomposition } from '../cycles';
 
 /**
- * Where an operation dropped at `column` on `qubitId` belongs in the list.
+ * Where an operation dropped at `column` belongs in the list.
  *
- * Immediately after the last operation touching that qubit which sits before the
- * column, and therefore before the first one at or after it. A qubit's operations
- * are strictly ordered in the derivation, so that boundary is unambiguous.
+ * Two constraints, and both are needed:
  *
- * Operations that do not touch the qubit are not considered. Their relative order
- * against the new one is unobservable -- ADR-0003 makes the derivation invariant
- * under reorderings that preserve data dependencies.
+ * - **after** the last operation on an involved wire that runs before the column
+ * - **before** the first one that runs at or after it
+ *
+ * Either phrasing alone is enough only when list order and cycle order agree.
+ * They agree along a single wire and **not across wires**: two measurements on
+ * different qubits can appear in one order in the list and run in the other.
+ * Taking only the first is then unsatisfiable -- it can point past a blocker --
+ * and a barrier dragged beside two measurements lands on the wrong side of one
+ * and stops constraining it. Taking only the second is always valid but pushes
+ * the operation as late in the list as it can go.
+ *
+ * **Every qubit the operation uses has to be considered, not just its target.**
+ * A `cx` occupies its control wire as surely as its target, so an index computed
+ * from the target alone can place it before an operation on the control that it
+ * must follow. The derivation then schedules it wherever the dependencies
+ * actually allow, which shows up as a gate dragged right and landing far left.
+ *
+ * Operations touching none of those qubits are not considered. Their relative
+ * order against this one is unobservable -- ADR-0003 makes the derivation
+ * invariant under reorderings that preserve data dependencies.
  */
 export function insertionIndexFor(
   circuit: Circuit,
   decomposition: Decomposition,
-  qubitId: string,
+  qubitIds: readonly string[],
   column: number,
 ): number {
   const cycleOf = cyclesByOperation(decomposition);
@@ -45,26 +60,62 @@ export function insertionIndexFor(
     ]),
   );
 
-  let predecessor = -1;
+  const involved = new Set(qubitIds);
+
+  /**
+   * A barrier sits on the boundary *before* its cycle, so one at exactly this
+   * column already precedes anything in it. Treating it as following instead
+   * would put the new operation under a constraint the user placed to apply to
+   * what comes after.
+   */
+  const runsBefore = (operation: Operation): boolean => {
+    if (operation.kind === 'barrier') {
+      const before = barrierAt.get(operation.id);
+      return before !== undefined && before <= column;
+    }
+    const cycle = cycleOf.get(operation.id);
+    return cycle !== undefined && cycle < column;
+  };
+
+  let lastBefore = -1;
+  let firstAfter = circuit.operations.length;
 
   circuit.operations.forEach((operation, index) => {
-    if (!touches(operation, qubitId)) return;
+    if (!qubitsOf(operation).some((qubit) => involved.has(qubit))) return;
 
-    if (operation.kind === 'barrier') {
-      // A barrier sits on the boundary *before* its cycle, so one at exactly this
-      // column already precedes anything in it. Inserting ahead of it instead
-      // would silently put the new operation under a constraint the user placed
-      // to apply to what comes after.
-      const before = barrierAt.get(operation.id);
-      if (before !== undefined && before <= column) predecessor = index;
-      return;
-    }
-
-    const cycle = cycleOf.get(operation.id);
-    if (cycle !== undefined && cycle < column) predecessor = index;
+    if (runsBefore(operation)) lastBefore = index;
+    else if (index < firstAfter) firstAfter = index;
   });
 
-  return predecessor + 1;
+  return Math.min(firstAfter, lastBefore + 1);
+}
+
+/**
+ * Where a moved operation belongs, as a `moveOperation` destination index.
+ *
+ * The same rule as `insertionIndexFor`, but computed against the circuit with
+ * the operation *removed*. An operation left in place is its own predecessor --
+ * it sits on the wire it is being moved along -- so it would position itself
+ * relative to where it already is and never move.
+ *
+ * That the two agree is not a coincidence to rely on quietly: `moveOperation`
+ * filters the operation out and splices it back at `toIndex`, so an index valid
+ * for a list of `n - 1` is exactly the index it wants.
+ */
+export function moveDestinationIndex(
+  circuit: Circuit,
+  operationId: string,
+  qubitIds: readonly string[],
+  column: number,
+): number {
+  const without = {
+    ...circuit,
+    operations: circuit.operations.filter(
+      (operation) => operation.id !== operationId,
+    ),
+  };
+
+  return insertionIndexFor(without, deriveCycles(without), qubitIds, column);
 }
 
 /**
@@ -164,9 +215,12 @@ function cyclesByOperation(decomposition: Decomposition): Map<string, number> {
  * to decide what a removed qubit destroys. Each wants a different shape, so they
  * are not one function pretending otherwise.
  */
-function touches(operation: Operation, qubitId: string): boolean {
-  if (operation.targets.includes(qubitId)) return true;
+export function qubitsOf(operation: Operation): readonly string[] {
   return operation.kind === 'gate'
-    ? (operation.controls ?? []).includes(qubitId)
-    : false;
+    ? [...operation.targets, ...(operation.controls ?? [])]
+    : operation.targets;
+}
+
+function touches(operation: Operation, qubitId: string): boolean {
+  return qubitsOf(operation).includes(qubitId);
 }
