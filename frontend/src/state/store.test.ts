@@ -173,9 +173,14 @@ describe('undo restores the exact prior circuit', () => {
       const store = createCircuitStore(initial);
       const checkpoints: Circuit[] = [];
 
+      // A checkpoint per recorded *history step*, not per attempted edit. An
+      // edit that returns its input records nothing -- `moveOperation` does
+      // exactly that when asked to move an operation where it already is -- so
+      // counting attempts would undo further than the history goes.
       for (let n = 0; n < EDIT_COUNT; n += 1) {
-        checkpoints.push(store.getState().circuit);
+        const before = store.getState().circuit;
         applyRandomEdit(store, random, n);
+        if (store.getState().circuit !== before) checkpoints.push(before);
       }
 
       // Guard against a vacuous pass: a generator that produced only trivial
@@ -192,7 +197,7 @@ describe('undo restores the exact prior circuit', () => {
         Math.max(...checkpoints.map((c) => c.operations.length)),
       ).toBeGreaterThan(8);
 
-      for (let n = EDIT_COUNT - 1; n >= 0; n -= 1) {
+      for (let n = checkpoints.length - 1; n >= 0; n -= 1) {
         store.undo();
         expect(store.getState().circuit).toEqual(checkpoints[n]);
       }

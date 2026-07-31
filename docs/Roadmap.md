@@ -81,65 +81,25 @@ entries shape that milestone directly.
 
 ### Status
 
-Both projects are scaffolded and **verified end to end**.
+Both projects scaffolded and verified end to end. CI runs lint, format, type
+check, test and build for both on every push, across two Python and two Node
+versions. `main` is protected: pull request and passing `CI` required, linear
+history, no force pushes. Only the aggregate `CI` check is required, because
+matrix job names carry their version and would leave a new leg unprotected.
 
-**Backend** — installs on Python 3.14, `pytest` passes (3 tests), `ruff` and
-`mypy --strict` clean. `GET /api/v1/health` returns a valid response.
+`docker compose up --build` runs both services with hot reload. The backend
+container pins Python 3.13 because Qiskit publishes no 3.14 wheels, making it
+where the Milestone 4 `simulation` extra will install. Production images are
+deferred to Milestone 5; both Dockerfiles are multi-stage so adding a target is
+additive. Docker supplements native development — CI runs natively.
 
-**Frontend** — `npm install` succeeds, `tsc --noEmit` clean, `eslint` clean,
-`vitest` passes (3 tests), production build succeeds.
+Continuous *deployment* is deliberately absent. It belongs with **Deployment** in
+Milestone 5 and should consume the Dockerfile rather than duplicate it.
 
-**Integration** — the running frontend reaches the backend through the Vite
-proxy and reports the API version. With the backend stopped, it degrades to a
-readable message rather than failing blank, satisfying the requirement in
-Architecture.md that the frontend stay functional when the backend is down.
-
-**CI** — `.github/workflows/ci.yml` runs both projects on every push and pull
-request: lint, format check, type check, test, and production build. Backend
-across Python 3.11 and 3.14, frontend across Node 20.19 and 22. It enforces the
-mechanical half of the Definition of Done below; documentation and review stay
-human.
-
-Milestone 2 added a **Shared model** job, the only one needing both toolchains.
-It verifies that the bindings committed under each project still match
-`shared/schema/circuit.schema.json`. Nothing else in the workflow would catch
-that drift — both projects lint, type check and build perfectly against a stale
-model.
-
-Continuous *deployment* is deliberately not part of this milestone. There is
-nothing to deploy yet, and a pipeline built now would be rewritten once Docker
-exists and the app has features. It belongs with **Deployment** in Milestone 5,
-and should consume the Dockerfile rather than duplicate it.
-
-**Branch protection** — a ruleset on the default branch requires a pull request
-and a passing `CI` check before merging, requires linear history, and blocks
-force pushes and deletion. Only the aggregate `CI` job is required, not the
-four matrix jobs: matrix job names carry their version, so requiring those
-directly would leave a new leg unprotected until someone remembered to update
-the rule.
-
-Repository admin holds an `always` bypass, so the owner can still push directly
-to `main`. That is a deliberate trade for a solo project — the rules exist for
-contributors who arrive later, and the guardrail against accidental force
-pushes and deletions still applies to everyone. Revisit when the project takes
-its first outside contributor.
-
-**Docker** — `compose.yaml` runs both services with the working tree bind-mounted
-and hot reload verified on both sides. The backend container pins Python 3.13
-because Qiskit publishes no 3.14 wheels, making it where the Milestone 4
-`simulation` extra will install. Production images are deferred to Milestone 5;
-both Dockerfiles are multi-stage so adding a `production` target is additive.
-
-Docker supplements native development rather than replacing it. CI runs
-natively, and the venv/npm workflow remains fully supported.
-
-One finding worth keeping: **Vite 7 bundles chokidar instead of depending on
-it, and `server.watch.usePolling` alone does not reach the watcher** —
-`CHOKIDAR_USEPOLLING` does. Polling is required at all because bind-mounted
-Windows filesystems deliver no inotify events; this was verified directly
-(`fs.watchFile` sees host edits through the mount, `fs.watch` never fires).
-Without that environment variable, frontend hot reload fails silently.
-
+Two findings from this milestone are documented where they apply rather than
+here: the Windows bind-mount polling requirement in `compose.yaml`, and the
+repository admin bypass on branch protection, which is a deliberate trade for a
+solo project and should be revisited at the first outside contributor.
 ### Known Issues
 
 * `npm audit` reports 5 high-severity findings, all one root cause
@@ -252,124 +212,44 @@ has not yet been tested by anything that would be tempted to break it.
 
 ### Status
 
-**Both shared sources and their generated bindings are done.**
-`shared/schema/circuit.schema.json` defines a circuit's shape and
-`shared/spec/circuit.spec.json` defines the semantics a schema cannot express —
-gate signatures, violation codes, and the current model version.
-`shared/generate_bindings.py` generates Pydantic models and TypeScript types from
-the first and typed constants from the second, and a **Shared model** CI job
-fails the build if any of the four outputs is stale. ADR-0004's gating task —
-proving the `Operation` discriminated union survives generation on both sides —
-is confirmed.
+**Two shared sources of truth, not one.** `shared/schema/circuit.schema.json`
+defines a circuit's shape; `shared/spec/circuit.spec.json` defines the semantics a
+schema cannot express — gate signatures, violation codes with their `phase`, and
+the current model version. Bindings generate into `models/circuit.py`,
+`models/spec.py`, `model/circuit.ts` and `model/spec.ts`, and the **Shared model**
+CI job fails the build if any is stale.
 
-**The module layout for the hand-written half is settled**
-([ADR-0005](decisions/ADR0005_SharedSpecification.md)). `validation/` and
-`cycles/` exist in both projects, carry the same names, and are empty pending the
-next two tasks. Generation refuses to run if the schema and spec disagree about
-the gate set, so adding a gate is now guarded end to end rather than half of it
-being a hand edit.
+**Four hand-written implementations, held to 51 fixtures.** Validation and the
+cycle derivation exist in both languages and agree on every fixture — verified
+beyond what the fixtures enforce by diffing both implementations directly: 25
+violations with identical codes *and* paths, 17 decompositions with identical
+cycles, barriers and depth. The versioned loader is Python-only; the TypeScript
+half is Milestone 3.
 
-One scope decision worth knowing before writing frontend code: Milestone 2 gives
-the frontend **semantic validation only**. Runtime shape validation is deferred to
-Milestone 3, when the frontend first reads a circuit it did not build — see
-ADR-0005 section 6.
+**Every empirical finding from this work lives beside the thing it constrains**,
+not here — the `$comment` fields in `circuit.schema.json` for the `discriminator`
+keyword, the `Identifier` / `IdentifierRef` split and `Metadata`'s
+`additionalProperties`, and the comments in `generate_bindings.py` for its flags
+and newline handling.
 
-**Semantic validation is done in both languages**, with 25 fixtures in
-`shared/fixtures/valid/` and `shared/fixtures/invalid/semantic/`. All twelve
-semantic violation codes have fixture coverage, enforced in each suite by a test
-that fails if a code is added without one. `validate_circuit` /
-`validateCircuit` take an already-parsed `Circuit` and report every violation,
-each with a code from the generated spec and a document path in the format
-`API.md` specifies.
+Two corrections this milestone produced, worth keeping because both were wrong in
+prose before they were right in code:
 
-**The two agree, and it was checked rather than assumed.** Across all 20 invalid
-fixtures the implementations produce the same 25 violations with the same codes
-*and* the same paths. The fixtures only enforce codes, so path agreement was
-verified by diffing both implementations' output directly.
-
-Two consequences worth carrying forward. Shape rejection is the parse boundary's
-job, so `shared/fixtures/invalid/shape/` stays empty until the endpoint that maps
-a parse failure into the error envelope exists. And parity needs no
-cross-language runner — see the table entry above and `tests/README.md`.
-
-**The cycle derivation is done in both languages**, with 12 fixtures in
-`shared/fixtures/decomposition/` covering the nine cases ADR-0003 enumerates.
-Every expected decomposition was hand-computed from the ADR's algorithm rather
-than recorded from the implementation. ADR-0003's guaranteed properties are
-asserted over every circuit in the repository — the decomposition fixtures and
-the `valid/` fixtures alike, since the latter are valid circuits and therefore
-free extra inputs.
-
-Building those fixtures corrected a claim this document had been making: a
-barrier contributes no cycle *of its own*, but a barrier levelling an unequal
-frontier delays later operations and **can** raise depth. The previous wording —
-"annotating a circuit must never change its reported depth" — was false in
-general, and `barrier_levels_unequal_frontiers.json` is the counterexample. ADR-
-0003's normative statement is correct; only the prose around it overstated. See
-the note under the worked decomposition in
-[CircuitModel.md](CircuitModel.md).
-
-The two implementations agree on all 17 circuits in the repository — the 12
-decomposition fixtures plus the 5 in `valid/`. That second group matters: those
-have no declared decomposition, so a direct diff of both implementations' output
-is the only thing checking they agree there.
-
-**The versioned loader is done in Python**, implementing
-[ADR-0006](decisions/ADR0006_VersionCompatibility.md), with 14 fixtures in
-`shared/fixtures/version/` covering all five load-phase codes. The declared
-version selects a mode and the content decides the outcome: unknown *fields* on a
-newer-minor document are stripped, preserved with their document paths, and warned
-about; an unknown gate or operation kind is refused with its own code.
-
-Two details worth carrying forward. **Unknown-ness is decided by Pydantic**, not
-by a second description of the schema — parsing reports every `extra_forbidden`
-error with its exact location, so the thing that rejects unknown fields is also
-the authority on what they are, and there is no list to drift. And the **migration
-registry ships empty**, since `0.1.0` is the first version; its shape is exercised
-by synthetic migrations in the tests, including one that fails to advance the
-version, which would otherwise loop forever.
-
-**Remaining in Milestone 2:** nothing substantive. `invalid/shape/` fixtures
-belong to the validation endpoint rather than the loader, and the TypeScript
-loader is deferred to Milestone 3 with the local-save requirement in hand.
-
-Three findings from that work are worth not rediscovering:
-
-* **The union needs OpenAPI's `discriminator` keyword.** With a plain `oneOf`,
-  Pydantic attempts every branch and reports that none matched: a gate missing
-  `name` produced four errors and a barrier carrying illegal `controls`
-  produced seven, in both cases burying the real one. With it, each produces
-  exactly one, and an unknown `kind` reports the tags it accepts.
-* **A *constrained* string inside an array generates as `RootModel[str]`**,
-  which is unhashable — `target in qubit_ids` raised `TypeError` rather than
-  returning a wrong answer. Hence the `Identifier` / `IdentifierRef` split:
-  constraints belong where an id is minted, and a reference is validated by
-  resolution, which is strictly stronger.
-* **The two generators disagree about line endings.** `.gitattributes`
-  normalization hid it in the repository while leaving it in the working tree,
-  which would have made the byte-exact CI check fail unconditionally on Linux.
-  Generation now normalizes.
-
-**Remaining: validation, the cycle derivation, and the contract fixtures.**
-Write each subsystem's fixtures alongside it rather than after both languages
-are implemented. Fixtures are the only mechanism that detects divergence, so
-deferring them means writing the second implementation blind.
-
+* **A barrier levelling an unequal frontier can raise depth.** The earlier claim
+  that annotating a circuit never changes its depth was false in general;
+  `barrier_levels_unequal_frontiers.json` is the counterexample. What holds is
+  narrower — a barrier contributes no cycle *of its own*.
+* **The versioning table conflated two questions.** "Minor" describes what the
+  producer did; it does not follow that an older consumer can read the result. The
+  table now states the bump and the loadability separately. See ADR-0006.
 ### Known Issues
 
-* ~~**Strict schema versus the forward-compatibility policy.**~~ **Resolved in
-  design 2026-07-30** by [ADR-0006](decisions/ADR0006_VersionCompatibility.md).
-  The tension was never real: `schemaVersion` is a top-level string, so the loader
-  reads and compares it *before* handing anything to a validator, and strictness
-  never has to relax. Settling it did surface a real problem — the versioning
-  table classified gate and operation-kind additions as minor while implying an
-  older build could still load them, which is false. The table now states the
-  version bump and the loadability separately. **The loader itself is still
-  unwritten.**
-* **`Metadata` silently discarded unknown keys** — the one object in the schema
-  without `additionalProperties: false`, so Pydantic dropped them without an
-  error, contradicting both the round-trip rule and `CLAUDE.md`. **Fixed
-  2026-07-30** under ADR-0006.
+Two issues from this milestone were resolved during it and are recorded where
+they were decided rather than here: the apparent tension between the strict
+schema and forward compatibility (never real — see
+[ADR-0006](decisions/ADR0006_VersionCompatibility.md)), and `Metadata` silently
+discarding unknown keys (fixed under the same ADR).
+
 * `register` generates as `register_` in Python, aliased back to `register` on
   the wire. Cosmetic, and confined to the Python API.
 
@@ -384,15 +264,15 @@ Allow users to visually construct quantum circuits.
 ### Tasks
 
 * [x] Editing model and history — pure edits, snapshot stack, coalescing
-* [ ] Undo — model done, no UI yet
-* [ ] Redo — model done, no UI yet
+* [ ] Undo — keyboard done, no button yet
+* [ ] Redo — keyboard done, no button yet
 * [x] Render quantum wires — read-only canvas, all glyph kinds
 * [ ] Add and remove qubits
 * [ ] Add and remove classical registers
 * [x] Gate palette
 * [x] Place gates
 * [x] Remove gates
-* [ ] Move gates
+* [x] Move gates — drag and keyboard
 * [ ] Multi-qubit gates
 * [ ] Place measurements
 * [ ] Place barriers
@@ -450,207 +330,104 @@ and parity follows transitively, exactly as it does for validation and cycles.
 
 ### Where to Pick Up
 
-Written at the end of the session that built the palette and placement. The task
-list above is the plan; this is what a new session needs that the list does not
-say.
-
 **Read first:** [ADR-0007](decisions/ADR0007_EditingModel.md) and [UI.md](UI.md).
-Everything below assumes both.
+Everything in this milestone assumes both. *Status* below says what exists;
+*Remaining* says what does not.
 
-**The next piece of work, in order:**
+**What is available to build on.** `frontend/src/model/` for the types,
+`frontend/src/validation/` for inline feedback, `frontend/src/cycles/` for render
+columns, `frontend/src/state/` for every change to the circuit, and
+`frontend/src/editor/` for geometry and placement.
 
-1. **Move gates.** The pure half already exists — `moveOperation` in
-   `state/edits.ts` and `insertionIndexFor` in `editor/placement.ts` — so this is
-   a drag interaction over machinery that is built and tested. Use a coalescing
-   key of `move:<operationId>` and call `store.endCoalescing()` when the gesture
-   ends, or the whole drag becomes one undo step per intermediate position.
-2. **The settle animation.** Do this *with* move, not after. Placement already
-   packs a gate left of where it was dropped, correctly and tested, but nothing
-   explains why — it currently looks like a bug. This is the one piece of `UI.md`
-   doing the educational work, and it is the oldest outstanding gap.
-3. **Multi-qubit placement.** The palette entries are present and
-   `aria-disabled`; `PaletteEntry.placeable` is the flag to remove. Needs the
-   control-assignment sequence in `UI.md`: place the target, then one click per
-   control, `Escape` cancelling the whole pending operation rather than one step.
-4. **Measurements and barriers**, then **qubit and register management**.
-5. **Undo/redo buttons.** The model is complete and labelled — `undoLabel` and
-   `redoLabel` on the store state exist so the buttons can say "Undo place H"
-   rather than "Undo". This is a header, not a feature.
-
-**Known gaps, none of them accidental:**
-
-* **Barriers have no keyboard path.** They sit on boundaries *between* columns, so
-  they are in no grid cell, and mouse is currently the only way to select one.
-  This violates `UI.md`'s "nothing is reachable by mouse alone" and should be
-  settled alongside barrier placement — it needs a decision about how boundaries
-  participate in the grid, not a patch.
-* **An operation whose every qubit reference dangles is not drawn**, so the
-  problems strip is the only route to it. Acceptable, but it is why that strip
-  selects by path.
-* **Rotation and phase gates place with a default of π/2** and cannot be edited.
-  Parameter editing is unbuilt.
-* **The grid's screen-reader behaviour is unverified.** The markup follows the
-  composite-widget pattern and the tests asserted names and roles, but SVG
-  accessibility mapping is inconsistent enough that this proves little. Test it
-  with a real screen reader before Milestone 3 closes.
-* **`editor/demoCircuit.ts` is scaffolding** and should be deleted once the editor
-  opens on an empty circuit or on restored local storage.
-
-**Milestone 3's two open decisions are still open** and are unblocked — see
-*Decisions Awaiting the Owner*. They land together in ADR-0008 with the frontend
-loader, and nothing before local save depends on them.
-
-### Starting Points
-
-**Available to build on.** `frontend/src/model/` for the types,
-`frontend/src/validation/` for inline feedback, and `frontend/src/cycles/` for
-render columns. `deriveCycles` also returns the barrier placements a renderer
-needs to draw on a column boundary.
-
-The editor computes pixel geometry — that is `editor/layout.ts`, a pure function
-of `(circuit, decomposition)` kept out of the components so it is testable without
-a DOM. What it must never do is decide *which column* an operation occupies. That
-is the derivation's answer, recomputed every render and never stored. See
+**The constraint that shapes everything here:** `editor/layout.ts` computes pixel
+geometry, and never decides *which column* an operation occupies. That is
+`deriveCycles`, recomputed every render and never stored. See
 [Frontend.md](Frontend.md) and
 [ADR-0001](decisions/ADR0001_CircuitRepresentation.md).
 
-**Settled 2026-07-30, before any component was written:**
-
-* **The editing model** — [ADR-0007](decisions/ADR0007_EditingModel.md), Accepted.
-  Edits are pure `Circuit → Circuit` functions from a named vocabulary; history is
-  a bounded stack of labeled snapshots; coalescing is declared by the interaction
-  rather than inferred from timing; history holds circuit values only.
-* **Interface design** — [UI.md](UI.md), written for this milestone's scope with
-  results and visualization left to Milestone 4.
-* **Persistence mechanism** — `localStorage`, as the working-set store. Files are
-  the interchange format and arrive with Milestone 5's JSON import/export.
-
-**Two decisions this milestone still must make.** They are one cluster, and land
-together in ADR-0008 with the loader they force:
+**Two decisions this milestone still owes**, both scoped to local save and both
+landing in ADR-0008 with the frontend loader:
 
 1. **Runtime shape validation on the frontend.** Deferred by
    [ADR-0005](decisions/ADR0005_SharedSpecification.md) section 6 until local save
-   gave it a concrete requirement. Local save is that requirement.
+   made it concrete. Narrowed since: hand-writing a shape checker is a second
+   description of the schema, which ADR-0004 exists to prevent, so the real choice
+   is *which* schema-driven mechanism.
 2. **What `schemaVersion` an edited newer-minor circuit declares on save.**
 
-`localStorage` does not make either question go away, and it is worth saying so
-because it looks like it might. A stored document was written by *some* build —
-possibly older, possibly a partial write, possibly hand-edited through devtools —
-so it is still a circuit the editor did not build, and ADR-0006's argument that a
-version claim is unverifiable evidence applies to it unchanged.
+Choosing `localStorage` does not remove either question. A stored document was
+written by *some* build — possibly older, possibly a partial write, possibly
+hand-edited through devtools — so it is still a circuit this build did not
+construct, and ADR-0006's argument that a version claim is unverifiable evidence
+applies unchanged.
+
 
 ### Status
 
-**`frontend/src/state/` is built and tested** — the edit vocabulary, the history
-stack, and the store, implementing ADR-0007. Headless, with no React import in
-the module, so all of it is tested without a DOM. 52 new tests, taking the
-frontend suite to 220. Nothing renders yet and the application is unchanged, which
-is the point of building this half first.
+**Built and working.** A user can construct a circuit in the browser: arm a gate
+from the palette, place it by pointer or keyboard, select it, move it by drag or
+`Ctrl/Cmd` + arrow, and remove it. Undo and redo work from the keyboard. Barriers
+are selectable with `b`. Violations appear in the problems strip and clear when
+fixed. 385 frontend tests.
 
-Two things from that work worth not rediscovering:
+**`frontend/src/state/`** holds the store, the edit vocabulary and history,
+implementing [ADR-0007](decisions/ADR0007_EditingModel.md). Headless — only the
+React adapter imports React, which is what makes the undo property test possible
+without a DOM.
+
+**`frontend/src/editor/`** holds `layout.ts` (a pure
+`(circuit, decomposition) -> geometry` function), `placement.ts` (drop column to
+list index), the SVG canvas, the palette and the problems strip.
+
+**The single-source-of-truth rule now has a real consumer**, which this document
+previously noted was satisfied only vacuously. The decomposition, the geometry,
+the cell contents and the violations are all recomputed every render from the one
+circuit the store holds. No component stores a column or a coordinate.
+
+Design decisions made here are in [UI.md](UI.md) — conventional gate notation, the
+canvas layering rule, the two connector gap widths, the settle animation, and why
+`b` reaches barriers. Two that are easy to undo by accident:
 
 * **Edits take identifiers as arguments rather than minting them.** A function
-  that calls `crypto.randomUUID()` internally returns a different circuit on every
-  call, which is not a pure function and cannot be asserted against — the undo
-  property test would have had nothing to compare. Callers mint; `state/edits.ts`
-  stays pure. `newIdentifier()` lives in its own module for that reason.
-* **Removing a qubit shrinks a barrier rather than deleting it.** A barrier
-  constrains a *set* of qubits and the constraint on the rest survives one of them
-  leaving. Deleting it would silently change the circuit's depth. A barrier left
-  with no targets is dropped, since empty targets are shape-invalid.
+  calling `crypto.randomUUID()` internally is not pure and cannot be asserted
+  against — the undo property test would have nothing to compare.
+* **Removing a qubit shrinks a barrier rather than deleting it.** The constraint
+  on the remaining qubits survives one of them leaving, and deleting it would
+  silently change the circuit's depth.
 
-The undo property test found a real weakness in its own generator before it found
-anything else: with uniformly chosen edits, `removeQubit` — which deletes every
-operation on its wire — dominated, and one seed never built a circuit past three
-operations. The property held, but only over circuits too small to mean anything.
-The edit weights and the vacuity guard in `store.test.ts` are the fix, and the
-guard is the part worth keeping: a property test that cannot detect its own
-vacuity is not evidence.
+**Two testing lessons, both learned the hard way and both now enforced in the
+tests themselves.** A test that dispatches an event directly on an element proves
+nothing about whether a pointer can reach it — the gate drag shipped broken with a
+passing test for exactly that reason. And a property test that cannot detect its
+own vacuity is not evidence: the undo property held for five seeds over circuits
+too small to mean anything until a guard was added.
 
-**`frontend/src/editor/` renders, read-only.** `layout.ts` is a pure
-`(circuit, decomposition, metrics) → geometry` function with no DOM dependency;
-`CircuitCanvas.tsx` draws what it produced and nothing else. Wires, gates,
-controls and connectors, measurements with their register lanes, and barriers all
-render. The app shows a demo circuit built through the edit vocabulary, which is
-temporary scaffolding until the palette exists. 35 new tests, 255 in the suite.
+`@testing-library/user-event` was considered for interaction tests and declined —
+`fireEvent` from the already-installed library covers keydown and click.
 
-**The single-source-of-truth rule now has a real consumer**, which `Roadmap.md`
-noted was previously satisfied only vacuously. `CircuitEditor.tsx` recomputes the
-decomposition and the geometry on every render from the one circuit the store
-holds. No component stores a column or a coordinate.
+### Remaining
 
-One rendering rule `UI.md` did not spell out, added there now: a barrier over a
-non-contiguous set of wires draws one segment per contiguous run rather than a
-single rule through the wires it skips, since it does not constrain them.
+* [ ] Multi-qubit **placement** — palette entries exist and are `aria-disabled`;
+  `PaletteEntry.placeable` is the flag to remove. Needs the control-assignment
+  sequence in UI.md: place the target, then one click per control, `Escape`
+  cancelling the whole pending operation.
+* [ ] Measurements and barriers in the palette
+* [ ] Add and remove qubits and classical registers
+* [ ] Undo/redo **buttons** — the model is done and labelled; `undoLabel` and
+  `redoLabel` exist so they can say "Undo place H" rather than "Undo"
+* [ ] Parameter editing — rotation gates place at a fixed π/2
+* [ ] Local save, and with it ADR-0008 and `frontend/src/serialization/`
 
-**The palette, placement, selection, removal, and the problems strip are built.**
-The canvas is now a real grid: `role="grid"`, a row per qubit, a cell per
-position, with the cursor moving by `aria-activedescendant` so a forty-gate
-circuit is one tab stop rather than forty. Placement works by click-to-arm and by
-drag, both routed through one activation path rather than two that must agree.
-316 tests.
+**Known gaps**
 
-**`insertionIndexFor` is where the interaction actually lives.** A drop column is
-translated into a position in the canonical list — after the last operation on
-that wire before the column, and after any barrier sitting at it — and the
-derivation then decides where the operation appears. An `h` dropped far right of
-an empty wire packs back to column 1, asserted end to end.
-
-**The palette reads its gate list from `model/spec.ts`**, so a gate added to the
-shared spec appears without a code change here. A test fails if one arrives
-without a group. Only the *grouping* and the descriptions are hand-written, being
-the two things a gate signature cannot express.
-
-Four gaps against `UI.md`, none of them accidental:
-
-* **The settle animation is not built.** The packing *behaviour* is there and
-  tested, but the animation that explains it is not, so a gate currently jumps to
-  its derived column with no indication why. This is the part of UI.md doing the
-  educational work and it should not stay missing.
-* **Rotation and phase gates place with a default of π/2 rather than prompting.**
-  The circuits produced are valid; parameter editing is simply not built.
-* **Multi-qubit gates are shown but disabled**, with a reason in their accessible
-  name. They need control assignment, which is a placement sequence rather than a
-  single action.
-* **The reserved third column is not rendered.** The grid is two columns until
-  Milestone 4 has results to put there.
-
-`@testing-library/user-event` was considered for the interaction tests and
-declined — `fireEvent` from the already-installed library covers keydown and
-click, and `CLAUDE.md` asks whether an existing dependency suffices first.
-
-One defect found while testing: `aria-activedescendant` could name a cell that no
-longer existed, because removing an operation shrinks the column count and the
-cursor did not follow. The cursor is now clamped on read rather than stored
-clamped — the same treatment stale selection gets under ADR-0007 section 4, and
-for the same reason.
-
-**Six refinements followed from using it**, all from review of the running editor
-rather than from tests, which is worth noting: every one was invisible to a
-suite that already passed.
-
-* **The palette was one tab stop per gate**, so reaching the canvas took eighteen
-  presses. `UI.md` already required one stop per region; the palette now has a
-  roving focus. Unavailable gates became `aria-disabled` rather than `disabled` in
-  the same change, so arrowing across them announces why instead of skipping in
-  silence.
-* **The placement preview did not follow the mouse** — cells handled click and
-  drop but not pointer-enter.
-* **Barrier selection was unreachable.** The handler existed, but the transparent
-  cell rectangles render above it and swallowed the click. There is now a hit
-  layer above the cells, with a wide invisible stroke, because a 2px dashed rule
-  is not a click target.
-* **Deleting required the keyboard.** A `×` now appears on the selection.
-* **Connectors drew across glyphs**, because they were ordered per operation.
-  They are now a single layer beneath every glyph.
-* **A `cz` target and an unrelated gate looked like the same object.** Resolved by
-  adopting conventional notation, recorded in `UI.md`: a box now means exactly one
-  thing, a single-qubit gate.
-
-The last of those had a follow-on bug worth remembering: the crossed circle
-borrowed the connector for its vertical bar, and the connector *terminates at the
-anchor centre*, so only the upper half of the cross drew. A glyph owns all of its
-strokes.
+* **The grid's screen-reader behaviour is unverified.** The markup follows the
+  composite-widget pattern and the tests assert roles and names, but SVG
+  accessibility mapping is inconsistent enough that this proves little. Test with
+  real assistive technology before this milestone closes.
+* **An operation whose every qubit reference dangles is not drawn**, so the
+  problems strip is the only route to it. That is why the strip selects by path.
+* **`editor/demoCircuit.ts` is scaffolding** and should go once the editor opens
+  on an empty or restored circuit.
 
 ---
 

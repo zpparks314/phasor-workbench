@@ -9,7 +9,7 @@ import { validateCircuit } from '../validation';
 import { CircuitCanvas, type CircuitCanvasProps } from './CircuitCanvas';
 import { createDemoCircuit } from './demoCircuit';
 import { targetGlyph } from './glyphs';
-import { layoutCircuit } from './layout';
+import { columnCenter, layoutCircuit } from './layout';
 import { describeCells } from './placement';
 
 function draw(circuit: Circuit, overrides: Partial<CircuitCanvasProps> = {}) {
@@ -26,11 +26,19 @@ function draw(circuit: Circuit, overrides: Partial<CircuitCanvasProps> = {}) {
     cursor: { row: 0, column: 0 },
     selection: null,
     armed: null,
+    dragging: null,
+    settle: null,
     onCursorChange: vi.fn(),
     onActivate: vi.fn(),
     onSelectOperation: vi.fn(),
     onRemoveSelection: vi.fn(),
     onCancel: vi.fn(),
+    onPickUp: vi.fn(),
+    onDropDrag: vi.fn(),
+    onNudgeSelection: vi.fn(),
+    onUndo: vi.fn(),
+    onRedo: vi.fn(),
+    onCycleBarriers: vi.fn(),
     ...overrides,
   };
 
@@ -274,6 +282,178 @@ describe('rendering', () => {
     draw(circuitWith(2));
 
     expect(screen.queryByTestId('placement-preview')).toBeNull();
+  });
+});
+
+/**
+ * The one animation in the editor that explains something. Placement packs a
+ * gate left of where it was dropped, which is correct and would otherwise look
+ * like a bug: position is a consequence of data dependencies, not a coordinate
+ * the user chose.
+ */
+describe('the settle animation', () => {
+  const circuit = insertOperation(
+    circuitWith(1),
+    gate('op_0', 'h', ['q_0']),
+    0,
+  );
+
+  it('slides an operation from the column it was requested in', () => {
+    const { container, layout } = draw(circuit, {
+      settle: { operationId: 'op_0', fromColumn: 4, nonce: 1 },
+    });
+
+    const settling = container.querySelector('.settling');
+    const from = settling?.getAttribute('style') ?? '';
+    const distance =
+      columnCenter(4, layout.metrics) - (layout.operations[0]?.x ?? 0);
+
+    expect(settling).not.toBeNull();
+    expect(from).toContain(`${String(distance)}px`);
+  });
+
+  it('animates the connector with the glyph, not just the box', () => {
+    const spanning = insertOperation(
+      circuitWith(2),
+      gate('op_0', 'cx', ['q_1'], ['q_0']),
+      0,
+    );
+    const { container } = draw(spanning, {
+      settle: { operationId: 'op_0', fromColumn: 3, nonce: 1 },
+    });
+
+    expect(container.querySelectorAll('.settling')).toHaveLength(2);
+  });
+
+  /** Animating a move of no distance would flash for no reason. */
+  it('does not animate when the derivation agreed with the request', () => {
+    const { container } = draw(circuit, {
+      settle: { operationId: 'op_0', fromColumn: 0, nonce: 1 },
+    });
+
+    expect(container.querySelector('.settling')).toBeNull();
+  });
+
+  it('animates nothing when no settle is pending', () => {
+    const { container } = draw(circuit);
+
+    expect(container.querySelector('.settling')).toBeNull();
+  });
+
+  it('leaves other operations alone', () => {
+    const two = insertOperation(
+      insertOperation(circuitWith(2), gate('op_0', 'h', ['q_0']), 0),
+      gate('op_1', 'x', ['q_1']),
+      1,
+    );
+    const { container } = draw(two, {
+      settle: { operationId: 'op_0', fromColumn: 4, nonce: 1 },
+    });
+
+    // Only op_0's two layers, not op_1's.
+    expect(container.querySelectorAll('.settling')).toHaveLength(2);
+  });
+});
+
+describe('drag and nudge', () => {
+  const circuit = insertOperation(
+    circuitWith(2),
+    gate('op_0', 'h', ['q_0']),
+    0,
+  );
+
+  /**
+   * Dispatched on the cell, because that is what a browser hits. The cells are a
+   * transparent layer over the whole canvas, so a press aimed at a gate lands on
+   * the cell above it -- a test that dispatched on the glyph would exercise a
+   * path the browser can never reach.
+   */
+  it('picks up from the cell under the pointer', () => {
+    const { props } = draw(circuit);
+
+    fireEvent.pointerDown(
+      screen.getByRole('gridcell', { name: 'q0, column 1, h' }),
+    );
+
+    expect(props.onPickUp).toHaveBeenCalledWith('op_0');
+  });
+
+  it('picks up nothing from an empty cell', () => {
+    const { props } = draw(circuit);
+
+    fireEvent.pointerDown(
+      screen.getByRole('gridcell', { name: 'q1, column 1, empty' }),
+    );
+
+    expect(props.onPickUp).not.toHaveBeenCalled();
+  });
+
+  /**
+   * A barrier is in no cell -- it sits on the boundary between columns and
+   * appears in no cycle -- so the cell layer can never hand one back. Its hit
+   * target is the only surface that knows where it is.
+   */
+  it('picks up a barrier from its rule, which no cell can offer', () => {
+    const { container, props } = draw(
+      insertOperation(circuitWith(2), barrier('op_1', ['q_0', 'q_1']), 0),
+    );
+
+    const line = container
+      .querySelector('[data-barrier-hit="op_1"]')
+      ?.querySelector('line');
+    if (line != null) fireEvent.pointerDown(line);
+
+    expect(props.onPickUp).toHaveBeenCalledWith('op_1');
+  });
+
+  it('ends the drag on pointer up', () => {
+    const { props } = draw(circuit);
+
+    fireEvent.pointerUp(screen.getByRole('grid'));
+
+    expect(props.onDropDrag).toHaveBeenCalled();
+  });
+
+  it('nudges the selection with Ctrl and an arrow', () => {
+    const { props } = draw(circuit, { selection: 'op_0' });
+
+    fireEvent.keyDown(screen.getByRole('grid'), {
+      key: 'ArrowDown',
+      ctrlKey: true,
+    });
+
+    expect(props.onNudgeSelection).toHaveBeenCalledWith(1, 0);
+    expect(props.onCursorChange).not.toHaveBeenCalled();
+  });
+
+  it('cycles barriers with b, and backwards with Shift', () => {
+    const { props } = draw(circuit);
+    const grid = screen.getByRole('grid');
+
+    fireEvent.keyDown(grid, { key: 'b' });
+    fireEvent.keyDown(grid, { key: 'B', shiftKey: true });
+
+    expect(props.onCycleBarriers).toHaveBeenNthCalledWith(1, 1);
+    expect(props.onCycleBarriers).toHaveBeenNthCalledWith(2, -1);
+  });
+
+  it('leaves Ctrl+B alone, which browsers use', () => {
+    const { props } = draw(circuit);
+
+    fireEvent.keyDown(screen.getByRole('grid'), { key: 'b', ctrlKey: true });
+
+    expect(props.onCycleBarriers).not.toHaveBeenCalled();
+  });
+
+  it('undoes and redoes from the keyboard', () => {
+    const { props } = draw(circuit);
+    const grid = screen.getByRole('grid');
+
+    fireEvent.keyDown(grid, { key: 'z', ctrlKey: true });
+    fireEvent.keyDown(grid, { key: 'z', ctrlKey: true, shiftKey: true });
+
+    expect(props.onUndo).toHaveBeenCalled();
+    expect(props.onRedo).toHaveBeenCalled();
   });
 });
 

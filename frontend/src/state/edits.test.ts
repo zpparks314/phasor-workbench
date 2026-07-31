@@ -4,11 +4,13 @@ import {
   addClassicalRegister,
   addQubit,
   insertOperation,
+  isRetargetable,
   moveOperation,
   removeClassicalRegister,
   removeOperation,
   removeQubit,
   renameCircuit,
+  retargetOperation,
   setParameters,
 } from './edits';
 import { barrier, circuitWith, gate, measurement } from './testCircuits';
@@ -196,6 +198,84 @@ describe('moveOperation', () => {
     expect(() => moveOperation(base, 'op_0', 3)).toThrow(
       'outside the valid range',
     );
+  });
+
+  /**
+   * The store records nothing for an edit that returns its input, so a drag that
+   * wanders without changing the order costs no undo step.
+   */
+  it('returns the circuit untouched when it is already there', () => {
+    expect(moveOperation(base, 'op_1', 1)).toBe(base);
+  });
+});
+
+describe('retargetOperation', () => {
+  const base = insertOperation(circuitWith(2), gate('op_0', 'h', ['q_0']), 0);
+
+  it('moves a single-qubit gate to another wire', () => {
+    expect(retargetOperation(base, 'op_0', 'q_1').operations[0]).toMatchObject({
+      targets: ['q_1'],
+    });
+  });
+
+  it('preserves the identifier', () => {
+    expect(retargetOperation(base, 'op_0', 'q_1').operations[0]?.id).toBe(
+      'op_0',
+    );
+  });
+
+  it('retargets a measurement, leaving its classical target alone', () => {
+    const measured = insertOperation(
+      circuitWith(2),
+      measurement('op_0', 'q_0', 'c_0', 1),
+      0,
+    );
+
+    expect(
+      retargetOperation(measured, 'op_0', 'q_1').operations[0],
+    ).toMatchObject({
+      targets: ['q_1'],
+      classicalTarget: { register: 'c_0', bit: 1 },
+    });
+  });
+
+  /**
+   * Moving a cx to another wire could mean the target, the control, or both.
+   * Guessing would produce a circuit the user did not ask for, silently.
+   */
+  it('refuses an operation naming more than one qubit', () => {
+    const controlled = insertOperation(
+      circuitWith(3),
+      gate('op_0', 'cx', ['q_1'], ['q_0']),
+      0,
+    );
+
+    expect(() => retargetOperation(controlled, 'op_0', 'q_2')).toThrow(
+      'ambiguous',
+    );
+  });
+
+  it('refuses a two-target gate', () => {
+    const swapped = insertOperation(
+      circuitWith(3),
+      gate('op_0', 'swap', ['q_0', 'q_1']),
+      0,
+    );
+
+    expect(() => retargetOperation(swapped, 'op_0', 'q_2')).toThrow(
+      'ambiguous',
+    );
+  });
+
+  it('agrees with isRetargetable', () => {
+    const single = gate('op_0', 'h', ['q_0']);
+    const controlled = gate('op_1', 'cx', ['q_1'], ['q_0']);
+    const spanning = gate('op_2', 'swap', ['q_0', 'q_1']);
+
+    expect(isRetargetable(single)).toBe(true);
+    expect(isRetargetable(controlled)).toBe(false);
+    expect(isRetargetable(spanning)).toBe(false);
+    expect(isRetargetable(barrier('op_3', ['q_0', 'q_1']))).toBe(false);
   });
 });
 

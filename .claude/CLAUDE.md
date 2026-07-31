@@ -225,131 +225,69 @@ Ask for clarification instead of making assumptions.
 
 # Current State
 
-**Milestone 1 (Foundation) closed 2026-07-28. Milestone 2 (Circuit Model) closed
-2026-07-30. Milestone 3 — Circuit Editor MVP — is the active milestone.**
+**This file holds the durable rules. `docs/Roadmap.md` holds the status**, and
+where the two disagree, the Roadmap wins — it is maintained, this is not.
 
-Both projects are scaffolded and verified end to end: the backend installs and
-serves, the frontend builds, and the two communicate. CI runs both projects on
-every push and pull request, `main` is protected, the project is licensed under
-Apache 2.0, and `docker compose up --build` runs the whole stack with hot
-reload on both sides.
+Milestone 3 (Circuit Editor MVP) is active. Milestones 1 and 2 are closed; the
+Circuit Model is complete and settled by ADRs 0001-0006.
 
-**The only endpoint is still `GET /api/v1/health`.** There is no editor and no
-simulation. Validation and the cycle derivation exist as libraries in both
-projects but nothing calls them yet — the `POST /api/v1/circuits/validate`
-endpoint is deliberately scoped to Milestone 4, along with the `invalid/shape/`
-fixtures that go with it.
+Read `docs/Roadmap.md` first, then whatever the task needs:
 
-**The Circuit Model is complete.** ADRs
-[0001](../docs/decisions/ADR0001_CircuitRepresentation.md),
-[0002](../docs/decisions/ADR0002_IdentityModel.md),
-[0003](../docs/decisions/ADR0003_ExecutionSemantics.md),
-[0004](../docs/decisions/ADR0004_SharedModelStrategy.md),
-[0005](../docs/decisions/ADR0005_SharedSpecification.md), and
-[0006](../docs/decisions/ADR0006_VersionCompatibility.md) are **Accepted**, and
-`docs/CircuitModel.md` specifies the model. Read all seven before touching the
-model, either shared source, or anything generated from them.
+| Read | When |
+|---|---|
+| `docs/Roadmap.md` — *Project Status* and *Where to Pick Up* | always |
+| `docs/Architecture.md` | before adding a module or crossing a layer |
+| `docs/ProjectStructure.md` | before creating a directory |
+| `docs/CircuitModel.md` + ADRs 0001-0006 | before touching the model, either shared source, or anything generated from them |
+| `docs/UI.md` + ADR-0007 | before touching the editor |
+| `docs/Frontend.md` | before touching frontend structure; it forbids some obvious shortcuts |
+| `docs/decisions/` | when a decision looks arbitrary — the reasoning is there |
 
-Resolved — do not reopen without cause: mid-circuit measurement (deferred;
+`docs/API.md` and `docs/Simulation.md` are **draft, describing unbuilt design**
+for Milestones 4-5. Do not read them as current behaviour.
+
+Settled — do not reopen without cause: mid-circuit measurement (deferred;
 measurement terminates a qubit, barriers exempt), identifier generation
-(client-side, backend-validated), `classicalRegisters` (required field, may be
-empty, no implicit register), the shared-model strategy (JSON Schema as source of
-truth), and version compatibility (declared version selects a mode, content
-decides the outcome).
+(client-side, backend-validated), `classicalRegisters` (required, may be empty, no
+implicit register), the shared-model strategy (JSON Schema as source of truth),
+version compatibility (declared version selects a mode, content decides the
+outcome), and the editing model (pure edits, snapshot history).
 
-## What Milestone 2 built
+## Rules That Outlive Any Milestone
 
-Read this before extending any of it.
+**Never hand-edit a generated file.** Change `shared/schema/circuit.schema.json`
+or `shared/spec/circuit.spec.json` and run `python shared/generate_bindings.py`.
+CI rejects a hand edit, and so does the next regeneration.
 
-**Two shared sources of truth, not one.** `shared/schema/circuit.schema.json`
-defines a circuit's shape; `shared/spec/circuit.spec.json` defines the semantics a
-schema cannot express — gate signatures, violation codes with their `phase`, and
-the current model version. Bindings for both generate into `models/circuit.py`,
-`models/spec.py`, `model/circuit.ts`, and `model/spec.ts`, and the **Shared model**
-CI job fails the build if any of the four is stale.
+**Every generation flag and schema oddity is load-bearing and was found
+empirically. Do not tidy any of them away** — and the reasoning lives beside each
+one rather than here, so it is in front of whoever is about to change it:
 
-**Four hand-written implementations, held to 51 fixtures.**
+* `shared/generate_bindings.py` — the comment above `PYTHON_ARGS` for the flags,
+  and `_normalize_newlines` for why output is newline-normalized
+* `shared/schema/circuit.schema.json` — `$comment` fields explaining the
+  `discriminator` keyword, the `Identifier` / `IdentifierRef` split, and why
+  `Metadata` forbids additional properties
 
-| Concern | Backend | Frontend |
-|---|---|---|
-| Validation | `validation/` | `src/validation/` |
-| Cycle derivation | `cycles/` | `src/cycles/` |
-| Versioned loading | `serialization/` | *Milestone 3* |
+**Adding a gate touches both shared sources**, and generation fails if they
+disagree. Do not work around that error by editing only one file.
 
-Validation and the derivation agree across both languages on every fixture,
-verified beyond what the fixtures enforce by diffing both implementations' output
-directly — 25 violations with identical codes *and* paths, and 17 decompositions
-with identical cycles, barriers, and depth.
-
-**Parity needs no cross-language test runner.** Each fixture declares its own
-expected outcome, so each project's suite asserts against the same artifact and
-agreement follows transitively. `tests/contract/` is left holding API conformance,
-which needs endpoints — Milestone 4. Do not reintroduce a runner there.
+**Violation codes come from the spec, never a string literal.** That is what lets
+one fixture serve two languages.
 
 **A fixture's declaration is load-bearing.** Editing one to match new output
-defeats the only mechanism that detects divergence. If a fixture fails, either an
-implementation is wrong or an ADR changed, and the second requires an ADR revision.
+defeats the only mechanism that detects divergence between the two
+implementations. If a fixture fails, either an implementation is wrong or an ADR
+changed — and the second requires an ADR revision.
 
-**JSON Schema covers shape only**, and the spec narrows that gap without closing
-it. Both implementations read the same codes and signatures, so the fixtures test
-*behaviour* rather than also policing vocabulary — but the logic is still written
-twice, and always will be.
+**Parity needs no cross-language test runner.** Each fixture declares its own
+expected outcome, so both suites assert against the same artifact and agreement
+follows transitively. `tests/contract/` awaits endpoints; do not put a runner
+there.
 
-## Working with the generated bindings
-
-**Never hand-edit a generated file.** Change the schema or the spec and run
-`python shared/generate_bindings.py`. CI rejects a hand edit, and so does the
-next regeneration.
-
-**Adding a gate touches both shared sources.** The `GateName` enum in the schema
-and the signature in the spec must agree, and generation exits with an error
-naming the difference if they do not. Do not work around that error by editing
-only one file.
-
-**Violation codes come from the spec, never from a string literal.** Both
-validators and every `invalid/` fixture read the same generated constants, which
-is what lets a fixture be written once for two languages.
-
-**Every flag in `generate_bindings.py` is load-bearing and was found
-empirically.** Do not tidy them away. In particular:
-
-* The `discriminator` keyword in the schema is OpenAPI, not JSON Schema 2020-12,
-  and validators ignore it. It exists so Pydantic builds a real discriminated
-  union. Without it a single bad gate reports four errors across all three
-  branches instead of one.
-* `Identifier` (constrained) and `IdentifierRef` (unconstrained) are a
-  deliberate split, not an oversight. A *constrained* string inside an array
-  generates as `RootModel[str]`, which is unhashable — `target in qubit_ids`
-  raises `TypeError` rather than returning the wrong answer. Constraints belong
-  where an id is minted; a reference is validated by resolution, which is
-  stronger.
-* Generation normalizes line endings, because the two generators disagree and
-  the CI check compares bytes.
-
-**The project was renamed to Phasor Workbench on 2026-07-28** (commit
-`5d902cf`), and the GitHub repository is now `zpparks314/phasor-workbench`. If
-you are on a machine cloned before that, read the migration steps under
-**Environment Notes** before running anything — the venv will be stale.
-
-Start any session by reading, in order:
-
-1. `docs/Roadmap.md` — status, remaining tasks, known issues, and the table of
-   **decisions awaiting the owner**
-2. `docs/Architecture.md` — the rules
-3. `docs/ProjectStructure.md` — where things go and why
-4. `docs/CircuitModel.md` and ADRs 0001–0006 — required before touching the
-   model, either shared source, or anything generated from them
-5. `docs/Frontend.md` — required for Milestone 3, and it forbids some obvious
-   shortcuts
-
-`CircuitModel.md` is **Accepted and implemented**, with one exception: the
-TypeScript loader is deferred to Milestone 3. Its status table names what is built
-and what is not, and is kept current — trust it over the prose, and over this file
-if the two ever disagree.
-
-`API.md` and `Simulation.md` remain *draft pending review*: they describe
-intended design, not implemented behavior, and their closing "Open Questions"
-sections are unresolved.
+**The project was renamed to Phasor Workbench on 2026-07-28** (commit `5d902cf`).
+On a machine cloned before that, follow the migration under **Environment Notes**
+before running anything — the venv will be stale.
 
 ---
 
