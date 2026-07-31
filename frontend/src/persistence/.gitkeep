@@ -1,0 +1,14 @@
+Local persistence: the localStorage adapter.
+
+The only module permitted to touch browser storage, on the same principle
+that confines fetch to src/api/. This is the working-set store; files are the
+interchange format and arrive with Milestone 5's JSON import/export.
+
+Storage can be unavailable (private browsing) or full, and both surface as
+errors rather than silence -- see .claude/CLAUDE.md on error handling. The editor
+must stay fully usable when persistence is unavailable.
+
+Reads go through ../serialization/. A stored document was written by some
+build, not necessarily this one, so it is not trusted.
+
+Empty until Milestone 3.

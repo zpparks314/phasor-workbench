@@ -19,8 +19,16 @@ Nothing in the model is provisional, which was the point of finishing it before
 the editor: Milestone 3 builds on a settled foundation rather than on something it
 will have to renegotiate.
 
+**Milestone 3 has started with its design decisions rather than its components.**
+[ADR-0007](decisions/ADR0007_EditingModel.md) is Accepted and settles the editing
+model — edits as pure functions, a bounded stack of labeled snapshots, and
+coalescing declared by the interaction. [UI.md](UI.md) is written for this
+milestone's scope. Local storage is chosen as the persistence mechanism.
+
 Three entries remain in **Decisions Awaiting the Owner** — two scoped to Milestone
-3, one to Milestone 4. None blocks starting the editor.
+3, one to Milestone 4. The two Milestone 3 entries are one decision cluster and
+land together in ADR-0008, alongside the frontend loader; neither blocks the
+editor work that precedes local save.
 
 ---
 
@@ -30,7 +38,8 @@ The highest priorities are:
 
 1. ~~Repository setup~~ — done
 2. ~~Development environment~~ — done, native and Docker
-3. ~~Documentation~~ — done; `UI.md` written during Milestone 3
+3. ~~Documentation~~ — done; `UI.md` written for Milestone 3 scope, with results
+   and visualization placement deferred to Milestone 4
 4. ~~Core data model~~ — done, Milestone 2
 5. ~~Testing infrastructure~~ — done; enforced by CI
 6. **Circuit editor** — active, Milestone 3
@@ -149,9 +158,11 @@ they affect begins.
 | Mid-circuit measurement: permitted at MVP or deferred? | Milestone 2 | **Resolved 2026-07-29** — deferred. Measurement terminates a qubit; barriers are exempt. See [CircuitModel.md](CircuitModel.md) |
 | Are identifiers client-generated or backend-assigned? | Milestone 2 | **Resolved 2026-07-29** — client-generated, backend-validated. Forced by offline operation and local save |
 | Interpreter for the `simulation` extra (Qiskit lacks 3.14 wheels) | Milestone 4 | **Partly answered.** The Docker environment pins 3.13, so simulation work happens there. Whether native 3.14 must also be supported is still open |
-| Does the frontend gain a runtime shape validator, and at what dependency cost? | Milestone 3 | **Open, and now due.** Deferred by ADR-0005 section 6 until local save made it concrete. Local save is that requirement: reading a file the editor did not write is the first time compile-time types are insufficient. Answering it also decides whether `frontend/src/serialization/` mirrors the backend loader |
+| Does the frontend gain a runtime shape validator, and at what dependency cost? | Milestone 3 | **Open, and now due — but narrowed 2026-07-30.** Deferred by ADR-0005 section 6 until local save made it concrete. Local save is that requirement. The narrowing: "no dependency" in practice means hand-writing a shape checker, which is a second hand-maintained description of the schema — precisely what ADR-0004 exists to prevent, and what the backend loader avoids by letting Pydantic decide unknown-ness so there is no list to drift. The frontend gets that property only by validating against `circuit.schema.json` itself, so the real choice is *which* schema-driven mechanism: a runtime validator library, or a validator compiled from the schema during `generate_bindings.py`. Measure the second before assuming the first. Lands in ADR-0008 |
 | Do `invalid/` fixtures assert `path` as well as `code`? | Milestone 2 fixtures | **Resolved 2026-07-30** — codes only. Fixtures compare sorted code lists; paths are asserted in each project's own unit tests, where a format difference is a local bug rather than a contract break |
-| What `schemaVersion` does an *edited* newer-minor circuit declare on save? | Milestone 3 | **Open.** Round-tripping preserves the declared version, which is right for read-then-write. Editing is different: the document still carries preserved fields this build does not understand, so claiming our own version would be a lie, and keeping theirs claims features we did not write. Surfaced by the loader; ADR-0006 does not address it |
+| What `schemaVersion` does an *edited* newer-minor circuit declare on save? | Milestone 3 | **Open.** Round-tripping preserves the declared version, which is right for read-then-write. Editing is different: the document still carries preserved fields this build does not understand, so claiming our own version would be a lie, and keeping theirs claims features we did not write. Surfaced by the loader; ADR-0006 does not address it. Lands in ADR-0008 |
+| Snapshot history or command/inverse for undo? | Milestone 3 | **Resolved 2026-07-30** — labeled snapshots, bounded at 100. Decided on correctness, not memory: an inverse that is subtly wrong makes undo produce a *different* circuit rather than failing, and every future edit type would owe one. See [ADR-0007](decisions/ADR0007_EditingModel.md) |
+| What does "save locally" mean mechanically — `localStorage`, File System Access, or download/upload? | Milestone 3 | **Resolved 2026-07-30** — `localStorage`, as the working-set store; files are the interchange format and arrive with Milestone 5's JSON import/export. Was not previously tracked here, and had no home in the layout either. Four consequences are handled rather than discovered: it can throw on *access* under private browsing, quota errors are thrown rather than returned, clearing site data destroys work silently, and it does **not** remove the need for the loader |
 | Which CI job runs `tests/contract/`? | Milestone 4 | **Moot for Milestone 2.** Each fixture declares its own expectation, so each project's suite asserts against the same artifact and parity follows transitively — no cross-language runner and no new CI job. `tests/contract/` is left holding API conformance, which needs endpoints. See `tests/README.md` |
 
 Also resolved on 2026-07-29, by accepted ADR: the canonical circuit
@@ -372,46 +383,274 @@ Allow users to visually construct quantum circuits.
 
 ### Tasks
 
-* [ ] Render quantum wires
-* [ ] Gate palette
-* [ ] Place gates
-* [ ] Remove gates
+* [x] Editing model and history — pure edits, snapshot stack, coalescing
+* [ ] Undo — model done, no UI yet
+* [ ] Redo — model done, no UI yet
+* [x] Render quantum wires — read-only canvas, all glyph kinds
+* [ ] Add and remove qubits
+* [ ] Add and remove classical registers
+* [x] Gate palette
+* [x] Place gates
+* [x] Remove gates
 * [ ] Move gates
 * [ ] Multi-qubit gates
-* [ ] Undo
-* [ ] Redo
+* [ ] Place measurements
+* [ ] Place barriers
 * [ ] Save locally
+
+**This list was reordered and extended on 2026-07-30.** Two changes, both
+deliberate:
+
+**History moved to the front.** It previously sat seventh, after placement,
+removal, and movement. That ordering treated undo as a feature beside the editing
+features when it is a constraint on how every one of them is expressed — edits
+written as ad-hoc mutation and then retrofitted with history means rewriting each
+one. See [ADR-0007](decisions/ADR0007_EditingModel.md).
+
+**Qubits, registers, measurements, and barriers were added.** The original list
+covered gates only, which cannot satisfy the exit criteria below: a circuit with
+no qubits has nowhere to put a gate, and a circuit that cannot hold a measurement
+gives Milestone 4 nothing to simulate. Milestone 4's measurement simulation and
+probability display would have begun by finishing Milestone 3.
 
 ### Exit Criteria
 
-Users can build simple circuits entirely within the browser.
+Replaced on 2026-07-30. The previous single sentence — "users can build simple
+circuits entirely within the browser" — is the goal, but it is not checkable, and
+the Definition of Done leans on these.
+
+* [ ] A user can build a circuit from empty: add and remove qubits and classical
+  registers, with qubit indices contiguous from 0 at every point.
+* [ ] A user can place, move, and remove every gate in `circuit.spec.json`'s gate
+  set, plus measurements and barriers.
+* [ ] Multi-qubit gates are placed with explicit control assignment and render
+  with connectors spanning intervening idle wires.
+* [ ] Render columns come from `deriveCycles` on every render. No component
+  stores a coordinate, a column index, or a second copy of the circuit —
+  asserted by a test that the store's state is a bare `Circuit`.
+* [ ] Every violation `validateCircuit` reports is surfaced against the operation
+  it concerns and clears when fixed. No violation is cached across an edit.
+* [ ] Undo and redo restore the exact prior circuit for every edit type, verified
+  by a property test: apply a random valid edit sequence, undo to the start,
+  assert deep equality with the initial circuit.
+* [ ] A circuit survives a browser refresh, and `frontend/src/serialization/`
+  produces the same outcome as the Python loader on all 14 fixtures in
+  `shared/fixtures/version/`.
+* [ ] Placement, selection, and removal are operable by keyboard.
+* [ ] `UI.md` is written; ADR-0007 and ADR-0008 are Accepted; `Frontend.md` and
+  `ProjectStructure.md` carry the new modules.
+
+Two of these are worth noting for why they are cheap rather than aspirational.
+The undo property test is possible because ADR-0007 makes `state/` headless and
+edits pure — it is the same property-testing discipline ADR-0003 established for
+the derivation. And the loader criterion costs no new fixtures: the version
+fixtures declare `outcome`, `violations`, and `preserved` in a language-neutral
+form, so the TypeScript loader is held to the same 14 artifacts as the Python one
+and parity follows transitively, exactly as it does for validation and cycles.
+
+### Where to Pick Up
+
+Written at the end of the session that built the palette and placement. The task
+list above is the plan; this is what a new session needs that the list does not
+say.
+
+**Read first:** [ADR-0007](decisions/ADR0007_EditingModel.md) and [UI.md](UI.md).
+Everything below assumes both.
+
+**The next piece of work, in order:**
+
+1. **Move gates.** The pure half already exists — `moveOperation` in
+   `state/edits.ts` and `insertionIndexFor` in `editor/placement.ts` — so this is
+   a drag interaction over machinery that is built and tested. Use a coalescing
+   key of `move:<operationId>` and call `store.endCoalescing()` when the gesture
+   ends, or the whole drag becomes one undo step per intermediate position.
+2. **The settle animation.** Do this *with* move, not after. Placement already
+   packs a gate left of where it was dropped, correctly and tested, but nothing
+   explains why — it currently looks like a bug. This is the one piece of `UI.md`
+   doing the educational work, and it is the oldest outstanding gap.
+3. **Multi-qubit placement.** The palette entries are present and
+   `aria-disabled`; `PaletteEntry.placeable` is the flag to remove. Needs the
+   control-assignment sequence in `UI.md`: place the target, then one click per
+   control, `Escape` cancelling the whole pending operation rather than one step.
+4. **Measurements and barriers**, then **qubit and register management**.
+5. **Undo/redo buttons.** The model is complete and labelled — `undoLabel` and
+   `redoLabel` on the store state exist so the buttons can say "Undo place H"
+   rather than "Undo". This is a header, not a feature.
+
+**Known gaps, none of them accidental:**
+
+* **Barriers have no keyboard path.** They sit on boundaries *between* columns, so
+  they are in no grid cell, and mouse is currently the only way to select one.
+  This violates `UI.md`'s "nothing is reachable by mouse alone" and should be
+  settled alongside barrier placement — it needs a decision about how boundaries
+  participate in the grid, not a patch.
+* **An operation whose every qubit reference dangles is not drawn**, so the
+  problems strip is the only route to it. Acceptable, but it is why that strip
+  selects by path.
+* **Rotation and phase gates place with a default of π/2** and cannot be edited.
+  Parameter editing is unbuilt.
+* **The grid's screen-reader behaviour is unverified.** The markup follows the
+  composite-widget pattern and the tests asserted names and roles, but SVG
+  accessibility mapping is inconsistent enough that this proves little. Test it
+  with a real screen reader before Milestone 3 closes.
+* **`editor/demoCircuit.ts` is scaffolding** and should be deleted once the editor
+  opens on an empty circuit or on restored local storage.
+
+**Milestone 3's two open decisions are still open** and are unblocked — see
+*Decisions Awaiting the Owner*. They land together in ADR-0008 with the frontend
+loader, and nothing before local save depends on them.
 
 ### Starting Points
 
-Nothing here is designed yet. What Milestone 2 leaves in place, and what it leaves
-open:
-
 **Available to build on.** `frontend/src/model/` for the types,
 `frontend/src/validation/` for inline feedback, and `frontend/src/cycles/` for
-render columns. `deriveCycles` returns the barrier placements a renderer needs to
-draw on a column boundary, so the editor should never compute layout itself — see
-[Frontend.md](Frontend.md) and [ADR-0001](decisions/ADR0001_CircuitRepresentation.md).
+render columns. `deriveCycles` also returns the barrier placements a renderer
+needs to draw on a column boundary.
 
-**Three decisions this milestone must make**, all recorded in *Decisions Awaiting
-the Owner*:
+The editor computes pixel geometry — that is `editor/layout.ts`, a pure function
+of `(circuit, decomposition)` kept out of the components so it is testable without
+a DOM. What it must never do is decide *which column* an operation occupies. That
+is the derivation's answer, recomputed every render and never stored. See
+[Frontend.md](Frontend.md) and
+[ADR-0001](decisions/ADR0001_CircuitRepresentation.md).
+
+**Settled 2026-07-30, before any component was written:**
+
+* **The editing model** — [ADR-0007](decisions/ADR0007_EditingModel.md), Accepted.
+  Edits are pure `Circuit → Circuit` functions from a named vocabulary; history is
+  a bounded stack of labeled snapshots; coalescing is declared by the interaction
+  rather than inferred from timing; history holds circuit values only.
+* **Interface design** — [UI.md](UI.md), written for this milestone's scope with
+  results and visualization left to Milestone 4.
+* **Persistence mechanism** — `localStorage`, as the working-set store. Files are
+  the interchange format and arrive with Milestone 5's JSON import/export.
+
+**Two decisions this milestone still must make.** They are one cluster, and land
+together in ADR-0008 with the loader they force:
 
 1. **Runtime shape validation on the frontend.** Deferred by
    [ADR-0005](decisions/ADR0005_SharedSpecification.md) section 6 until local save
-   gave it a concrete requirement. Local save is that requirement: reading a file
-   the editor did not write is the first time TypeScript's compile-time types are
-   not enough. Decides whether a runtime validator dependency is warranted.
-2. **The TypeScript loader.** Follows directly from (1), and mirrors
-   `backend/src/phasor_workbench/serialization/`. See
-   [ADR-0006](decisions/ADR0006_VersionCompatibility.md) section 5.
-3. **What `schemaVersion` an edited newer-minor circuit declares on save.**
+   gave it a concrete requirement. Local save is that requirement.
+2. **What `schemaVersion` an edited newer-minor circuit declares on save.**
 
-**`UI.md` is written during this milestone**, not before — it was deliberately
-deferred rather than filled with speculation. See [UI.md](UI.md).
+`localStorage` does not make either question go away, and it is worth saying so
+because it looks like it might. A stored document was written by *some* build —
+possibly older, possibly a partial write, possibly hand-edited through devtools —
+so it is still a circuit the editor did not build, and ADR-0006's argument that a
+version claim is unverifiable evidence applies to it unchanged.
+
+### Status
+
+**`frontend/src/state/` is built and tested** — the edit vocabulary, the history
+stack, and the store, implementing ADR-0007. Headless, with no React import in
+the module, so all of it is tested without a DOM. 52 new tests, taking the
+frontend suite to 220. Nothing renders yet and the application is unchanged, which
+is the point of building this half first.
+
+Two things from that work worth not rediscovering:
+
+* **Edits take identifiers as arguments rather than minting them.** A function
+  that calls `crypto.randomUUID()` internally returns a different circuit on every
+  call, which is not a pure function and cannot be asserted against — the undo
+  property test would have had nothing to compare. Callers mint; `state/edits.ts`
+  stays pure. `newIdentifier()` lives in its own module for that reason.
+* **Removing a qubit shrinks a barrier rather than deleting it.** A barrier
+  constrains a *set* of qubits and the constraint on the rest survives one of them
+  leaving. Deleting it would silently change the circuit's depth. A barrier left
+  with no targets is dropped, since empty targets are shape-invalid.
+
+The undo property test found a real weakness in its own generator before it found
+anything else: with uniformly chosen edits, `removeQubit` — which deletes every
+operation on its wire — dominated, and one seed never built a circuit past three
+operations. The property held, but only over circuits too small to mean anything.
+The edit weights and the vacuity guard in `store.test.ts` are the fix, and the
+guard is the part worth keeping: a property test that cannot detect its own
+vacuity is not evidence.
+
+**`frontend/src/editor/` renders, read-only.** `layout.ts` is a pure
+`(circuit, decomposition, metrics) → geometry` function with no DOM dependency;
+`CircuitCanvas.tsx` draws what it produced and nothing else. Wires, gates,
+controls and connectors, measurements with their register lanes, and barriers all
+render. The app shows a demo circuit built through the edit vocabulary, which is
+temporary scaffolding until the palette exists. 35 new tests, 255 in the suite.
+
+**The single-source-of-truth rule now has a real consumer**, which `Roadmap.md`
+noted was previously satisfied only vacuously. `CircuitEditor.tsx` recomputes the
+decomposition and the geometry on every render from the one circuit the store
+holds. No component stores a column or a coordinate.
+
+One rendering rule `UI.md` did not spell out, added there now: a barrier over a
+non-contiguous set of wires draws one segment per contiguous run rather than a
+single rule through the wires it skips, since it does not constrain them.
+
+**The palette, placement, selection, removal, and the problems strip are built.**
+The canvas is now a real grid: `role="grid"`, a row per qubit, a cell per
+position, with the cursor moving by `aria-activedescendant` so a forty-gate
+circuit is one tab stop rather than forty. Placement works by click-to-arm and by
+drag, both routed through one activation path rather than two that must agree.
+316 tests.
+
+**`insertionIndexFor` is where the interaction actually lives.** A drop column is
+translated into a position in the canonical list — after the last operation on
+that wire before the column, and after any barrier sitting at it — and the
+derivation then decides where the operation appears. An `h` dropped far right of
+an empty wire packs back to column 1, asserted end to end.
+
+**The palette reads its gate list from `model/spec.ts`**, so a gate added to the
+shared spec appears without a code change here. A test fails if one arrives
+without a group. Only the *grouping* and the descriptions are hand-written, being
+the two things a gate signature cannot express.
+
+Four gaps against `UI.md`, none of them accidental:
+
+* **The settle animation is not built.** The packing *behaviour* is there and
+  tested, but the animation that explains it is not, so a gate currently jumps to
+  its derived column with no indication why. This is the part of UI.md doing the
+  educational work and it should not stay missing.
+* **Rotation and phase gates place with a default of π/2 rather than prompting.**
+  The circuits produced are valid; parameter editing is simply not built.
+* **Multi-qubit gates are shown but disabled**, with a reason in their accessible
+  name. They need control assignment, which is a placement sequence rather than a
+  single action.
+* **The reserved third column is not rendered.** The grid is two columns until
+  Milestone 4 has results to put there.
+
+`@testing-library/user-event` was considered for the interaction tests and
+declined — `fireEvent` from the already-installed library covers keydown and
+click, and `CLAUDE.md` asks whether an existing dependency suffices first.
+
+One defect found while testing: `aria-activedescendant` could name a cell that no
+longer existed, because removing an operation shrinks the column count and the
+cursor did not follow. The cursor is now clamped on read rather than stored
+clamped — the same treatment stale selection gets under ADR-0007 section 4, and
+for the same reason.
+
+**Six refinements followed from using it**, all from review of the running editor
+rather than from tests, which is worth noting: every one was invisible to a
+suite that already passed.
+
+* **The palette was one tab stop per gate**, so reaching the canvas took eighteen
+  presses. `UI.md` already required one stop per region; the palette now has a
+  roving focus. Unavailable gates became `aria-disabled` rather than `disabled` in
+  the same change, so arrowing across them announces why instead of skipping in
+  silence.
+* **The placement preview did not follow the mouse** — cells handled click and
+  drop but not pointer-enter.
+* **Barrier selection was unreachable.** The handler existed, but the transparent
+  cell rectangles render above it and swallowed the click. There is now a hit
+  layer above the cells, with a wide invisible stroke, because a 2px dashed rule
+  is not a click target.
+* **Deleting required the keyboard.** A `×` now appears on the selection.
+* **Connectors drew across glyphs**, because they were ordered per operation.
+  They are now a single layer beneath every glyph.
+* **A `cz` target and an unrelated gate looked like the same object.** Resolved by
+  adopting conventional notation, recorded in `UI.md`: a box now means exactly one
+  thing, a single-qubit gate.
+
+The last of those had a follow-on bug worth remembering: the crossed circle
+borrowed the connector for its vertical bar, and the connector *terminates at the
+anchor centre*, so only the upper half of the cross drew. A glyph owns all of its
+strokes.
 
 ---
 

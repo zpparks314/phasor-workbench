@@ -156,10 +156,16 @@ before implementing the change.
 | 0004 | Accepted | Shared model strategy — JSON Schema as source of truth             |
 | 0005 | Accepted | Shared specification data and module layout                         |
 | 0006 | Accepted | Version compatibility and loading                                   |
+| 0007 | Accepted | The editing model — pure edits, snapshot history, undo/redo          |
 
-All six govern Milestone 2 and should be read in order. 0001 decides what is
-stored, 0002 decides how stored objects are referenced, 0003 specifies the
-derivation 0001 relies on, 0004 decides how all of it becomes code in two
-languages, 0005 covers the hand-written half that 0004's coverage boundary leaves
-out, and 0006 decides what happens when a document arrives from a different
-version than the one reading it.
+**0001 through 0006 govern Milestone 2** and should be read in order. 0001
+decides what is stored, 0002 decides how stored objects are referenced, 0003
+specifies the derivation 0001 relies on, 0004 decides how all of it becomes code
+in two languages, 0005 covers the hand-written half that 0004's coverage boundary
+leaves out, and 0006 decides what happens when a document arrives from a
+different version than the one reading it.
+
+**0007 is the first Milestone 3 decision.** Every ADR before it governs a
+subsystem that reads a circuit; 0007 is the first to govern one that produces
+one, and it constrains how every edit in the editor is expressed. Read it with
+0002, whose stable identifiers exist largely to serve it.

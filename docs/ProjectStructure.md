@@ -96,10 +96,12 @@ frontend/
 │   ├── model/          Circuit types and spec constants -- GENERATED
 │   ├── validation/     Circuit validation                (Milestone 2)
 │   ├── cycles/         Cycle derivation                  (Milestone 2)
+│   ├── serialization/  Versioned load and dump           (Milestone 3)
+│   ├── persistence/    Local storage adapter             (Milestone 3)
+│   ├── state/          Circuit state, edits, undo/redo   (Milestone 3)
 │   ├── components/     Shared presentational components  (Milestone 3)
 │   ├── editor/         Circuit editor, SVG rendering     (Milestone 3)
 │   ├── visualization/  State visualization               (Milestone 4)
-│   ├── state/          Circuit state, undo/redo          (Milestone 3)
 │   └── test/           Test setup
 ├── index.html
 ├── vite.config.ts
@@ -154,17 +156,34 @@ both sides:
 |---|---|---|
 | Validation | `validation/` | `src/validation/` |
 | Cycle derivation | `cycles/` | `src/cycles/` |
-| Versioned loading | `serialization/` | *deferred to Milestone 3* |
+| Versioned loading | `serialization/` | `src/serialization/` *(Milestone 3)* |
 
 Entry points match too, under each language's naming convention:
 `validate_circuit` / `validateCircuit`, `derive_cycles` / `deriveCycles`.
 
-`serialization/` is deliberately backend-only for now. A frontend loader reads a
+`serialization/` was backend-only through Milestone 2. A frontend loader reads a
 circuit the frontend did not build, which is the runtime shape validation
 [ADR-0005](decisions/ADR0005_SharedSpecification.md) section 6 deferred to
 Milestone 3's local save — the loader is what makes that question come due. The
-backend needs it regardless, because it cannot trust its input. See
+backend needed it regardless, because it cannot trust its input. See
 [ADR-0006](decisions/ADR0006_VersionCompatibility.md) section 5.
+
+## Modules That Are Not Mirrored
+
+Symmetry is the rule for concerns both sides genuinely need, not a goal in itself.
+Two Milestone 3 frontend modules have no backend counterpart, and both are
+recorded rather than left to look like oversights:
+
+* **`src/state/`** — the circuit store, edit vocabulary, and history. The backend
+  does not author circuits. See
+  [ADR-0007](decisions/ADR0007_EditingModel.md) section 8.
+* **`src/persistence/`** — the `localStorage` adapter, and the only module
+  permitted to touch browser storage, on the same principle that confines `fetch`
+  to `src/api/`.
+
+The reverse asymmetry also stands: `simulation/`, `analysis/`, `importers/`, and
+`exporters/` are backend-only because `Architecture.md` forbids the frontend from
+simulating.
 
 The symmetry is not tidiness. These four artifacts must agree permanently, the
 fixtures in `shared/fixtures/` are what detect a disagreement, and mirrored names
