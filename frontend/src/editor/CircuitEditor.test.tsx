@@ -347,6 +347,96 @@ describe('moving a gate', () => {
     expect(editor.status()).toHaveTextContent('2 operations');
   });
 
+  /**
+   * A barrier is in no cell, so arrowing can never reach one. Before `b` existed
+   * a barrier was selectable by mouse alone, which UI.md forbids.
+   */
+  describe('reaching a barrier from the keyboard', () => {
+    function withBarriers() {
+      const circuit = [
+        gate('op_0', 'h', ['q_0']),
+        barrier('op_1', ['q_0', 'q_1']),
+        gate('op_2', 'x', ['q_0']),
+        barrier('op_3', ['q_0', 'q_1']),
+      ].reduce<Circuit>(
+        (built, operation, index) => insertOperation(built, operation, index),
+        circuitWith(2),
+      );
+      return open(circuit);
+    }
+
+    it('selects a barrier with b', () => {
+      const editor = withBarriers();
+
+      editor.press('b');
+
+      expect(editor.status()).toHaveTextContent('barrier selected');
+    });
+
+    it('steps to the next barrier on a second press', () => {
+      const editor = withBarriers();
+      const at = (): string | null =>
+        document
+          .querySelector('[data-operation-id][data-selected="true"]')
+          ?.getAttribute('data-operation-id') ?? null;
+
+      editor.press('b');
+      const first = at();
+      editor.press('b');
+
+      expect(first).not.toBeNull();
+      expect(at()).not.toBe(first);
+    });
+
+    it('wraps around rather than stopping at the end', () => {
+      const editor = withBarriers();
+      const at = (): string | null =>
+        document
+          .querySelector('[data-operation-id][data-selected="true"]')
+          ?.getAttribute('data-operation-id') ?? null;
+
+      editor.press('b');
+      const first = at();
+      editor.press('b');
+      editor.press('b');
+
+      expect(at()).toBe(first);
+    });
+
+    it('does nothing in a circuit with no barriers', () => {
+      const editor = open();
+
+      editor.press('b');
+
+      expect(editor.status()).not.toHaveTextContent('selected');
+    });
+
+    /** The whole point: a barrier can now be removed without a pointer. */
+    it('removes a barrier by keyboard alone', () => {
+      const editor = withBarriers();
+
+      editor.press('b');
+      editor.press('Delete');
+
+      expect(editor.status()).toHaveTextContent('3 operations');
+    });
+
+    it('moves a barrier once selected', () => {
+      const editor = withBarriers();
+
+      editor.press('b');
+      const before = document
+        .querySelector('[data-barrier-hit] line')
+        ?.getAttribute('x1');
+
+      fireEvent.keyDown(editor.grid(), { key: 'ArrowLeft', ctrlKey: true });
+
+      expect(
+        document.querySelector('[data-barrier-hit] line')?.getAttribute('x1'),
+      ).not.toBe(before);
+    });
+  });
+
   describe('by keyboard', () => {
     it('moves the selection with Ctrl and an arrow', () => {
       const editor = open();

@@ -479,11 +479,11 @@ Everything below assumes both.
 
 **Known gaps, none of them accidental:**
 
-* **Barriers have no keyboard path.** They sit on boundaries *between* columns, so
-  they are in no grid cell, and mouse is currently the only way to select one.
-  This violates `UI.md`'s "nothing is reachable by mouse alone" and should be
-  settled alongside barrier placement — it needs a decision about how boundaries
-  participate in the grid, not a patch.
+* ~~**Barriers have no keyboard path.**~~ **Resolved.** `b` steps through the
+  circuit's barriers and wraps; `Shift` + `B` goes back. A command rather than a
+  cursor position, because boundaries and columns are already in bijection and
+  making boundaries navigable would double horizontal travel through mostly empty
+  positions. `Shift` + arrow was left free for multi-select.
 * **An operation whose every qubit reference dangles is not drawn**, so the
   problems strip is the only route to it. Acceptable, but it is why that strip
   selects by path.

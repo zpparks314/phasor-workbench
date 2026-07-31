@@ -38,6 +38,7 @@ function draw(circuit: Circuit, overrides: Partial<CircuitCanvasProps> = {}) {
     onNudgeSelection: vi.fn(),
     onUndo: vi.fn(),
     onRedo: vi.fn(),
+    onCycleBarriers: vi.fn(),
     ...overrides,
   };
 
@@ -423,6 +424,25 @@ describe('drag and nudge', () => {
 
     expect(props.onNudgeSelection).toHaveBeenCalledWith(1, 0);
     expect(props.onCursorChange).not.toHaveBeenCalled();
+  });
+
+  it('cycles barriers with b, and backwards with Shift', () => {
+    const { props } = draw(circuit);
+    const grid = screen.getByRole('grid');
+
+    fireEvent.keyDown(grid, { key: 'b' });
+    fireEvent.keyDown(grid, { key: 'B', shiftKey: true });
+
+    expect(props.onCycleBarriers).toHaveBeenNthCalledWith(1, 1);
+    expect(props.onCycleBarriers).toHaveBeenNthCalledWith(2, -1);
+  });
+
+  it('leaves Ctrl+B alone, which browsers use', () => {
+    const { props } = draw(circuit);
+
+    fireEvent.keyDown(screen.getByRole('grid'), { key: 'b', ctrlKey: true });
+
+    expect(props.onCycleBarriers).not.toHaveBeenCalled();
   });
 
   it('undoes and redoes from the keyboard', () => {

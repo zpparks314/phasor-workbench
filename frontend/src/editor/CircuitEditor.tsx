@@ -18,7 +18,7 @@
 import { useMemo, useRef, useState } from 'react';
 
 import { deriveCycles } from '../cycles';
-import type { Circuit, GateName } from '../model/circuit';
+import type { Circuit, GateName, Operation } from '../model/circuit';
 import { GATE_SIGNATURES } from '../model/spec';
 import { createCircuitStore, insertOperation, newIdentifier } from '../state';
 import {
@@ -231,6 +231,41 @@ export function CircuitEditor({
     setDragging(operationId);
   }
 
+  /**
+   * Step the selection through the circuit's barriers.
+   *
+   * Barriers sit on the boundary *between* columns and appear in no cycle, so
+   * `describeCells` cannot place one and no amount of arrowing reaches it. This
+   * is the keyboard's only route to a barrier; without it they were selectable
+   * by mouse alone, which UI.md forbids.
+   *
+   * Starts from the cursor rather than from the first barrier, so pressing it
+   * while working at column 8 does not jump to column 0.
+   */
+  function cycleBarriers(direction: 1 | -1): void {
+    const barriers = decomposition.barriers;
+    if (barriers.length === 0) return;
+
+    const current = barriers.findIndex(
+      (placement) => placement.operationId === selection,
+    );
+
+    if (current >= 0) {
+      const next = (current + direction + barriers.length) % barriers.length;
+      store.select(barriers[next]?.operationId ?? null);
+      return;
+    }
+
+    const ordered = [...barriers].sort((a, b) => a.beforeCycle - b.beforeCycle);
+    const from =
+      direction === 1
+        ? (ordered.find((p) => p.beforeCycle >= cursor.column) ?? ordered[0])
+        : ([...ordered].reverse().find((p) => p.beforeCycle <= cursor.column) ??
+          ordered.at(-1));
+
+    store.select(from?.operationId ?? null);
+  }
+
   function endDrag(): void {
     if (dragging === null) return;
     const operationId = dragging;
@@ -242,9 +277,19 @@ export function CircuitEditor({
     if (from !== null) scheduleSettle(operationId, from);
   }
 
-  function describeOperation(operation: { readonly kind: string }): string {
-    return operation.kind === 'gate' ? 'gate' : operation.kind;
+  function describeOperation(operation: Operation): string {
+    return operation.kind === 'gate' ? operation.name : operation.kind;
   }
+
+  const selectedLabel =
+    selection === null
+      ? null
+      : (() => {
+          const operation = circuit.operations.find(
+            (candidate) => candidate.id === selection,
+          );
+          return operation === undefined ? null : describeOperation(operation);
+        })();
 
   function place(name: GateName, qubitId: string, column: number): void {
     const signature = GATE_SIGNATURES[name];
@@ -318,6 +363,7 @@ export function CircuitEditor({
             setSettle(null);
             store.redo();
           }}
+          onCycleBarriers={cycleBarriers}
           onSelectOperation={(id) => {
             store.select(id);
           }}
@@ -331,6 +377,12 @@ export function CircuitEditor({
         <p className="text-sm text-ink-muted" role="status">
           {`Depth ${String(decomposition.depth)} · ${String(circuit.operations.length)} operations`}
           {armed !== null && ` · placing ${armed}`}
+          {/*
+            The cell cursor does not follow the selection, so for anything not
+            announced by aria-activedescendant -- a barrier above all -- this
+            live region is how a screen reader learns what is selected.
+          */}
+          {selectedLabel !== null && ` · ${selectedLabel} selected`}
         </p>
 
         <ProblemsStrip

@@ -66,6 +66,7 @@ export interface CircuitCanvasProps {
   readonly onNudgeSelection: (rows: number, columns: number) => void;
   readonly onUndo: () => void;
   readonly onRedo: () => void;
+  readonly onCycleBarriers: (direction: 1 | -1) => void;
 }
 
 export function CircuitCanvas({
@@ -86,6 +87,7 @@ export function CircuitCanvas({
   onNudgeSelection,
   onUndo,
   onRedo,
+  onCycleBarriers,
 }: CircuitCanvasProps): React.JSX.Element {
   const { lane, column: columnWidth, glyph } = layout.metrics;
 
@@ -106,6 +108,19 @@ export function CircuitCanvas({
       event.preventDefault();
       if (event.shiftKey) onRedo();
       else onUndo();
+      return;
+    }
+
+    /*
+      Barriers are in no cell, so no amount of arrowing reaches one. A command
+      rather than a cursor position: `b` steps forward through them from wherever
+      the cursor is, Shift+B backwards. Shift+arrow was the obvious alternative
+      and is left alone -- it conventionally extends selection, which multi-select
+      will want -- and Alt+arrow is Back/Forward in two browsers.
+    */
+    if (event.key.toLowerCase() === 'b' && !event.ctrlKey && !event.metaKey) {
+      event.preventDefault();
+      onCycleBarriers(event.shiftKey ? -1 : 1);
       return;
     }
 

@@ -114,6 +114,17 @@ whose `beforeCycle` equals `depth` draws at the trailing edge of the circuit —
 this is a real case, `trailing_barrier.json` covers it, and it must not be
 special-cased away.
 
+**A barrier is reached from the keyboard with `b`**, which steps through the
+circuit's barriers from the cursor and wraps. It needs its own command because a
+barrier is in no cell -- see *Layering* below -- so no amount of arrowing reaches
+one. `Shift` + arrow was the obvious alternative and is deliberately left free:
+it conventionally extends selection, which multi-select will want. `Alt` + arrow
+is Back and Forward in two browsers.
+
+Because the cell cursor does not follow the selection, the status line names what
+is selected. That live region is how a screen reader learns a barrier is selected
+at all, since `aria-activedescendant` still points at a cell.
+
 A barrier over a non-contiguous set of wires draws **one segment per contiguous
 run**, not a single rule through the wires it skips. A barrier over q0 and q2 does
 not constrain q1, and a line crossing q1 would claim it does. Same principle as
@@ -352,6 +363,7 @@ markup being right on paper proves little.
 | `Delete` / `Backspace` | remove the selection |
 | `Escape` | disarm, cancel a pending multi-qubit gate, or clear selection |
 | `Ctrl/Cmd` + arrow | move the selected operation |
+| `b` / `Shift` + `B` | select the next / previous barrier |
 | `Ctrl/Cmd` + `Z` | undo |
 | `Ctrl/Cmd` + `Shift` + `Z` | redo |
 | `Ctrl/Cmd` + `S` | save |
