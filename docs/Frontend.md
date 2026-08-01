@@ -68,7 +68,7 @@ library would be appropriate *there*. It should not be adopted for the editor.
 ```text
 frontend/src/
 ├── api/            API client -- the only place that calls fetch
-├── model/          Circuit types and spec constants -- GENERATED
+├── model/          Circuit types, spec constants, validator -- GENERATED
 ├── validation/     Circuit validation                  (Milestone 2)
 ├── cycles/         Cycle derivation                    (Milestone 2)
 ├── serialization/  Versioned load and dump             (Milestone 3)
@@ -146,7 +146,25 @@ single-source-of-truth rule checkable rather than aspirational.
 **`serialization/` mirrors `backend/src/phasor_workbench/serialization/`** and is
 held to the same 14 fixtures in `shared/fixtures/version/`, which declare their
 expected outcome in a language-neutral form. See
-[ADR-0006](decisions/ADR0006_VersionCompatibility.md) section 5.
+[ADR-0006](decisions/ADR0006_VersionCompatibility.md) section 5. **Implemented**,
+which ends the asymmetry that ADR recorded — module for module: `version.ts`,
+`migrations.ts`, `paths.ts`, `shape.ts` (mirroring `unknown.py`), and the loader
+itself.
+
+Two things about it are worth knowing before changing it:
+
+* **`loadCircuit` returns a discriminated `ok`**, where Python returns one of two
+  types. A single shape with an optional circuit would let a caller reach for
+  `.circuit` and find nothing.
+* **`dumpResult` restores preserved fields; `dumpCircuit` does not.** The first is
+  the round trip, correct only while the circuit is untouched. An *edited* circuit
+  goes through the second and declares this build's version, per
+  [ADR-0008](decisions/ADR0008_LocalPersistence.md) section 3 — preserved fields
+  are keyed to positions that editing moves.
+
+Fixtures compare codes rather than paths, so the two loaders were also diffed
+directly, which is what caught the frontend blaming a whole document for one
+unknown field. Paths are asserted in `serialization.test.ts`, per ADR-0005.
 
 **`persistence/` is the `localStorage` adapter** and the only module that touches
 browser storage, on the same principle that confines `fetch` to `api/`. It is the
@@ -161,11 +179,10 @@ code from `model/spec.ts` and a document path. It mirrors the Python
 implementation module for module and is held to it by the fixtures in
 `shared/fixtures/`, read directly by `src/validation/validation.test.ts`.
 
-The frontend validates for fast editor feedback, and in Milestone 2 that means
-**semantic validation only**. There is no runtime shape validator: TypeScript
-types do not exist at runtime, the editor builds circuits through its own code so
-they are shape-valid by construction, and the backend validates regardless
-because it cannot trust its input.
+The frontend validates for fast editor feedback. For circuits it *builds*, that
+means **semantic validation only** — the editor constructs them through its own
+code, so they are shape-valid by construction. Shape validation applies where a
+circuit arrives from outside: `serialization/`, and later import.
 
 That changes the first time the frontend reads a circuit it did not build —
 Milestone 3's local save. Deferred deliberately, per ADR-0005 section 6, so the

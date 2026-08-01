@@ -60,7 +60,11 @@ sources stay authoritative; only their output is co-located with its consumers.
 See [ADR-0004](decisions/ADR0004_SharedModelStrategy.md).
 
 `generate_bindings.py` invokes each project's toolchain as a subprocess. That
-is not an import, so the rule above still holds.
+is not an import, so the rule above still holds. One of those subprocesses is
+`frontend/scripts/compile-validator.mjs`, which compiles the schema into the
+runtime shape validator [ADR-0008](decisions/ADR0008_LocalPersistence.md) chose.
+It lives under `frontend/` rather than here because it imports Ajv, and Node
+resolves that from the frontend's own `node_modules`.
 
 ---
 
@@ -93,7 +97,7 @@ would imply that project owns the contract.
 frontend/
 ├── src/
 │   ├── api/            The only module permitted to call fetch
-│   ├── model/          Circuit types and spec constants -- GENERATED
+│   ├── model/          Circuit types, spec constants, validator -- GENERATED
 │   ├── validation/     Circuit validation                (Milestone 2)
 │   ├── cycles/         Cycle derivation                  (Milestone 2)
 │   ├── serialization/  Versioned load and dump           (Milestone 3)

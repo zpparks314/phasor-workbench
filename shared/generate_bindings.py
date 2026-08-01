@@ -46,6 +46,12 @@ PYTHON_OUTPUT = MODELS / "circuit.py"
 TYPESCRIPT_OUTPUT = MODEL / "circuit.ts"
 PYTHON_SPEC_OUTPUT = MODELS / "spec.py"
 TYPESCRIPT_SPEC_OUTPUT = MODEL / "spec.ts"
+VALIDATOR_OUTPUT = MODEL / "validator.ts"
+
+# Compiles the schema into a self-contained validator, per ADR-0008. It lives in
+# frontend/ rather than here because it imports Ajv, which Node resolves from
+# frontend/node_modules -- the same reason this script reaches for json2ts there.
+VALIDATOR_SCRIPT = ROOT / "frontend" / "scripts" / "compile-validator.mjs"
 
 # Every flag here is load-bearing; see ADR-0004 and the notes in the schema.
 #   --collapse-root-models + unconstrained IdentifierRef  -> list[str], not
@@ -140,6 +146,23 @@ def generate_typescript(output: Path) -> None:
     # json2ts does not read the project's Prettier config, so `format:check`
     # would reject its output. Formatting here mirrors the Python side, which
     # generates through ruff for the same reason.
+    _run([_node_bin("prettier"), "--write", "--log-level", "warn", str(output)])
+    _normalize_newlines(output)
+
+
+def generate_validator(output: Path) -> None:
+    """Compile the schema into a runtime shape validator for the frontend.
+
+    ADR-0008 section 1. Ajv compiles the schema here, at generation time, so
+    nothing ships it: the emitted code has no imports and no runtime compilation
+    step, which a strict CSP would otherwise block.
+
+    Node is invoked directly rather than through node_modules/.bin because the
+    script is ours rather than a package's entry point.
+    """
+    _run(["node", str(VALIDATOR_SCRIPT), str(SCHEMA), str(output)])
+    # Ajv's code generator emits its own formatting, which Prettier disagrees
+    # with; the same treatment json2ts output gets, and for the same reason.
     _run([_node_bin("prettier"), "--write", "--log-level", "warn", str(output)])
     _normalize_newlines(output)
 
@@ -423,7 +446,7 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    for source in (SCHEMA, SPEC):
+    for source in (SCHEMA, SPEC, VALIDATOR_SCRIPT):
         if not source.is_file():
             sys.exit(f"Shared source not found: {source}")
 
@@ -436,6 +459,7 @@ def main() -> int:
         (generate_typescript, TYPESCRIPT_OUTPUT),
         (partial(generate_python_spec, spec), PYTHON_SPEC_OUTPUT),
         (partial(generate_typescript_spec, spec), TYPESCRIPT_SPEC_OUTPUT),
+        (generate_validator, VALIDATOR_OUTPUT),
     ]
 
     if not args.check:
