@@ -32,12 +32,16 @@ coalescing declared by the interaction. [UI.md](UI.md) is written for this
 milestone's scope and has been amended as the editor was built; where it and this
 file disagree about behaviour, UI.md is the specification.
 
-**What remains is one feature and one ADR, and they are the same piece of work.**
-Local storage is chosen as the mechanism, but two decisions still block the code —
-both scoped to Milestone 3, both landing together in ADR-0008 alongside the
-frontend loader. They are the only remaining entries in **Decisions Awaiting the
-Owner** for this milestone; a third is scoped to Milestone 4. See *Where to Pick
-Up*.
+**Nothing is left to decide.**
+[ADR-0008](decisions/ADR0008_LocalPersistence.md) is Accepted as of 2026-08-01
+and settles both questions that blocked local save: the frontend shape validator
+is compiled from the schema during `generate_bindings.py`, and an edited circuit
+declares this build's version with preserved fields dropped and the loss
+surfaced. **Decisions Awaiting the Owner** now holds one entry, scoped to
+Milestone 4.
+
+What remains is implementation: `frontend/src/serialization/`,
+`frontend/src/persistence/`, and the generation step. See *Where to Pick Up*.
 
 ---
 
@@ -127,9 +131,9 @@ they affect begins.
 | Mid-circuit measurement: permitted at MVP or deferred? | Milestone 2 | **Resolved 2026-07-29** — deferred. Measurement terminates a qubit; barriers are exempt. See [CircuitModel.md](CircuitModel.md) |
 | Are identifiers client-generated or backend-assigned? | Milestone 2 | **Resolved 2026-07-29** — client-generated, backend-validated. Forced by offline operation and local save |
 | Interpreter for the `simulation` extra (Qiskit lacks 3.14 wheels) | Milestone 4 | **Partly answered.** The Docker environment pins 3.13, so simulation work happens there. Whether native 3.14 must also be supported is still open |
-| Does the frontend gain a runtime shape validator, and at what dependency cost? | Milestone 3 | **Open, and now due — but narrowed 2026-07-30.** Deferred by ADR-0005 section 6 until local save made it concrete. Local save is that requirement. The narrowing: "no dependency" in practice means hand-writing a shape checker, which is a second hand-maintained description of the schema — precisely what ADR-0004 exists to prevent, and what the backend loader avoids by letting Pydantic decide unknown-ness so there is no list to drift. The frontend gets that property only by validating against `circuit.schema.json` itself, so the real choice is *which* schema-driven mechanism: a runtime validator library, or a validator compiled from the schema during `generate_bindings.py`. Measure the second before assuming the first. Lands in ADR-0008 |
+| Does the frontend gain a runtime shape validator, and at what dependency cost? | Milestone 3 | **Resolved 2026-08-01** — a validator compiled from the schema during `generate_bindings.py`, with Ajv as a devDependency that is never shipped. Measured before deciding, as this entry asked: 6.0 KB gzipped with zero runtime imports, against ~30 KB+ plus runtime `new Function` compilation for the library. See [ADR-0008](decisions/ADR0008_LocalPersistence.md) |
 | Do `invalid/` fixtures assert `path` as well as `code`? | Milestone 2 fixtures | **Resolved 2026-07-30** — codes only. Fixtures compare sorted code lists; paths are asserted in each project's own unit tests, where a format difference is a local bug rather than a contract break |
-| What `schemaVersion` does an *edited* newer-minor circuit declare on save? | Milestone 3 | **Open.** Round-tripping preserves the declared version, which is right for read-then-write. Editing is different: the document still carries preserved fields this build does not understand, so claiming our own version would be a lie, and keeping theirs claims features we did not write. Surfaced by the loader; ADR-0006 does not address it. Lands in ADR-0008 |
+| What `schemaVersion` does an *edited* newer-minor circuit declare on save? | Milestone 3 | **Resolved 2026-08-01** — this build's own, with preserved fields dropped and the loss surfaced before it happens. The question turned out to be larger than the version string: preserved fields are keyed by *positional* path, and editing reorders operations, so re-grafting after an edit attaches a newer build's field to the wrong operation. Keeping our version *with* preserved fields is also impossible — strict mode at our own version refuses unknown fields, so we would write a document we cannot re-read. See [ADR-0008](decisions/ADR0008_LocalPersistence.md) section 3 |
 | Snapshot history or command/inverse for undo? | Milestone 3 | **Resolved 2026-07-30** — labeled snapshots, bounded at 100. Decided on correctness, not memory: an inverse that is subtly wrong makes undo produce a *different* circuit rather than failing, and every future edit type would owe one. See [ADR-0007](decisions/ADR0007_EditingModel.md) |
 | What does "save locally" mean mechanically — `localStorage`, File System Access, or download/upload? | Milestone 3 | **Resolved 2026-07-30** — `localStorage`, as the working-set store; files are the interchange format and arrive with Milestone 5's JSON import/export. Was not previously tracked here, and had no home in the layout either. Four consequences are handled rather than discovered: it can throw on *access* under private browsing, quota errors are thrown rather than returned, clearing site data destroys work silently, and it does **not** remove the need for the loader |
 | Which CI job runs `tests/contract/`? | Milestone 4 | **Moot for Milestone 2.** Each fixture declares its own expectation, so each project's suite asserts against the same artifact and parity follows transitively — no cross-language runner and no new CI job. `tests/contract/` is left holding API conformance, which needs endpoints. See `tests/README.md` |
@@ -326,9 +330,8 @@ the Definition of Done leans on these.
   produces the same outcome as the Python loader on all 14 fixtures in
   `shared/fixtures/version/`.
 * [x] Placement, selection, and removal are operable by keyboard.
-* [ ] `UI.md` is written; ADR-0007 and ADR-0008 are Accepted; `Frontend.md` and
-  `ProjectStructure.md` carry the new modules. — **all but ADR-0008**, which
-  lands with local save.
+* [x] `UI.md` is written; ADR-0007 and ADR-0008 are Accepted; `Frontend.md` and
+  `ProjectStructure.md` carry the new modules.
 
 Two of these are worth noting for why they are cheap rather than aspirational.
 The undo property test is possible because ADR-0007 makes `state/` headless and
@@ -344,21 +347,37 @@ and parity follows transitively, exactly as it does for validation and cycles.
 Everything in this milestone assumes both. *Status* below says what exists;
 *Remaining* says what does not.
 
-**The next task is local save, and it starts with ADR-0008 rather than with
-code.** Two decisions block it, both listed below. Write the ADR first: the
-mechanism chosen for shape validation determines whether
-`shared/generate_bindings.py` gains a step, which is a cross-language change and
-not something to discover halfway through `frontend/src/serialization/`.
+**The next task is local save, and [ADR-0008](decisions/ADR0008_LocalPersistence.md)
+is Accepted, so it is implementation rather than design.** Read that first; the
+notes below are what it implies for the order of work.
 
-Three things fall out of local save once it lands, and none should be attempted
-before it:
+**Start with the generation step**, because it is the cross-language half.
+`shared/generate_bindings.py` gains a Node step emitting a compiled validator into
+`frontend/src/model/`, and Ajv joins `package.json` as a devDependency. Get
+`--check` covering the new artifact before writing anything that consumes it.
+
+**Then `serialization/`, held to the 14 fixtures in `shared/fixtures/version/`.**
+It costs no new fixtures — both loaders assert against the same artifacts and
+parity follows transitively. ADR-0008 section 2 is not optional reading here: the
+obvious way to strip unknown fields **deletes real data**, because `oneOf` plus
+`$ref` loses branch attribution and every non-matching branch reports the fields
+it does not share as unknown. Validate per operation subtype, dispatched through
+the schema's own `discriminator.mapping`.
+
+**Then `persistence/`, then the header's save button.** Storage being unavailable
+is not an editor error; the editor stays usable and a failed save surfaces a
+banner. ADR-0008 section 5 lists the four `localStorage` behaviours to handle
+rather than discover.
+
+**`invalid/shape/` fixtures become cross-language once the validator exists**,
+which closes the last unchecked item on Milestone 2's task list.
+
+Two more things fall out of it, and neither should be attempted before it:
 
 * **`editor/demoCircuit.ts` goes.** It is scaffolding, and the only thing still
   holding it is that nothing survives a refresh.
 * **"New circuit"** — the document-level reset that `clearOperations` deliberately
   stops short of, because it needs to know about unsaved changes.
-* **The save button and save status** in `editor/EditorHeader.tsx`, which UI.md's
-  region diagram already reserves space for.
 
 **Parameter editing is the one remaining task that does not depend on save**, and
 it is small: rotation gates place at a fixed π/2, and `setParameters` is already
@@ -377,21 +396,13 @@ geometry, and never decides *which column* an operation occupies. That is
 [Frontend.md](Frontend.md) and
 [ADR-0001](decisions/ADR0001_CircuitRepresentation.md).
 
-**Two decisions this milestone still owes**, both scoped to local save and both
-landing in ADR-0008 with the frontend loader:
-
-1. **Runtime shape validation on the frontend.** Deferred by
-   [ADR-0005](decisions/ADR0005_SharedSpecification.md) section 6 until local save
-   made it concrete. Narrowed since: hand-writing a shape checker is a second
-   description of the schema, which ADR-0004 exists to prevent, so the real choice
-   is *which* schema-driven mechanism.
-2. **What `schemaVersion` an edited newer-minor circuit declares on save.**
-
-Choosing `localStorage` does not remove either question. A stored document was
-written by *some* build — possibly older, possibly a partial write, possibly
-hand-edited through devtools — so it is still a circuit this build did not
-construct, and ADR-0006's argument that a version claim is unverifiable evidence
-applies unchanged.
+**This milestone owes no further decisions.** Both questions it carried are
+answered in [ADR-0008](decisions/ADR0008_LocalPersistence.md), and the reasoning
+worth keeping in mind while implementing is that choosing `localStorage` did not
+remove either of them. A stored document was written by *some* build — possibly
+older, possibly a partial write, possibly hand-edited through devtools — so it is
+still a circuit this build did not construct, and ADR-0006's argument that a
+version claim is unverifiable evidence applies to it unchanged.
 
 
 ### Status

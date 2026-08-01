@@ -240,6 +240,7 @@ Read `docs/Roadmap.md` first, then whatever the task needs:
 | `docs/ProjectStructure.md` | before creating a directory |
 | `docs/CircuitModel.md` + ADRs 0001-0006 | before touching the model, either shared source, or anything generated from them |
 | `docs/UI.md` + ADR-0007 | before touching the editor |
+| `docs/decisions/ADR0008_LocalPersistence.md` | before touching local save, `serialization/`, `persistence/`, or the generated validator |
 | `docs/Frontend.md` | before touching frontend structure; it forbids some obvious shortcuts |
 | `docs/decisions/` | when a decision looks arbitrary — the reasoning is there |
 
@@ -251,7 +252,9 @@ measurement terminates a qubit, barriers exempt), identifier generation
 (client-side, backend-validated), `classicalRegisters` (required, may be empty, no
 implicit register), the shared-model strategy (JSON Schema as source of truth),
 version compatibility (declared version selects a mode, content decides the
-outcome), and the editing model (pure edits, snapshot history).
+outcome), the editing model (pure edits, snapshot history), and local persistence
+(a validator compiled from the schema at generation time; an edited circuit
+declares this build's version and drops preserved fields).
 
 **A barrier's targets are captured at placement and never rewritten.** Placing one
 expands it to every wire then present; adding a qubit afterwards does not join it,

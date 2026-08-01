@@ -157,6 +157,7 @@ before implementing the change.
 | 0005 | Accepted | Shared specification data and module layout                         |
 | 0006 | Accepted | Version compatibility and loading                                   |
 | 0007 | Accepted | The editing model — pure edits, snapshot history, undo/redo          |
+| 0008 | Accepted | Local persistence and frontend shape validation                      |
 
 **0001 through 0006 govern Milestone 2** and should be read in order. 0001
 decides what is stored, 0002 decides how stored objects are referenced, 0003
@@ -169,3 +170,11 @@ different version than the one reading it.
 subsystem that reads a circuit; 0007 is the first to govern one that produces
 one, and it constrains how every edit in the editor is expressed. Read it with
 0002, whose stable identifiers exist largely to serve it.
+
+**0008 closes Milestone 3** and answers two questions the earlier ADRs
+deliberately left open until local save made them concrete — 0005 section 6
+deferred frontend shape validation, and 0006 section 5 deferred the frontend
+loader for the same reason. It is also where 0006's round-trip model meets
+editing, which moves the positions its preserved fields are keyed to. Read it
+after 0004 and 0006; its first decision is 0004's argument applied one layer out,
+and its third is a limit on 0006's.
