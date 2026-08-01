@@ -7,7 +7,6 @@ import { insertOperation } from '../state/edits';
 import { barrier, circuitWith, gate, measurement } from '../state/testCircuits';
 import { validateCircuit } from '../validation';
 import { CircuitCanvas, type CircuitCanvasProps } from './CircuitCanvas';
-import { createDemoCircuit } from './demoCircuit';
 import { targetGlyph } from './glyphs';
 import { columnCenter, layoutCircuit, pendingConnector } from './layout';
 import { describeCells } from './placement';
@@ -40,6 +39,7 @@ function draw(circuit: Circuit, overrides: Partial<CircuitCanvasProps> = {}) {
     onUndo: vi.fn(),
     onRedo: vi.fn(),
     onCycleBarriers: vi.fn(),
+    onSave: vi.fn(),
     ...overrides,
   };
 
@@ -893,13 +893,41 @@ describe('removing by mouse', () => {
   });
 });
 
-describe('the demo circuit', () => {
+/**
+ * One circuit exercising every glyph kind at once.
+ *
+ * This was `editor/demoCircuit.ts` until local save gave the editor something
+ * real to open on. Its scaffolding job is over; its *testing* job — proving the
+ * canvas draws a whole circuit rather than each glyph in isolation — is not, so
+ * it lives here now, built from the same helpers as every other fixture.
+ */
+describe('a circuit using every glyph', () => {
+  const everyGlyph = (): Circuit => {
+    const operations = [
+      gate('op_0', 'h', ['q_0']),
+      gate('op_1', 'cx', ['q_1'], ['q_0']),
+      // Carries its parameter explicitly: the helper defaults to none, and rx
+      // without theta is PARAMETER_MISSING.
+      { ...gate('op_2', 'rx', ['q_2']), parameters: { theta: Math.PI / 2 } },
+      // Spans an idle wire: the connector must break where it crosses q_1.
+      gate('op_3', 'cz', ['q_2'], ['q_0']),
+      barrier('op_4', ['q_0', 'q_1', 'q_2']),
+      measurement('op_5', 'q_0', 'c_0', 0),
+      measurement('op_6', 'q_1', 'c_0', 1),
+    ];
+
+    return operations.reduce(
+      (circuit, operation, index) => insertOperation(circuit, operation, index),
+      circuitWith(3),
+    );
+  };
+
   it('is valid', () => {
-    expect(validateCircuit(createDemoCircuit()).codes).toEqual([]);
+    expect(validateCircuit(everyGlyph()).codes).toEqual([]);
   });
 
   it('draws every one of its operations', () => {
-    const circuit = createDemoCircuit();
+    const circuit = everyGlyph();
     const { container } = draw(circuit);
 
     expect(container.querySelectorAll('[data-operation-id]')).toHaveLength(
@@ -907,8 +935,8 @@ describe('the demo circuit', () => {
     );
   });
 
-  it('exercises a connector crossing an uninvolved wire', () => {
-    const circuit = createDemoCircuit();
+  it('breaks a connector where it crosses an uninvolved wire', () => {
+    const circuit = everyGlyph();
     const spanning = layoutCircuit(
       circuit,
       deriveCycles(circuit),

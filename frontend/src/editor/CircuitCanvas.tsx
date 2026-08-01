@@ -88,6 +88,7 @@ export interface CircuitCanvasProps {
   readonly onUndo: () => void;
   readonly onRedo: () => void;
   readonly onCycleBarriers: (direction: 1 | -1) => void;
+  readonly onSave: () => void;
 }
 
 export function CircuitCanvas({
@@ -110,6 +111,7 @@ export function CircuitCanvas({
   onUndo,
   onRedo,
   onCycleBarriers,
+  onSave,
 }: CircuitCanvasProps): React.JSX.Element {
   const { lane, column: columnWidth } = layout.metrics;
 
@@ -130,6 +132,14 @@ export function CircuitCanvas({
       event.preventDefault();
       if (event.shiftKey) onRedo();
       else onUndo();
+      return;
+    }
+
+    // preventDefault matters more here than elsewhere: without it the browser
+    // opens its own save dialogue over the editor.
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+      event.preventDefault();
+      onSave();
       return;
     }
 

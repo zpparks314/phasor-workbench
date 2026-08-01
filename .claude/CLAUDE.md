@@ -228,8 +228,8 @@ Ask for clarification instead of making assumptions.
 **This file holds the durable rules. `docs/Roadmap.md` holds the status**, and
 where the two disagree, the Roadmap wins — it is maintained, this is not.
 
-Milestone 3 (Circuit Editor MVP) is active. Milestones 1 and 2 are closed; the
-Circuit Model is complete and settled by ADRs 0001-0006.
+Milestone 4 (Simulation MVP) is active. Milestones 1-3 are closed; the Circuit
+Model is settled by ADRs 0001-0006, and the editor by ADRs 0007-0008.
 
 Read `docs/Roadmap.md` first, then whatever the task needs:
 
@@ -245,7 +245,9 @@ Read `docs/Roadmap.md` first, then whatever the task needs:
 | `docs/decisions/` | when a decision looks arbitrary — the reasoning is there |
 
 `docs/API.md` and `docs/Simulation.md` are **draft, describing unbuilt design**
-for Milestones 4-5. Do not read them as current behaviour.
+for Milestones 4-5. Do not read them as current behaviour — and now that
+Milestone 4 is active, expect to revise them as it is built rather than to
+implement them as written. Each ends with open questions that are still open.
 
 Settled — do not reopen without cause: mid-circuit measurement (deferred;
 measurement terminates a qubit, barriers exempt), identifier generation

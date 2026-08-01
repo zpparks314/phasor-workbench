@@ -593,12 +593,32 @@ step. This is a valid circuit (`empty.json`), not an error.
 ## Save
 
 Saving is explicit — `Ctrl/Cmd` + `S` and a header button — and the header shows
-the last saved time.
+the last saved time. Save is never disabled: saving an unchanged circuit is
+harmless, and a disabled control would claim there is nothing worth saving.
 
 Local storage can be unavailable or full, and both must surface. A failed save
 shows a persistent, non-blocking banner naming the cause and stating that the
 circuit is still in memory. Silence would let a user close the tab believing their
 work was safe, and `CLAUDE.md` forbids swallowing the error regardless.
+
+## Opening
+
+The editor opens on whatever local storage restored, and on an empty circuit
+otherwise. Three outcomes are distinguished, because collapsing them would either
+alarm a first-time user or hide a real loss:
+
+* **Nothing stored** — the ordinary first run. The canvas prompts for a first
+  qubit and nothing else is said.
+* **A document that cannot be read** — reported, and the editor opens empty beside
+  the reason. The likeliest causes are a partial write or a hand edit through
+  devtools, and the user is about to build over it.
+* **A document from a newer build** — opens correctly, with a warning that parts
+  this version does not understand will be dropped on the next save.
+
+**That last warning comes before the first edit, not at save time.** Editing is
+what makes the preserved fields unrecoverable — they are keyed to positions the
+edit moves, per [ADR-0008](decisions/ADR0008_LocalPersistence.md) section 3 — so
+warning at save would be warning after the decision.
 
 Milestone 3 has no backend calls, so backend-unavailable is not an editor state.
 The existing status treatment is unchanged.

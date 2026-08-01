@@ -30,9 +30,14 @@ export interface EditorHeaderProps {
   readonly undoLabel: string | null;
   readonly redoLabel: string | null;
   readonly operationCount: number;
+  /** Null until the circuit has been saved at least once this session. */
+  readonly savedAt: Date | null;
+  /** Present only when the last save failed, and stated rather than hinted. */
+  readonly saveError: string | null;
   readonly onUndo: () => void;
   readonly onRedo: () => void;
   readonly onClear: () => void;
+  readonly onSave: () => void;
 }
 
 const BUTTON =
@@ -44,9 +49,12 @@ export function EditorHeader({
   undoLabel,
   redoLabel,
   operationCount,
+  savedAt,
+  saveError,
   onUndo,
   onRedo,
   onClear,
+  onSave,
 }: EditorHeaderProps): React.JSX.Element {
   const [focused, setFocused] = useState(0);
   const [confirming, setConfirming] = useState(false);
@@ -56,6 +64,9 @@ export function EditorHeader({
     { key: 'undo', enabled: canUndo },
     { key: 'redo', enabled: canRedo },
     { key: 'clear', enabled: operationCount > 0 },
+    // Always enabled. Saving an unchanged circuit is harmless, and a disabled
+    // save invites the reading that there is nothing worth saving.
+    { key: 'save', enabled: true },
   ];
 
   /**
@@ -123,6 +134,12 @@ export function EditorHeader({
       ? verb
       : `${verb} ${label.charAt(0).toLowerCase()}${label.slice(1)}`;
 
+  /** The last saved time, which UI.md asks the header to show. */
+  const saveStatus = (at: Date | null): string =>
+    at === null
+      ? ''
+      : `Saved at ${at.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+
   return (
     <header
       role="toolbar"
@@ -188,6 +205,19 @@ export function EditorHeader({
         {confirming ? 'Confirm' : 'Clear'}
       </button>
 
+      <button
+        ref={register('save')}
+        type="button"
+        tabIndex={tabbableKey === 'save' ? 0 : -1}
+        aria-label="Save circuit"
+        title="Save circuit (Ctrl/Cmd + S)"
+        onFocus={focus('save')}
+        onClick={onSave}
+        className={BUTTON}
+      >
+        Save
+      </button>
+
       {/*
         A name that changes under a focused button is not reliably re-announced,
         so the question is stated outright as well. Same treatment as the qubit
@@ -196,8 +226,23 @@ export function EditorHeader({
       <p role="status" className="text-sm text-ink-muted">
         {confirming
           ? `${clearLabel} Press again to confirm, Escape to cancel.`
-          : ''}
+          : saveStatus(savedAt)}
       </p>
+
+      {/*
+        A failed save is persistent and non-blocking, and says the circuit is
+        still in memory. Silence would let someone close the tab believing their
+        work was safe, which UI.md forbids and CLAUDE.md forbids more generally.
+        `alert` rather than `status`: this is not a passing update.
+      */}
+      {saveError !== null && (
+        <p
+          role="alert"
+          className="rounded border border-ink-muted/40 px-2 py-1 text-sm"
+        >
+          {saveError} The circuit is still open and unsaved.
+        </p>
+      )}
     </header>
   );
 }

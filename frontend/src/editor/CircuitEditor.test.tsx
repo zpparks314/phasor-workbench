@@ -1,9 +1,10 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { Circuit } from '../model/circuit';
 import { insertOperation } from '../state/edits';
 import { barrier, circuitWith, gate, measurement } from '../state/testCircuits';
+import { loadStoredCircuit } from '../persistence';
 import { CircuitEditor } from './CircuitEditor';
 
 function open(circuit: Circuit = circuitWith(3)) {
@@ -1132,6 +1133,113 @@ describe('the header', () => {
     open(circuitWith(2));
 
     expect(button('Clear 0 operations')).toBeDisabled();
+  });
+});
+
+/**
+ * Saving, end to end through the real persistence module.
+ *
+ * `localStorage` is jsdom's here rather than a fake: the adapter's own failure
+ * modes are covered in `persistence.test.ts`, and what matters at this level is
+ * that the editor reaches storage at all and says what happened.
+ */
+describe('saving the circuit', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it('writes the circuit and reports when', () => {
+    const editor = open(circuitWith(2));
+
+    editor.arm('h');
+    fireEvent.click(editor.cell('q0, column 1, empty'));
+    fireEvent.click(screen.getByRole('button', { name: 'Save circuit' }));
+
+    expect(screen.getByText(/^Saved at /)).toBeInTheDocument();
+    expect(localStorage.getItem('phasor-workbench.circuit')).not.toBeNull();
+  });
+
+  /** UI.md: Ctrl/Cmd + S, and nothing is reachable by mouse alone. */
+  it('saves from the keyboard', () => {
+    const editor = open(circuitWith(1));
+
+    fireEvent.keyDown(editor.grid(), { key: 's', ctrlKey: true });
+
+    expect(localStorage.getItem('phasor-workbench.circuit')).not.toBeNull();
+  });
+
+  it('stores what was built, so it can be read back', () => {
+    const editor = open(circuitWith(2));
+
+    editor.arm('cx');
+    fireEvent.click(editor.cell('q0, column 1, empty'));
+    fireEvent.click(editor.cell('q1, column 1, empty'));
+    fireEvent.click(screen.getByRole('button', { name: 'Save circuit' }));
+
+    const restored = loadStoredCircuit();
+    expect(restored.ok).toBe(true);
+    if (!restored.ok) return;
+    expect(restored.circuit.operations).toHaveLength(1);
+    expect(restored.circuit.operations[0]).toMatchObject({ name: 'cx' });
+  });
+
+  /**
+   * A failed save is stated and persistent. Silence would let someone close the
+   * tab believing their work was safe, which UI.md and CLAUDE.md both forbid.
+   */
+  it('says so when storage refuses, and says the circuit is still open', () => {
+    const setItem = vi
+      .spyOn(Storage.prototype, 'setItem')
+      .mockImplementation(() => {
+        const error = new Error('full');
+        error.name = 'QuotaExceededError';
+        throw error;
+      });
+
+    const editor = open(circuitWith(1));
+    fireEvent.click(screen.getByRole('button', { name: 'Save circuit' }));
+
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveTextContent(/storage is full/i);
+    expect(alert).toHaveTextContent(/still open and unsaved/i);
+    expect(editor.status()).toHaveTextContent('0 operations');
+
+    setItem.mockRestore();
+  });
+
+  it('clears the failure once a save succeeds', () => {
+    const setItem = vi
+      .spyOn(Storage.prototype, 'setItem')
+      .mockImplementationOnce(() => {
+        throw new Error('denied');
+      });
+
+    open(circuitWith(1));
+    fireEvent.click(screen.getByRole('button', { name: 'Save circuit' }));
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save circuit' }));
+
+    expect(screen.queryByRole('alert')).toBeNull();
+    setItem.mockRestore();
+  });
+
+  /** The editor stays usable without storage, per Architecture.md. */
+  it('remains editable after a failed save', () => {
+    const setItem = vi
+      .spyOn(Storage.prototype, 'setItem')
+      .mockImplementation(() => {
+        throw new Error('denied');
+      });
+
+    const editor = open(circuitWith(2));
+    fireEvent.click(screen.getByRole('button', { name: 'Save circuit' }));
+
+    editor.arm('h');
+    fireEvent.click(editor.cell('q0, column 1, empty'));
+
+    expect(editor.cell('q0, column 1, h')).toBeInTheDocument();
+    setItem.mockRestore();
   });
 });
 
