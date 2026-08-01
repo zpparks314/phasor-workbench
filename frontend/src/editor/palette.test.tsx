@@ -8,6 +8,7 @@ import {
   defaultParameters,
   describeSignature,
   groupedGateNames,
+  isGateName,
 } from './palette';
 
 describe('the gate list', () => {
@@ -25,9 +26,34 @@ describe('the gate list', () => {
   it('carries each gate its signature from the spec', () => {
     for (const group of PALETTE) {
       for (const entry of group.entries) {
+        if (!isGateName(entry.name)) continue;
         expect(entry.signature).toBe(GATE_SIGNATURES[entry.name]);
       }
     }
+  });
+
+  /**
+   * Measurement and barrier are operation *kinds* from the schema, not gates.
+   * CircuitModel.md is explicit that `barrier` is not a gate name, which is what
+   * makes a union discriminated by value safe here.
+   */
+  it('offers measurement and barrier, and gives them no gate signature', () => {
+    const nonUnitary = PALETTE.flatMap((group) =>
+      group.entries.filter((entry) => !isGateName(entry.name)),
+    );
+
+    expect(nonUnitary.map((entry) => entry.name)).toEqual([
+      'measurement',
+      'barrier',
+    ]);
+    expect(nonUnitary.every((entry) => entry.signature === undefined)).toBe(
+      true,
+    );
+  });
+
+  it('does not count them as gates', () => {
+    expect(groupedGateNames()).not.toContain('measurement');
+    expect(groupedGateNames()).not.toContain('barrier');
   });
 });
 
@@ -69,7 +95,9 @@ describe('defaultParameters', () => {
 describe('GatePalette', () => {
   it('arms a gate when clicked', () => {
     const onArm = vi.fn();
-    render(<GatePalette armed={null} onArm={onArm} />);
+    render(
+      <GatePalette armed={null} onArm={onArm} unavailable={() => undefined} />,
+    );
 
     fireEvent.click(screen.getByRole('button', { name: /^h —/ }));
 
@@ -78,7 +106,9 @@ describe('GatePalette', () => {
 
   it('disarms when the armed gate is clicked again', () => {
     const onArm = vi.fn();
-    render(<GatePalette armed="h" onArm={onArm} />);
+    render(
+      <GatePalette armed="h" onArm={onArm} unavailable={() => undefined} />,
+    );
 
     fireEvent.click(screen.getByRole('button', { name: /^h —/ }));
 
@@ -86,7 +116,9 @@ describe('GatePalette', () => {
   });
 
   it('reports which gate is armed, not by colour alone', () => {
-    render(<GatePalette armed="h" onArm={vi.fn()} />);
+    render(
+      <GatePalette armed="h" onArm={vi.fn()} unavailable={() => undefined} />,
+    );
 
     expect(screen.getByRole('button', { name: /^h —/ })).toHaveAttribute(
       'aria-pressed',
@@ -102,7 +134,9 @@ describe('GatePalette', () => {
    */
   it('arms a multi-qubit gate like any other', () => {
     const onArm = vi.fn();
-    render(<GatePalette armed={null} onArm={onArm} />);
+    render(
+      <GatePalette armed={null} onArm={onArm} unavailable={() => undefined} />,
+    );
     const cx = screen.getByRole('button', { name: /^cx —/ });
 
     expect(cx).not.toHaveAttribute('aria-disabled');
@@ -114,7 +148,13 @@ describe('GatePalette', () => {
 
   /** UI.md: the tooltip carries a description and the gate's signature. */
   it('announces how many wires a gate will ask for', () => {
-    render(<GatePalette armed={null} onArm={vi.fn()} />);
+    render(
+      <GatePalette
+        armed={null}
+        onArm={vi.fn()}
+        unavailable={() => undefined}
+      />,
+    );
 
     expect(screen.getByRole('button', { name: /^ccx —/ })).toHaveAccessibleName(
       /1 target, 2 controls/,
@@ -126,7 +166,13 @@ describe('GatePalette', () => {
    * eighteen presses to reach the canvas.
    */
   it('is a single tab stop with a roving focus', () => {
-    render(<GatePalette armed={null} onArm={vi.fn()} />);
+    render(
+      <GatePalette
+        armed={null}
+        onArm={vi.fn()}
+        unavailable={() => undefined}
+      />,
+    );
     const tabbable = screen
       .getAllByRole('button')
       .filter((button) => button.getAttribute('tabindex') === '0');
@@ -136,7 +182,13 @@ describe('GatePalette', () => {
   });
 
   it('moves focus between gates with the arrow keys', () => {
-    render(<GatePalette armed={null} onArm={vi.fn()} />);
+    render(
+      <GatePalette
+        armed={null}
+        onArm={vi.fn()}
+        unavailable={() => undefined}
+      />,
+    );
     const palette = screen.getByRole('navigation', { name: 'Gate palette' });
 
     fireEvent.keyDown(palette, { key: 'ArrowRight' });
@@ -144,17 +196,67 @@ describe('GatePalette', () => {
     expect(screen.getByRole('button', { name: /^x —/ })).toHaveFocus();
   });
 
-  it('reaches the last gate with End', () => {
-    render(<GatePalette armed={null} onArm={vi.fn()} />);
+  /** The roving focus spans the whole palette, non-unitary entries included. */
+  it('reaches the last entry with End', () => {
+    render(
+      <GatePalette
+        armed={null}
+        onArm={vi.fn()}
+        unavailable={() => undefined}
+      />,
+    );
     const palette = screen.getByRole('navigation', { name: 'Gate palette' });
 
     fireEvent.keyDown(palette, { key: 'End' });
 
-    expect(screen.getByRole('button', { name: /^ccx —/ })).toHaveFocus();
+    expect(screen.getByRole('button', { name: /^barrier —/ })).toHaveFocus();
+  });
+
+  /**
+   * UI.md: an entry this circuit cannot take is `aria-disabled`, not `disabled`,
+   * so arrowing still reaches it and announces why. A `disabled` button is
+   * skipped in silence, which for a teaching tool is the wrong kind of quiet.
+   */
+  it('marks an unavailable entry, says why, and refuses to arm it', () => {
+    const onArm = vi.fn();
+    render(
+      <GatePalette
+        armed={null}
+        onArm={onArm}
+        unavailable={(item) =>
+          item === 'measurement' ? 'Unavailable: no register.' : undefined
+        }
+      />,
+    );
+    const measurement = screen.getByRole('button', { name: /^measurement —/ });
+
+    expect(measurement).toHaveAttribute('aria-disabled', 'true');
+    expect(measurement).toHaveAccessibleName(/no register/);
+
+    fireEvent.click(measurement);
+
+    expect(onArm).not.toHaveBeenCalled();
+  });
+
+  it('arms an available non-unitary entry', () => {
+    const onArm = vi.fn();
+    render(
+      <GatePalette armed={null} onArm={onArm} unavailable={() => undefined} />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /^barrier —/ }));
+
+    expect(onArm).toHaveBeenCalledWith('barrier');
   });
 
   it('follows the armed gate, so tabbing back returns to it', () => {
-    render(<GatePalette armed={null} onArm={vi.fn()} />);
+    render(
+      <GatePalette
+        armed={null}
+        onArm={vi.fn()}
+        unavailable={() => undefined}
+      />,
+    );
 
     fireEvent.click(screen.getByRole('button', { name: /^h —/ }));
 
@@ -165,7 +267,13 @@ describe('GatePalette', () => {
   });
 
   it('groups gates by what they do', () => {
-    render(<GatePalette armed={null} onArm={vi.fn()} />);
+    render(
+      <GatePalette
+        armed={null}
+        onArm={vi.fn()}
+        unavailable={() => undefined}
+      />,
+    );
 
     for (const title of ['Superposition', 'Rotation', 'Two-qubit']) {
       expect(screen.getByRole('heading', { name: title })).toBeInTheDocument();

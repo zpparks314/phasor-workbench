@@ -11,22 +11,38 @@
  * mean eighteen presses to reach the canvas. Arrow keys move between gates, Tab
  * leaves the region.
  *
- * **Every gate in the spec is armable.** Multi-qubit gates arm exactly like
- * single-qubit ones; what differs is what happens on the canvas afterwards, and
- * that sequence lives in `./pending`. UI.md's rule for a gate this build cannot
- * place -- `aria-disabled` rather than `disabled`, so arrowing reaches it and
- * hears why, instead of skipping it in silence -- has no subject at the moment
- * and is waiting for measurement and barrier to join the palette.
+ * **Every gate in the spec is armable**, and so are measurement and barrier.
+ * Multi-qubit gates arm exactly like single-qubit ones; what differs is what
+ * happens on the canvas afterwards, and that sequence lives in `./pending`.
+ *
+ * **An entry the circuit cannot currently take is `aria-disabled`, not
+ * `disabled`**, so arrowing across the palette still reaches it and announces
+ * why. A `disabled` button is skipped in silence, which for a teaching tool is
+ * the wrong kind of quiet. Measurement is the case that exists today: with no
+ * classical register declared, a measurement has nowhere to write. Whether an
+ * entry is available is the caller's judgement, since it depends on the circuit.
  */
 
 import { useRef, useState } from 'react';
 
-import { PALETTE, describeSignature, type PaletteEntry } from './palette';
-import type { GateName } from '../model/circuit';
+import {
+  PALETTE,
+  describeSignature,
+  type PaletteEntry,
+  type PaletteItem,
+} from './palette';
 
 export interface GatePaletteProps {
-  readonly armed: GateName | null;
-  readonly onArm: (name: GateName | null) => void;
+  readonly armed: PaletteItem | null;
+  readonly onArm: (name: PaletteItem | null) => void;
+  /**
+   * Why an entry cannot be placed right now, or undefined when it can.
+   *
+   * Decided by the caller, which knows the circuit. A measurement has nowhere
+   * to write when no classical register exists, and this is what gives UI.md's
+   * `aria-disabled` rule a subject again.
+   */
+  readonly unavailable: (item: PaletteItem) => string | undefined;
 }
 
 const ENTRIES: readonly PaletteEntry[] = PALETTE.flatMap(
@@ -36,9 +52,10 @@ const ENTRIES: readonly PaletteEntry[] = PALETTE.flatMap(
 export function GatePalette({
   armed,
   onArm,
+  unavailable,
 }: GatePaletteProps): React.JSX.Element {
   const [focused, setFocused] = useState(0);
-  const buttons = useRef(new Map<GateName, HTMLButtonElement>());
+  const buttons = useRef(new Map<PaletteItem, HTMLButtonElement>());
 
   function moveFocus(to: number): void {
     const next = Math.max(0, Math.min(to, ENTRIES.length - 1));
@@ -89,6 +106,7 @@ export function GatePalette({
                   <GateButton
                     entry={entry}
                     armed={armed === entry.name}
+                    unavailable={unavailable(entry.name)}
                     tabbable={index === focused}
                     register={(element) => {
                       if (element === null) buttons.current.delete(entry.name);
@@ -112,20 +130,29 @@ export function GatePalette({
 function GateButton({
   entry,
   armed,
+  unavailable,
   tabbable,
   register,
   onArm,
 }: {
   readonly entry: PaletteEntry;
   readonly armed: boolean;
+  readonly unavailable: string | undefined;
   readonly tabbable: boolean;
   readonly register: (element: HTMLButtonElement | null) => void;
-  readonly onArm: (name: GateName | null) => void;
+  readonly onArm: (name: PaletteItem | null) => void;
 }): React.JSX.Element {
   // The signature is in the name rather than the tooltip alone: a multi-qubit
   // gate takes more clicks than a single-qubit one, and that is the difference
-  // a user needs before arming it, not after.
-  const label = `${entry.name} — ${entry.description} ${describeSignature(entry.signature)}`;
+  // a user needs before arming it, not after. Measurement and barrier have no
+  // signature to state; their arity is not a gate fact.
+  const arity =
+    entry.signature === undefined
+      ? ''
+      : ` ${describeSignature(entry.signature)}`;
+  const label = `${entry.name} — ${entry.description}${arity}${
+    unavailable === undefined ? '' : ` ${unavailable}`
+  }`;
 
   return (
     <button
@@ -134,16 +161,21 @@ function GateButton({
       title={label}
       aria-label={label}
       aria-pressed={armed}
+      aria-disabled={unavailable === undefined ? undefined : true}
       tabIndex={tabbable ? 0 : -1}
-      draggable
+      draggable={unavailable === undefined}
       onDragStart={() => {
-        onArm(entry.name);
+        if (unavailable === undefined) onArm(entry.name);
       }}
       onClick={() => {
-        onArm(armed ? null : entry.name);
+        if (unavailable === undefined) onArm(armed ? null : entry.name);
       }}
       className={[
-        'h-10 w-10 rounded border font-mono text-sm',
+        'rounded border px-1 font-mono text-sm',
+        // Wide enough for "measurement" without stretching the single-letter
+        // gates, which stay square so the palette still reads as a grid.
+        entry.name.length > 4 ? 'h-10 w-full' : 'h-10 w-10',
+        unavailable === undefined ? '' : 'cursor-not-allowed opacity-40',
         armed
           ? 'border-ink bg-ink text-surface'
           : 'border-ink-muted/40 bg-surface-raised text-ink',

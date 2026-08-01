@@ -18,10 +18,31 @@
 import type { GateName } from '../model/circuit';
 import { GATE_SIGNATURES, type GateSignature } from '../model/spec';
 
+/**
+ * What the palette can arm.
+ *
+ * Gate names come from the spec; `measurement` and `barrier` are operation
+ * *kinds* from the schema and are named here rather than read from
+ * `GATE_SIGNATURES`, because they are genuinely not gates -- CircuitModel.md is
+ * explicit that `barrier` "is an operation kind, not a gate name". That is why
+ * this union is safe to discriminate by value: neither string can ever collide
+ * with a gate name.
+ *
+ * Measurement and barrier sit in the palette rather than in a mode of their own.
+ * They are operations, they are placed the same way, and giving them separate
+ * machinery would obscure that.
+ */
+export type PaletteItem = GateName | 'measurement' | 'barrier';
+
+export function isGateName(item: PaletteItem): item is GateName {
+  return item in GATE_SIGNATURES;
+}
+
 export interface PaletteEntry {
-  readonly name: GateName;
+  readonly name: PaletteItem;
   readonly description: string;
-  readonly signature: GateSignature;
+  /** Absent for measurement and barrier, which have no gate signature. */
+  readonly signature: GateSignature | undefined;
 }
 
 export interface PaletteGroup {
@@ -62,14 +83,40 @@ const GROUPS: readonly {
   { title: 'Three-qubit', gates: ['ccx'] },
 ];
 
-export const PALETTE: readonly PaletteGroup[] = GROUPS.map((group) => ({
-  title: group.title,
-  entries: group.gates.map((name) => ({
-    name,
-    signature: GATE_SIGNATURES[name],
-    description: DESCRIPTIONS[name],
+/**
+ * The two non-gate operation kinds, named here because they are not in the spec's
+ * gate table and cannot be derived from it.
+ *
+ * This is the one hand-written part of the palette, and it is hand-written for a
+ * reason rather than by omission: `barrier` and `measurement` are operation kinds
+ * in the schema, not gates, so there is no generated list they could come from.
+ */
+const NON_UNITARY: readonly PaletteEntry[] = [
+  {
+    name: 'measurement',
+    signature: undefined,
+    description:
+      'Measure into a classical register. Ends the qubit: nothing may follow it.',
+  },
+  {
+    name: 'barrier',
+    signature: undefined,
+    description:
+      'Scheduling constraint across every wire. Nothing is reordered past it.',
+  },
+];
+
+export const PALETTE: readonly PaletteGroup[] = [
+  ...GROUPS.map((group) => ({
+    title: group.title,
+    entries: group.gates.map((name) => ({
+      name,
+      signature: GATE_SIGNATURES[name],
+      description: DESCRIPTIONS[name],
+    })),
   })),
-}));
+  { title: 'Non-unitary', entries: NON_UNITARY },
+];
 
 /**
  * A gate's arity in words, for the tooltip UI.md specifies.
@@ -88,9 +135,17 @@ function plural(count: number, word: string): string {
   return count === 1 ? word : `${word}s`;
 }
 
-/** Every gate in the spec appears in exactly one group. Asserted in the tests. */
+/**
+ * Every gate in the spec appears in exactly one group. Asserted in the tests.
+ *
+ * Non-gate entries are filtered out rather than counted. A gate missing from the
+ * groups still fails the assertion, because it compares against the spec's own
+ * gate table -- the filter removes measurement and barrier, not evidence.
+ */
 export function groupedGateNames(): GateName[] {
-  return PALETTE.flatMap((group) => group.entries.map((entry) => entry.name));
+  return PALETTE.flatMap((group) =>
+    group.entries.map((entry) => entry.name).filter(isGateName),
+  );
 }
 
 /** Parameters a freshly placed gate carries, defaulted rather than prompted for. */

@@ -720,6 +720,167 @@ describe('moving a gate', () => {
  * canvas, whose single tab stop and `aria-activedescendant` contract focusable
  * controls inside it would break.
  */
+describe('placing measurements', () => {
+  it('measures into the first register, at its first free bit', () => {
+    const editor = open(circuitWith(2));
+
+    editor.arm('measurement');
+    fireEvent.click(editor.cell('q0, column 1, empty'));
+
+    expect(editor.cell('q0, column 1, measurement')).toBeInTheDocument();
+    expect(screen.getByText('No problems.')).toBeInTheDocument();
+  });
+
+  it('takes the next free bit rather than reusing one', () => {
+    const editor = open(circuitWith(2));
+
+    editor.arm('measurement');
+    fireEvent.click(editor.cell('q0, column 1, empty'));
+    fireEvent.click(editor.cell('q1, column 1, empty'));
+
+    // Bits 0 and 1 of a two-bit register, so both fit and nothing contends.
+    expect(editor.status()).toHaveTextContent('2 operations');
+    expect(screen.getByText('No problems.')).toBeInTheDocument();
+  });
+
+  /**
+   * Running out of bits is surfaced rather than clamped. Clamping would write
+   * two measurements to one bit -- legal, but it makes them contend for that bit
+   * and serialises operations the user expected to be concurrent. The size
+   * control is the fix, and the problems strip says so.
+   */
+  it('reports an out-of-range bit instead of silently reusing the last', () => {
+    const editor = open(circuitWith(2, 1));
+
+    editor.arm('measurement');
+    fireEvent.click(editor.cell('q0, column 1, empty'));
+    fireEvent.click(editor.cell('q1, column 1, empty'));
+
+    expect(editor.status()).toHaveTextContent('2 operations');
+    expect(screen.queryByText('No problems.')).toBeNull();
+  });
+
+  /**
+   * UI.md: an entry this circuit cannot take is announced, not hidden. A
+   * measurement has nowhere to write with no register declared.
+   */
+  it('is unavailable with no register, and available once one exists', () => {
+    const editor = open({ ...circuitWith(1), classicalRegisters: [] });
+    const measurement = () =>
+      screen.getByRole('button', { name: /^measurement —/ });
+
+    expect(measurement()).toHaveAttribute('aria-disabled', 'true');
+    expect(measurement()).toHaveAccessibleName(/add a classical register/i);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add register' }));
+
+    expect(measurement()).not.toHaveAttribute('aria-disabled');
+
+    editor.arm('measurement');
+    fireEvent.click(editor.cell('q0, column 1, empty'));
+
+    expect(editor.cell('q0, column 1, measurement')).toBeInTheDocument();
+  });
+
+  it('places from the keyboard', () => {
+    const editor = open(circuitWith(2));
+
+    editor.arm('measurement');
+    editor.press('ArrowDown');
+    editor.press('Enter');
+
+    expect(editor.cell('q1, column 1, measurement')).toBeInTheDocument();
+  });
+});
+
+/**
+ * A barrier is expanded to every wire at placement time.
+ *
+ * CircuitModel.md rules out an implicit "all qubits" barrier because its meaning
+ * would change when a qubit is added. Expanding on placement is what OpenQASM's
+ * bare `barrier;` does on import, and it leaves the document saying exactly what
+ * it means -- a barrier over these wires, which nothing later rewrites.
+ */
+describe('placing barriers', () => {
+  function barrierTargets(editor: ReturnType<typeof open>): number {
+    void editor;
+    return document.querySelectorAll('[data-barrier-hit] line').length;
+  }
+
+  it('spans every wire in the circuit', () => {
+    const editor = open(circuitWith(3));
+
+    editor.arm('barrier');
+    fireEvent.click(editor.cell('q0, column 1, empty'));
+
+    // One contiguous run over all three wires, so one segment.
+    expect(barrierTargets(editor)).toBe(1);
+    expect(editor.status()).toHaveTextContent('1 operations');
+  });
+
+  it('holds a later gate behind it', () => {
+    const editor = open(circuitWith(1));
+
+    editor.arm('h');
+    fireEvent.click(editor.cell('q0, column 1, empty'));
+    editor.arm('barrier');
+    fireEvent.click(editor.cell('q0, column 2, empty'));
+    editor.arm('x');
+    fireEvent.click(editor.cell('q0, column 2, empty'));
+
+    expect(editor.cell('q0, column 2, x')).toBeInTheDocument();
+    expect(editor.status()).toHaveTextContent('Depth 2');
+  });
+
+  /**
+   * The half of the symmetry that is real: a removed qubit takes its reference
+   * with it, so the barrier shrinks. Adding one does not extend it -- nothing
+   * references the new wire, and rewriting authored targets is what
+   * CircuitModel.md forbids.
+   */
+  it('does not extend to a qubit added afterwards', () => {
+    const editor = open(circuitWith(2));
+
+    editor.arm('barrier');
+    fireEvent.click(editor.cell('q0, column 1, empty'));
+    fireEvent.click(screen.getByRole('button', { name: 'Add qubit' }));
+
+    // Still one segment, over the original two wires, not the new third.
+    expect(barrierTargets(editor)).toBe(1);
+    expect(editor.status()).toHaveTextContent('1 operations');
+  });
+
+  it('shrinks when one of its qubits is removed', () => {
+    const editor = open(circuitWith(3));
+
+    editor.arm('barrier');
+    fireEvent.click(editor.cell('q0, column 1, empty'));
+    fireEvent.click(screen.getByRole('button', { name: /^Remove q1/ }));
+
+    expect(editor.status()).toHaveTextContent('1 operations');
+  });
+
+  it('is reachable from the keyboard once placed', () => {
+    const editor = open(circuitWith(2));
+
+    editor.arm('barrier');
+    fireEvent.click(editor.cell('q0, column 1, empty'));
+    editor.press('Escape');
+    editor.press('b');
+
+    expect(editor.status()).toHaveTextContent('barrier selected');
+  });
+
+  it('places from the keyboard', () => {
+    const editor = open(circuitWith(2));
+
+    editor.arm('barrier');
+    editor.press('Enter');
+
+    expect(editor.status()).toHaveTextContent('1 operations');
+  });
+});
+
 describe('qubits and registers', () => {
   const control = (name: string | RegExp) =>
     screen.getByRole('button', { name });

@@ -425,6 +425,53 @@ describe('a pending multi-qubit placement', () => {
   });
 });
 
+describe('previewing the non-gate operations', () => {
+  it('previews a measurement as the meter it will become', () => {
+    draw(circuitWith(2), { armed: 'measurement' });
+
+    expect(
+      screen.getByTestId('placement-preview').querySelector('[data-glyph]'),
+    ).toHaveAttribute('data-glyph', 'meter');
+  });
+
+  /**
+   * Full width, because that is what placing one does: a barrier is expanded to
+   * every wire at placement time. A preview spanning only the cursor's wire
+   * would promise something the commit does not deliver.
+   */
+  it('previews a barrier across every wire', () => {
+    const { layout } = draw(circuitWith(3), {
+      armed: 'barrier',
+      cursor: { row: 1, column: 0 },
+    });
+
+    const preview = screen.getByTestId('barrier-preview');
+    const top = layout.wires[0]?.y ?? 0;
+    const bottom = layout.wires[2]?.y ?? 0;
+
+    expect(Number(preview.getAttribute('y1'))).toBeLessThan(top);
+    expect(Number(preview.getAttribute('y2'))).toBeGreaterThan(bottom);
+  });
+
+  /** A barrier sits on the boundary before a column, not centred in it. */
+  it('previews a barrier on the boundary, not in the cell', () => {
+    const { layout } = draw(circuitWith(2), {
+      armed: 'barrier',
+      cursor: { row: 0, column: 1 },
+    });
+
+    expect(
+      Number(screen.getByTestId('barrier-preview').getAttribute('x1')),
+    ).toBeLessThan(columnCenter(1, layout.metrics));
+  });
+
+  it('shows no gate preview while a barrier is armed', () => {
+    draw(circuitWith(2), { armed: 'barrier' });
+
+    expect(screen.queryByTestId('placement-preview')).toBeNull();
+  });
+});
+
 /**
  * The one animation in the editor that explains something. Placement packs a
  * gate left of where it was dropped, which is correct and would otherwise look
