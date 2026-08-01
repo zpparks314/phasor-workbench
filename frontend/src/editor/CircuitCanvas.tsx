@@ -173,6 +173,26 @@ export function CircuitCanvas({
     }
   }
 
+  /*
+    A circuit with no qubits has nowhere to put anything, so there is no grid to
+    render and nothing for a cursor to point at. UI.md requires a prompt here
+    rather than a blank rectangle -- and an empty `role="grid"` is worse than
+    blank, because `aria-activedescendant` would name a cell that does not exist.
+
+    Reachable from the moment qubits can be removed, and the state the editor
+    opens in once it no longer opens on scaffolding.
+  */
+  if (layout.wires.length === 0) {
+    return (
+      <p
+        data-testid="empty-canvas"
+        className="rounded border border-dashed border-ink-muted/40 px-6 py-10 text-sm text-ink-muted"
+      >
+        No qubits yet. Add one to start building a circuit.
+      </p>
+    );
+  }
+
   return (
     <div
       role="grid"

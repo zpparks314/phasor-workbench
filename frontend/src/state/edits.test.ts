@@ -6,12 +6,15 @@ import {
   insertOperation,
   isRetargetable,
   moveOperation,
+  operationsLostWithQubit,
+  operationsLostWithRegister,
   removeClassicalRegister,
   removeOperation,
   removeQubit,
   renameCircuit,
   retargetOperation,
   setParameters,
+  setRegisterSize,
 } from './edits';
 import { barrier, circuitWith, gate, measurement } from './testCircuits';
 
@@ -114,6 +117,107 @@ describe('classical registers', () => {
 
   it('rejects a register that does not exist', () => {
     expect(() => removeClassicalRegister(circuitWith(1), 'c_9')).toThrow('c_9');
+  });
+});
+
+describe('setRegisterSize', () => {
+  it('resizes a register', () => {
+    const circuit = setRegisterSize(circuitWith(1), 'c_0', 5);
+
+    expect(circuit.classicalRegisters[0]?.size).toBe(5);
+  });
+
+  /**
+   * ADR-0007 section 7: edits do not validate, and this is a state the user can
+   * edit their way out of -- grow the register back, or remove the measurement.
+   * `validateCircuit` reports CLASSICAL_BIT_OUT_OF_RANGE meanwhile. Refusing is
+   * reserved for a state with no repair path, which this is not.
+   */
+  it('allows shrinking below a bit a measurement writes to', () => {
+    const base = insertOperation(
+      circuitWith(1, 4),
+      measurement('op_0', 'q_0', 'c_0', 3),
+      0,
+    );
+
+    const circuit = setRegisterSize(base, 'c_0', 1);
+
+    expect(circuit.classicalRegisters[0]?.size).toBe(1);
+    expect(circuit.operations).toHaveLength(1);
+  });
+
+  it('rejects a size below the schema floor of one bit', () => {
+    expect(() => setRegisterSize(circuitWith(1), 'c_0', 0)).toThrow(/above 0/);
+  });
+
+  it('rejects a fractional size', () => {
+    expect(() => setRegisterSize(circuitWith(1), 'c_0', 1.5)).toThrow(
+      /above 0/,
+    );
+  });
+
+  it('rejects a register that does not exist', () => {
+    expect(() => setRegisterSize(circuitWith(1), 'c_9', 2)).toThrow('c_9');
+  });
+});
+
+/**
+ * What a removal confirmation is allowed to claim.
+ *
+ * Computed by running the edit rather than restating its rules, because the
+ * rules are not obvious: a barrier over the qubit is shrunk rather than
+ * removed, so it is not lost.
+ */
+describe('counting what a removal destroys', () => {
+  it('counts gates and measurements on the qubit', () => {
+    const base = insertOperation(
+      insertOperation(circuitWith(2), gate('op_0', 'h', ['q_0']), 0),
+      measurement('op_1', 'q_0', 'c_0', 0),
+      1,
+    );
+
+    expect(operationsLostWithQubit(base, 'q_0')).toBe(2);
+  });
+
+  it('counts a gate controlled by the qubit, not only targeted on it', () => {
+    const base = insertOperation(
+      circuitWith(2),
+      gate('op_0', 'cx', ['q_1'], ['q_0']),
+      0,
+    );
+
+    expect(operationsLostWithQubit(base, 'q_0')).toBe(1);
+  });
+
+  it('does not count a barrier that merely shrinks', () => {
+    const base = insertOperation(
+      circuitWith(3),
+      barrier('op_0', ['q_0', 'q_1']),
+      0,
+    );
+
+    expect(operationsLostWithQubit(base, 'q_0')).toBe(0);
+    expect(removeQubit(base, 'q_0').operations).toHaveLength(1);
+  });
+
+  it('counts a barrier left with no targets at all', () => {
+    const base = insertOperation(circuitWith(2), barrier('op_0', ['q_0']), 0);
+
+    expect(operationsLostWithQubit(base, 'q_0')).toBe(1);
+  });
+
+  it('counts measurements writing into the register', () => {
+    const base = insertOperation(
+      insertOperation(circuitWith(2), gate('op_0', 'h', ['q_0']), 0),
+      measurement('op_1', 'q_0', 'c_0', 0),
+      1,
+    );
+
+    expect(operationsLostWithRegister(base, 'c_0')).toBe(1);
+  });
+
+  it('counts nothing for an unused register', () => {
+    expect(operationsLostWithRegister(circuitWith(2), 'c_0')).toBe(0);
   });
 });
 

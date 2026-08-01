@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { Circuit } from '../model/circuit';
 import { insertOperation } from '../state/edits';
-import { barrier, circuitWith, gate } from '../state/testCircuits';
+import { barrier, circuitWith, gate, measurement } from '../state/testCircuits';
 import { CircuitEditor } from './CircuitEditor';
 
 function open(circuit: Circuit = circuitWith(3)) {
@@ -711,6 +711,176 @@ describe('moving a gate', () => {
 
       expect(editor.status()).toHaveTextContent('0 operations');
     });
+  });
+});
+
+/**
+ * Qubits and registers are properties of the circuit rather than things placed
+ * in it, so they live in their own region beside the palette -- not in the
+ * canvas, whose single tab stop and `aria-activedescendant` contract focusable
+ * controls inside it would break.
+ */
+describe('qubits and registers', () => {
+  const control = (name: string | RegExp) =>
+    screen.getByRole('button', { name });
+
+  it('adds a qubit, and the canvas grows a wire', () => {
+    const editor = open(circuitWith(1));
+
+    fireEvent.click(control('Add qubit'));
+
+    expect(editor.cell('q1, column 1, empty')).toBeInTheDocument();
+  });
+
+  /** The exit criterion: indices stay contiguous from 0 at every point. */
+  it('renumbers the wires below a removed middle qubit', () => {
+    const editor = open(circuitWith(3));
+
+    fireEvent.click(control('Remove q1'));
+
+    expect(editor.cell('q1, column 1, empty')).toBeInTheDocument();
+    expect(screen.queryByRole('row', { name: 'q2' })).toBeNull();
+  });
+
+  it('removes a bare wire without asking', () => {
+    open(circuitWith(2));
+
+    fireEvent.click(control('Remove q1'));
+
+    expect(screen.queryByRole('row', { name: 'q1' })).toBeNull();
+  });
+
+  /**
+   * UI.md: removing a qubit destroys every operation touching it, and that is
+   * destructive enough to state before it happens. Two presses, with the count
+   * named in between.
+   */
+  it('names the cost before destroying operations, and waits', () => {
+    const editor = open(circuitWith(2));
+
+    editor.arm('h');
+    fireEvent.click(editor.cell('q0, column 1, empty'));
+    fireEvent.click(control(/^Remove q0 and 1 operation$/));
+
+    // Armed, not done: the wire and its gate are still there.
+    expect(editor.status()).toHaveTextContent('1 operations');
+    expect(
+      screen.getByText(/Remove q0 and 1 operation\? Press again/),
+    ).toBeInTheDocument();
+
+    fireEvent.click(control(/^Remove q0 and 1 operation\?$/));
+
+    expect(editor.status()).toHaveTextContent('0 operations');
+    // One wire left, and it renumbered into q0 -- indices are contiguous from
+    // 0, so the surviving wire takes the departed one's name.
+    expect(screen.getAllByRole('row')).toHaveLength(1);
+    expect(screen.getByRole('row', { name: 'q0' })).toBeInTheDocument();
+  });
+
+  it('abandons the confirmation on Escape', () => {
+    const editor = open(circuitWith(2));
+
+    editor.arm('h');
+    fireEvent.click(editor.cell('q0, column 1, empty'));
+    fireEvent.click(control(/^Remove q0 and 1 operation$/));
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Add qubit' }), {
+      key: 'Escape',
+    });
+
+    expect(screen.queryByText(/Press again/)).toBeNull();
+    expect(editor.status()).toHaveTextContent('1 operations');
+  });
+
+  /**
+   * A barrier over the qubit is shrunk rather than removed, so it must not be
+   * counted as lost. This is the case that makes restating the edit's rules in
+   * the message unsafe.
+   */
+  it('does not count a barrier it will merely shrink', () => {
+    open(insertOperation(circuitWith(3), barrier('op_0', ['q_0', 'q_1']), 0));
+
+    expect(control('Remove q0')).toBeInTheDocument();
+  });
+
+  it('is a single undo step, however much it destroyed', () => {
+    const editor = open(circuitWith(2));
+
+    editor.arm('h');
+    fireEvent.click(editor.cell('q0, column 1, empty'));
+    fireEvent.click(control(/^Remove q0 and 1 operation$/));
+    fireEvent.click(control(/^Remove q0 and 1 operation\?$/));
+    editor.undo();
+
+    expect(editor.status()).toHaveTextContent('1 operations');
+    expect(editor.cell('q0, column 1, h')).toBeInTheDocument();
+  });
+
+  it('adds a register, labelled by position rather than by its identifier', () => {
+    open(circuitWith(1));
+
+    fireEvent.click(control('Add register'));
+
+    // c0 already exists, so the new one is c1 -- and neither shows a UUID.
+    expect(
+      screen.getByRole('spinbutton', { name: 'c1 size in bits' }),
+    ).toBeInTheDocument();
+  });
+
+  it('resizes a register', () => {
+    open(circuitWith(1));
+
+    fireEvent.change(
+      screen.getByRole('spinbutton', { name: 'c0 size in bits' }),
+      { target: { value: '4' } },
+    );
+
+    expect(
+      screen.getByRole('spinbutton', { name: 'c0 size in bits' }),
+    ).toHaveValue(4);
+  });
+
+  it('removes a register and the measurements writing into it', () => {
+    const editor = open(
+      insertOperation(circuitWith(1), measurement('op_0', 'q_0', 'c_0', 0), 0),
+    );
+
+    fireEvent.click(control(/^Remove c0 and 1 operation$/));
+    fireEvent.click(control(/^Remove c0 and 1 operation\?$/));
+
+    expect(editor.status()).toHaveTextContent('0 operations');
+  });
+
+  /** UI.md: never a blank rectangle. */
+  it('prompts for a first qubit once the last one is gone', () => {
+    open(circuitWith(1));
+
+    fireEvent.click(control('Remove q0'));
+
+    expect(screen.getByTestId('empty-canvas')).toBeInTheDocument();
+    expect(screen.queryByRole('grid')).toBeNull();
+  });
+
+  /** And the prompt is not a dead end -- the control to escape it is adjacent. */
+  it('builds back up from empty', () => {
+    const editor = open(circuitWith(1));
+
+    fireEvent.click(control('Remove q0'));
+    fireEvent.click(control('Add qubit'));
+
+    expect(editor.cell('q0, column 1, empty')).toBeInTheDocument();
+  });
+
+  it('is one tab stop with a roving focus', () => {
+    open(circuitWith(3));
+    const region = screen.getByRole('region', { name: 'Circuit structure' });
+
+    const tabbable = [...region.querySelectorAll('[tabindex="0"]')];
+
+    expect(tabbable).toHaveLength(1);
+
+    fireEvent.keyDown(region, { key: 'ArrowRight' });
+
+    expect(control('Remove q1')).toHaveFocus();
   });
 });
 

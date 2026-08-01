@@ -259,9 +259,13 @@ function layoutRegisters(
 ): RegisterLaneLayout[] {
   const top = metrics.padding + wireCount * metrics.lane + metrics.registerGap;
 
+  // Falls back to the position, never to the identifier, exactly as a wire does.
+  // Identifiers are opaque (ADR-0002) and are increasingly UUIDs now that the
+  // editor mints registers, so showing one puts a UUID in the gutter. Labels are
+  // what the user reads; identity is structure.
   return circuit.classicalRegisters.map((register, position) => ({
     registerId: register.id,
-    label: register.label ?? register.id,
+    label: register.label ?? `c${String(position)}`,
     size: register.size,
     y: top + (position + 0.5) * metrics.lane,
   }));

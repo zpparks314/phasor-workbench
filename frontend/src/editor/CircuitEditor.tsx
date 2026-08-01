@@ -22,10 +22,17 @@ import type { Circuit, GateName, Operation } from '../model/circuit';
 import { GATE_SIGNATURES } from '../model/spec';
 import { createCircuitStore, insertOperation, newIdentifier } from '../state';
 import {
+  addClassicalRegister,
+  addQubit,
   isRetargetable,
   moveOperation,
+  operationsLostWithQubit,
+  operationsLostWithRegister,
+  removeClassicalRegister,
   removeOperation,
+  removeQubit,
   retargetOperation,
+  setRegisterSize,
 } from '../state/edits';
 import { useCircuitStore } from '../state/useCircuitStore';
 import { validateCircuit } from '../validation';
@@ -37,6 +44,7 @@ import {
 } from './CircuitCanvas';
 import { GatePalette } from './GatePalette';
 import { ProblemsStrip } from './ProblemsStrip';
+import { StructureControls } from './StructureControls';
 import { columnCenter, layoutCircuit, pendingConnector } from './layout';
 import {
   assignQubit,
@@ -404,6 +412,55 @@ export function CircuitEditor({
     );
   }
 
+  function describeRegister(registerId: string): string {
+    return (
+      layout.registers.find((lane) => lane.registerId === registerId)?.label ??
+      registerId
+    );
+  }
+
+  /**
+   * The circuit's structure, with what each removal would cost.
+   *
+   * The cost is computed by `state/edits.ts` running the edit rather than
+   * restated here: a barrier over a qubit is shrunk rather than removed, so
+   * counting every operation that merely touches the wire would overstate the
+   * damage in the one message whose whole job is to be accurate.
+   */
+  const structure = useMemo(
+    () => ({
+      qubits: layout.wires.map((wire) => ({
+        id: wire.qubitId,
+        label: wire.label,
+        operationCount: operationsLostWithQubit(circuit, wire.qubitId),
+      })),
+      registers: layout.registers.map((lane) => ({
+        id: lane.registerId,
+        label: lane.label,
+        size: lane.size,
+        operationCount: operationsLostWithRegister(circuit, lane.registerId),
+      })),
+    }),
+    [circuit, layout],
+  );
+
+  function addWire(): void {
+    const id = newIdentifier();
+    // Labelled by position on render, not stored -- `layout.ts` falls back to
+    // `q{index}`, so a wire cannot carry a label that disagrees with its index.
+    store.apply(`Add q${String(circuit.qubits.length)}`, (current) =>
+      addQubit(current, { id }),
+    );
+  }
+
+  function addRegister(): void {
+    const id = newIdentifier();
+    store.apply(
+      `Add c${String(circuit.classicalRegisters.length)}`,
+      (current) => addClassicalRegister(current, { id, size: 1 }),
+    );
+  }
+
   function removeSelected(): void {
     if (selection === null) return;
     store.apply('Remove operation', (current) =>
@@ -429,6 +486,34 @@ export function CircuitEditor({
       </aside>
 
       <div className="flex min-w-0 flex-col gap-4">
+        {/*
+          Above the canvas and aligned with its gutter. Qubits and registers are
+          properties of the circuit rather than things placed in it, which is why
+          they are here and not in the palette.
+        */}
+        <StructureControls
+          qubits={structure.qubits}
+          registers={structure.registers}
+          onAddQubit={addWire}
+          onAddRegister={addRegister}
+          onRemoveQubit={(qubitId) => {
+            store.apply(`Remove ${describeWire(qubitId)}`, (current) =>
+              removeQubit(current, qubitId),
+            );
+          }}
+          onRemoveRegister={(registerId) => {
+            store.apply(`Remove ${describeRegister(registerId)}`, (current) =>
+              removeClassicalRegister(current, registerId),
+            );
+          }}
+          onResizeRegister={(registerId, size) => {
+            store.apply(
+              `Resize ${describeRegister(registerId)} to ${String(size)} bits`,
+              (current) => setRegisterSize(current, registerId, size),
+            );
+          }}
+        />
+
         <CircuitCanvas
           layout={layout}
           cells={cells}

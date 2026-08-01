@@ -246,10 +246,20 @@ describe('rendering', () => {
     expect(layout.depth).toBe(1);
   });
 
-  it('renders an empty circuit without failing', () => {
+  /**
+   * UI.md: a circuit with no qubits shows a prompt, never a blank rectangle.
+   *
+   * This previously asserted only that an SVG rendered without throwing, which
+   * was the right check while no qubit could be removed and the state was
+   * unreachable. An empty `role="grid"` is worse than blank once it is
+   * reachable: `aria-activedescendant` would name a cell that does not exist.
+   */
+  it('prompts for a first qubit instead of drawing an empty grid', () => {
     const { container } = draw(circuitWith(0, 1));
 
-    expect(container.querySelector('svg')).not.toBeNull();
+    expect(screen.getByTestId('empty-canvas')).toHaveTextContent(/no qubits/i);
+    expect(container.querySelector('svg')).toBeNull();
+    expect(screen.queryByRole('grid')).toBeNull();
   });
 
   it('renders a measurement and its bit index', () => {

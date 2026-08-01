@@ -330,15 +330,47 @@ edit to reorder rather than remove-and-reinsert.
 
 ## Qubits and Registers
 
-Added and removed from controls in the gutter header, not from the palette — they
-are properties of the circuit rather than things placed in it.
+Added and removed from controls above the canvas, not from the palette — they are
+properties of the circuit rather than things placed in it.
 
-Removing a qubit removes every operation that touches it. That is destructive
-enough to state before it happens: the confirmation names the count ("Remove q2
-and 3 operations?"). It is a single undo step regardless.
+**A region of their own, rather than controls drawn inside the SVG gutter.** This
+document originally placed them "in the gutter header", and they sit directly
+above it, but they are deliberately outside the canvas. The canvas is a
+`role="grid"` composite widget with a single tab stop and
+`aria-activedescendant`; focusable buttons inside it break that contract, and
+this document already warns that SVG accessibility mapping is unreliable enough
+not to bet on. Ordinary HTML controls beside the grid cost nothing and are
+announced correctly. The region is itself one tab stop with a roving focus, like
+the palette.
+
+Removing a qubit removes every operation that touches it, and removing a register
+removes every measurement writing into it. Both are destructive enough to state
+before they happen: the control names the count and takes a second press to
+confirm ("Remove q2 and 3 operations?"), with `Escape` cancelling. Each is a
+single undo step regardless of how much it destroyed.
+
+**The count is derived by running the edit, never by restating its rules**, and
+the reason is a case that is easy to get wrong: a barrier over the qubit is
+*shrunk* rather than removed, so it is not lost and must not be counted. A
+message whose only job is to be accurate should not carry a second copy of the
+logic it describes.
+
+**No confirmation when there is nothing to lose.** A bare wire or an unused
+register is not a destructive removal, and a prompt that always appears is one
+people learn to dismiss without reading.
 
 Qubit indices stay contiguous from 0, so removing a middle qubit renumbers those
-below it. Labels are what the user reads; indices are structure.
+below it. Labels are what the user reads; indices are structure — and a register
+is labelled by position for the same reason, never by its identifier, which is
+opaque per ADR-0002 and is a UUID for anything the editor created.
+
+A register carries a size in bits, editable in place. It is a number input rather
+than a pair of stepper buttons: one focusable element instead of two, with arrow
+keys already adjusting it natively, so the keyboard path costs no code. The
+schema floors a register at one bit. **Shrinking one below a bit a measurement
+already writes to is allowed** — `validateCircuit` reports
+`CLASSICAL_BIT_OUT_OF_RANGE` and the user can grow it back or remove the
+measurement. Refusing is reserved for a state with no repair path.
 
 ## Selection
 
@@ -471,7 +503,9 @@ placing a `cx` is technically accurate and useless.
 ## Empty States
 
 **No qubits** — the canvas shows a prompt to add the first qubit, with the control
-adjacent. Never a blank rectangle.
+adjacent. Never a blank rectangle, and never an empty `role="grid"` either: that
+is worse than blank, because `aria-activedescendant` would name a cell that does
+not exist. The grid is not rendered at all until there is a wire.
 
 **Qubits but no operations** — wires render with the palette hinted as the next
 step. This is a valid circuit (`empty.json`), not an error.

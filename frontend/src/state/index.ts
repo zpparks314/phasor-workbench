@@ -29,6 +29,7 @@ export {
   renameCircuit,
   retargetOperation,
   setParameters,
+  setRegisterSize,
   type NewClassicalRegister,
   type NewQubit,
 } from './edits';
