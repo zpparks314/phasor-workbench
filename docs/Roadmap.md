@@ -351,26 +351,25 @@ Everything in this milestone assumes both. *Status* below says what exists;
 is Accepted, so it is implementation rather than design.** Read that first; the
 notes below are what it implies for the order of work.
 
-**Start with the generation step**, because it is the cross-language half.
-`shared/generate_bindings.py` gains a Node step emitting a compiled validator into
-`frontend/src/model/`, and Ajv joins `package.json` as a devDependency. Get
-`--check` covering the new artifact before writing anything that consumes it.
+**The generation step and `serialization/` are done.** The validator is compiled
+into `frontend/src/model/validator.ts` and `--check` covers it; the loader mirrors
+the backend module for module and agrees with it on all 14 version fixtures.
 
-**Then `serialization/`, held to the 14 fixtures in `shared/fixtures/version/`.**
-It costs no new fixtures — both loaders assert against the same artifacts and
-parity follows transitively. ADR-0008 section 2 is not optional reading here: the
-obvious way to strip unknown fields **deletes real data**, because `oneOf` plus
-`$ref` loses branch attribution and every non-matching branch reports the fields
-it does not share as unknown. Validate per operation subtype, dispatched through
-the schema's own `discriminator.mapping`.
+**What is left is `persistence/`, then the header's save button.** Storage being
+unavailable is not an editor error; the editor stays usable and a failed save
+surfaces a banner. ADR-0008 section 5 lists the four `localStorage` behaviours to
+handle rather than discover — access itself can throw, quota is reported by
+throwing, clearing site data destroys the working set silently, and none of it
+removes the need for the loader.
 
-**Then `persistence/`, then the header's save button.** Storage being unavailable
-is not an editor error; the editor stays usable and a failed save surfaces a
-banner. ADR-0008 section 5 lists the four `localStorage` behaviours to handle
-rather than discover.
+**Wire `dumpCircuit` rather than `dumpResult` into save.** ADR-0008 section 3:
+the editor's circuit has been edited by definition, and preserved fields are keyed
+to positions editing moves. The loss must be surfaced before the first edit, which
+`UI.md` still needs to specify.
 
-**`invalid/shape/` fixtures become cross-language once the validator exists**,
-which closes the last unchecked item on Milestone 2's task list.
+**`invalid/shape/` fixtures are now possible but do not exist.** The directory is
+an empty placeholder; per Milestone 2's task list they land with the validation
+endpoint in Milestone 4. The frontend can now exercise them when they do.
 
 Two more things fall out of it, and neither should be attempted before it:
 
@@ -411,7 +410,25 @@ version claim is unverifiable evidence applies to it unchanged.
 from the palette, place it by pointer or keyboard, select it, move it by drag or
 `Ctrl/Cmd` + arrow, and remove it. Undo and redo work from the keyboard. Barriers
 are selectable with `b`. Violations appear in the problems strip and clear when
-fixed. 489 frontend tests.
+fixed. 570 frontend tests.
+
+**`frontend/src/serialization/` is implemented**, which ends the asymmetry
+ADR-0006 section 5 recorded: the frontend now reads circuits it did not build. Its
+shape validator is compiled from `circuit.schema.json` during generation, per
+[ADR-0008](decisions/ADR0008_LocalPersistence.md) — Ajv is a devDependency and
+nothing it produces is imported at runtime.
+
+Two findings from building it, both recorded where they bite:
+
+* **Operations are validated one at a time, against the subtype their `kind`
+  names.** `oneOf` plus `$ref` loses branch attribution in Ajv's errors, so the
+  branches that do not match report the fields they do not share as unknown.
+  Stripping those deletes a gate's `name`, `controls` and `parameters`.
+* **The two loaders were diffed directly, not just held to fixtures**, and that
+  caught a real divergence: an `additionalProperties` error is reported against
+  the object *containing* the unknown field, so the frontend was blaming a whole
+  document for one stray property where Pydantic named the field. Fixtures compare
+  codes, not paths, which is exactly the gap ADR-0005 said unit tests must cover.
 
 **`editor/EditorHeader.tsx` carries undo, redo and clear**, a `role="toolbar"`
 with a roving focus so the header is one tab stop like every other region. The
