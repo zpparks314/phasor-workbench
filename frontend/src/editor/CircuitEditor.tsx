@@ -35,6 +35,7 @@ import {
   retargetOperation,
   setRegisterSize,
 } from '../state/edits';
+import { saveCircuit } from '../persistence';
 import { useCircuitStore } from '../state/useCircuitStore';
 import { validateCircuit } from '../validation';
 import {
@@ -97,6 +98,15 @@ export function CircuitEditor({
   const [pending, setPending] = useState<PendingOperation | null>(null);
 
   /**
+   * When the working set was last written, and why the last attempt failed.
+   *
+   * Not in history: ADR-0007 section 4 keeps the stack to circuit values, and
+   * undoing an edit does not un-save a file.
+   */
+  const [savedAt, setSavedAt] = useState<Date | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  /**
    * The column the last drag step asked for, so the settle animation can play
    * once when the gesture ends rather than on every intermediate position.
    */
@@ -124,6 +134,32 @@ export function CircuitEditor({
   function redo(): void {
     setSettle(null);
     store.redo();
+  }
+
+  /**
+   * Write the working set.
+   *
+   * Goes through `dumpCircuit`, not `dumpResult`: the circuit here has been
+   * edited by definition, and preserved fields are keyed to positions editing
+   * moves. ADR-0008 section 3.
+   *
+   * A failure is stated rather than swallowed, and says the circuit is still in
+   * memory — silence would let someone close the tab believing otherwise.
+   */
+  function save(): void {
+    const outcome = saveCircuit(circuit);
+
+    if (outcome.ok) {
+      setSavedAt(outcome.savedAt);
+      setSaveError(null);
+      return;
+    }
+
+    setSaveError(
+      outcome.reason === 'full'
+        ? 'Could not save: browser storage is full.'
+        : 'Could not save: browser storage is unavailable.',
+    );
   }
 
   const decomposition = useMemo(() => deriveCycles(circuit), [circuit]);
@@ -594,8 +630,11 @@ export function CircuitEditor({
         undoLabel={undoLabel}
         redoLabel={redoLabel}
         operationCount={circuit.operations.length}
+        savedAt={savedAt}
+        saveError={saveError}
         onUndo={undo}
         onRedo={redo}
+        onSave={save}
         onClear={() => {
           store.apply(
             `Clear ${String(circuit.operations.length)} operations`,
@@ -685,6 +724,7 @@ export function CircuitEditor({
             onUndo={undo}
             onRedo={redo}
             onCycleBarriers={cycleBarriers}
+            onSave={save}
             onSelectOperation={(id) => {
               store.select(id);
             }}

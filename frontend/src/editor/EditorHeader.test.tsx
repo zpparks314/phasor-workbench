@@ -10,9 +10,12 @@ function show(overrides: Partial<EditorHeaderProps> = {}) {
     undoLabel: 'Place h on q0',
     redoLabel: 'Remove operation',
     operationCount: 3,
+    savedAt: null,
+    saveError: null,
     onUndo: vi.fn(),
     onRedo: vi.fn(),
     onClear: vi.fn(),
+    onSave: vi.fn(),
     ...overrides,
   };
 
@@ -86,9 +89,26 @@ describe('availability', () => {
   });
 
   it('is still shown rather than hidden', () => {
+    // Labels are null alongside an empty stack, as the store reports them.
+    show({
+      canUndo: false,
+      canRedo: false,
+      undoLabel: null,
+      redoLabel: null,
+      operationCount: 0,
+    });
+
+    for (const name of [/^Undo$/, /^Redo$/, /^Clear/, /^Save circuit$/]) {
+      expect(screen.getByRole('button', { name })).toBeInTheDocument();
+    }
+  });
+
+  /** Saving an unchanged circuit is harmless; a disabled Save reads as "nothing
+   * worth saving", which is a different and wrong claim. */
+  it('leaves save enabled even with nothing to undo or clear', () => {
     show({ canUndo: false, canRedo: false, operationCount: 0 });
 
-    expect(screen.getAllByRole('button')).toHaveLength(3);
+    expect(screen.getByRole('button', { name: 'Save circuit' })).toBeEnabled();
   });
 });
 

@@ -2,12 +2,12 @@
 
 ## Project Status
 
-**Current Phase:** Circuit Editor
+**Current Phase:** Simulation
 
-**Current Milestone:** Milestone 3 — allow users to visually construct circuits.
+**Current Milestone:** Milestone 4 — execute circuits and display results.
 
-Milestone 1 (Foundation) closed on 2026-07-28. Milestone 2 (Circuit Model) closed
-on 2026-07-30.
+Milestone 1 (Foundation) closed on 2026-07-28, Milestone 2 (Circuit Model) on
+2026-07-30, and Milestone 3 (Circuit Editor MVP) on 2026-08-01.
 
 **The Circuit Model is complete and enforced.** Its design is settled by ADRs
 0001–0006. Both languages validate circuits and derive cycles, agreeing on every
@@ -19,12 +19,16 @@ Nothing in the model is provisional, which was the point of finishing it before
 the editor: Milestone 3 builds on a settled foundation rather than on something it
 will have to renegotiate.
 
-**Milestone 3 is one task from complete.** Everything on its list is built except
-**Save locally**, and every exit criterion is met except the two that depend on
-it. A user can build a circuit from empty in the browser: add and remove qubits
-and registers, place every gate in the spec plus measurements and barriers, move
-and remove them, undo and redo, and see violations as they appear. 489 frontend
-tests.
+**Milestone 3 is complete**, closed on 2026-08-01. Every task and every exit
+criterion is met. A user can build a circuit from empty in the browser — add and
+remove qubits and registers, place every gate in the spec plus measurements and
+barriers, move and remove them, undo and redo, see violations as they appear, and
+save work that survives a refresh. 600 frontend tests and 256 backend.
+
+**Milestone 4 (Simulation MVP) may begin.** It is the first milestone to need the
+backend since Milestone 2, and the first to need Qiskit — which publishes no
+Python 3.14 wheels, so read *Decisions Awaiting the Owner* first: its one
+remaining entry is exactly that.
 
 [ADR-0007](decisions/ADR0007_EditingModel.md) is Accepted and settles the editing
 model — edits as pure functions, a bounded stack of labeled snapshots, and
@@ -32,16 +36,13 @@ coalescing declared by the interaction. [UI.md](UI.md) is written for this
 milestone's scope and has been amended as the editor was built; where it and this
 file disagree about behaviour, UI.md is the specification.
 
-**Nothing is left to decide.**
-[ADR-0008](decisions/ADR0008_LocalPersistence.md) is Accepted as of 2026-08-01
-and settles both questions that blocked local save: the frontend shape validator
-is compiled from the schema during `generate_bindings.py`, and an edited circuit
-declares this build's version with preserved fields dropped and the loss
-surfaced. **Decisions Awaiting the Owner** now holds one entry, scoped to
-Milestone 4.
+[ADR-0008](decisions/ADR0008_LocalPersistence.md) settled the two questions that
+blocked local save, and both are now implemented: the frontend shape validator is
+compiled from the schema during `generate_bindings.py`, and an edited circuit
+declares this build's version with preserved fields dropped and the loss surfaced
+before the first edit rather than at save time.
 
-What remains is implementation: `frontend/src/serialization/`,
-`frontend/src/persistence/`, and the generation step. See *Where to Pick Up*.
+**Decisions Awaiting the Owner** holds one entry, scoped to Milestone 4.
 
 ---
 
@@ -55,11 +56,13 @@ The highest priorities are:
    and visualization placement deferred to Milestone 4
 4. ~~Core data model~~ — done, Milestone 2
 5. ~~Testing infrastructure~~ — done; enforced by CI
-6. **Circuit editor** — active, Milestone 3
+6. ~~Circuit editor~~ — done, Milestone 3
+7. **Simulation** — active, Milestone 4
 
-The rule that gated Milestone 3 — do not build on a provisional data model — is
-satisfied. The model is settled, and the editor is the first subsystem to read
-from it.
+The rule that gated Milestone 3 — do not build on a provisional data model — held.
+The model was settled first, and the editor never had to renegotiate it. Milestone
+4 inherits the same position: it consumes a circuit the editor already produces
+correctly, and `deriveCycles` already gives it depth and scheduling.
 
 ---
 
@@ -131,7 +134,7 @@ they affect begins.
 | Mid-circuit measurement: permitted at MVP or deferred? | Milestone 2 | **Resolved 2026-07-29** — deferred. Measurement terminates a qubit; barriers are exempt. See [CircuitModel.md](CircuitModel.md) |
 | Are identifiers client-generated or backend-assigned? | Milestone 2 | **Resolved 2026-07-29** — client-generated, backend-validated. Forced by offline operation and local save |
 | Interpreter for the `simulation` extra (Qiskit lacks 3.14 wheels) | Milestone 4 | **Partly answered.** The Docker environment pins 3.13, so simulation work happens there. Whether native 3.14 must also be supported is still open |
-| Does the frontend gain a runtime shape validator, and at what dependency cost? | Milestone 3 | **Resolved 2026-08-01** — a validator compiled from the schema during `generate_bindings.py`, with Ajv as a devDependency that is never shipped. Measured before deciding, as this entry asked: 6.0 KB gzipped with zero runtime imports, against ~30 KB+ plus runtime `new Function` compilation for the library. See [ADR-0008](decisions/ADR0008_LocalPersistence.md) |
+| Does the frontend gain a runtime shape validator, and at what dependency cost? | Milestone 3 | **Resolved 2026-08-01** — a validator compiled from the schema during `generate_bindings.py`, with Ajv as a devDependency that is never shipped. Measured before deciding, as this entry asked: zero runtime imports and no `new Function`, against a ~1 MB package shipping ~30 KB+ gzipped and compiling the schema on every load. The implemented cost is **+5.1 KB gzipped** to the bundle for the validator, loader and persistence together. See [ADR-0008](decisions/ADR0008_LocalPersistence.md) |
 | Do `invalid/` fixtures assert `path` as well as `code`? | Milestone 2 fixtures | **Resolved 2026-07-30** — codes only. Fixtures compare sorted code lists; paths are asserted in each project's own unit tests, where a format difference is a local bug rather than a contract break |
 | What `schemaVersion` does an *edited* newer-minor circuit declare on save? | Milestone 3 | **Resolved 2026-08-01** — this build's own, with preserved fields dropped and the loss surfaced before it happens. The question turned out to be larger than the version string: preserved fields are keyed by *positional* path, and editing reorders operations, so re-grafting after an edit attaches a newer build's field to the wrong operation. Keeping our version *with* preserved fields is also impossible — strict mode at our own version refuses unknown fields, so we would write a document we cannot re-read. See [ADR-0008](decisions/ADR0008_LocalPersistence.md) section 3 |
 | Snapshot history or command/inverse for undo? | Milestone 3 | **Resolved 2026-07-30** — labeled snapshots, bounded at 100. Decided on correctness, not memory: an inverse that is subtly wrong makes undo produce a *different* circuit rather than failing, and every future edit type would owe one. See [ADR-0007](decisions/ADR0007_EditingModel.md) |
@@ -289,7 +292,7 @@ Allow users to visually construct quantum circuits.
 * [x] Multi-qubit gates — placed by control assignment, pointer and keyboard
 * [x] Place measurements
 * [x] Place barriers — expanded to every wire at placement time
-* [ ] Save locally
+* [x] Save locally
 
 **This list was reordered and extended on 2026-07-30.** Two changes, both
 deliberate:
@@ -326,7 +329,7 @@ the Definition of Done leans on these.
 * [x] Undo and redo restore the exact prior circuit for every edit type, verified
   by a property test: apply a random valid edit sequence, undo to the start,
   assert deep equality with the initial circuit.
-* [ ] A circuit survives a browser refresh, and `frontend/src/serialization/`
+* [x] A circuit survives a browser refresh, and `frontend/src/serialization/`
   produces the same outcome as the Python loader on all 14 fixtures in
   `shared/fixtures/version/`.
 * [x] Placement, selection, and removal are operable by keyboard.
@@ -347,42 +350,32 @@ and parity follows transitively, exactly as it does for validation and cycles.
 Everything in this milestone assumes both. *Status* below says what exists;
 *Remaining* says what does not.
 
-**The next task is local save, and [ADR-0008](decisions/ADR0008_LocalPersistence.md)
-is Accepted, so it is implementation rather than design.** Read that first; the
-notes below are what it implies for the order of work.
+**Milestone 3 is closed**, so this section is now about what a follow-up would
+touch rather than what is next. Milestone 4 begins below.
 
-**The generation step and `serialization/` are done.** The validator is compiled
-into `frontend/src/model/validator.ts` and `--check` covers it; the loader mirrors
-the backend module for module and agrees with it on all 14 version fixtures.
+**Deferred deliberately, and each recorded where it bites:**
 
-**What is left is `persistence/`, then the header's save button.** Storage being
-unavailable is not an editor error; the editor stays usable and a failed save
-surfaces a banner. ADR-0008 section 5 lists the four `localStorage` behaviours to
-handle rather than discover — access itself can throw, quota is reported by
-throwing, clearing site data destroys the working set silently, and none of it
-removes the need for the loader.
+* **Parameter editing** — rotation gates place at a fixed π/2 and `setParameters`
+  sits unused in the edit vocabulary. What it needs is a decision about where the
+  control lives: UI.md says the palette prompts on placement, which is not what
+  the editor does.
+* **Choosing a measurement's register and bit** — it always writes to the first
+  register's lowest free bit, so a second register is unreachable. The circuit
+  produced is valid, so this is a missing feature rather than a wrong result.
+* **"New circuit"** — the document-level reset `clearOperations` stops short of.
+  Now unblocked, since unsaved changes are finally knowable.
+* **`invalid/shape/` fixtures** — the directory is an empty placeholder and the
+  frontend can now exercise them. Per Milestone 2's task list they land with the
+  validation endpoint, which is Milestone 4.
 
-**Wire `dumpCircuit` rather than `dumpResult` into save.** ADR-0008 section 3:
-the editor's circuit has been edited by definition, and preserved fields are keyed
-to positions editing moves. The loss must be surfaced before the first edit, which
-`UI.md` still needs to specify.
+**Two rendering defects remain open**, both in `editor/layout.ts` and both listed
+under *Known gaps*: a connector crossing another operation's control dot gets the
+empty-wire gap, and two connectors in one cycle land on the same x.
 
-**`invalid/shape/` fixtures are now possible but do not exist.** The directory is
-an empty placeholder; per Milestone 2's task list they land with the validation
-endpoint in Milestone 4. The frontend can now exercise them when they do.
-
-Two more things fall out of it, and neither should be attempted before it:
-
-* **`editor/demoCircuit.ts` goes.** It is scaffolding, and the only thing still
-  holding it is that nothing survives a refresh.
-* **"New circuit"** — the document-level reset that `clearOperations` deliberately
-  stops short of, because it needs to know about unsaved changes.
-
-**Parameter editing is the one remaining task that does not depend on save**, and
-it is small: rotation gates place at a fixed π/2, and `setParameters` is already
-in the edit vocabulary, unused. What it needs is a decision about where the
-control lives — UI.md says the palette prompts on placement, which is not what the
-editor currently does.
+**The grid's screen-reader behaviour is still unverified.** It should be tested
+with real assistive technology; the markup follows the composite-widget pattern
+and the tests assert roles and names, but SVG accessibility mapping is
+inconsistent enough that this proves little.
 
 **What is available to build on.** `frontend/src/model/` for the types,
 `frontend/src/validation/` for inline feedback, `frontend/src/cycles/` for render
@@ -410,7 +403,21 @@ version claim is unverifiable evidence applies to it unchanged.
 from the palette, place it by pointer or keyboard, select it, move it by drag or
 `Ctrl/Cmd` + arrow, and remove it. Undo and redo work from the keyboard. Barriers
 are selectable with `b`. Violations appear in the problems strip and clear when
-fixed. 570 frontend tests.
+fixed, and saved work survives a refresh. 600 frontend tests.
+
+**`frontend/src/persistence/` is the working-set store**, and the only module that
+touches browser storage — asserted by a test that no other source file names
+`localStorage`. The editor opens on whatever it restored, or empty. Three
+outcomes are distinguished rather than collapsed: nothing stored is the ordinary
+first run and says nothing; a document that cannot be read is reported and the
+editor opens empty beside the reason; and a document from a newer build opens
+with a warning **before the first edit**, because that edit is what makes its
+preserved fields unrecoverable.
+
+Saving is explicit — `Ctrl/Cmd + S` or the header button — and a failure is
+stated persistently, naming the cause and saying the circuit is still in memory.
+Storage being unavailable is not an editor error, and the editor stays fully
+usable without it.
 
 **`frontend/src/serialization/` is implemented**, which ends the asymmetry
 ADR-0006 section 5 recorded: the frontend now reads circuits it did not build. Its
@@ -557,7 +564,6 @@ too small to mean anything until a guard was added.
   register's lowest free bit, so a circuit with two registers cannot reach the
   second. The circuit produced is valid, so this is a missing feature rather than
   a wrong result
-* [ ] Local save, and with it ADR-0008 and `frontend/src/serialization/`
 
 **Known gaps**
 
@@ -591,11 +597,10 @@ too small to mean anything until a guard was added.
   bug: a pending operation is not in the circuit, so `deriveCycles` has not
   placed it and which wires are occupied *in its eventual column* has no answer
   yet. The committed render, one click later, is where the distinction is real.
-* **`editor/demoCircuit.ts` is scaffolding** and should go once the editor opens
-  on an empty or restored circuit. Half of that is now satisfied — a circuit can
-  be built from empty — so the only thing still holding it is local save: with
-  nothing surviving a refresh, opening blank would mean losing the work every
-  time. It goes with that item, not before.
+* ~~`editor/demoCircuit.ts` is scaffolding~~ — **removed** with local save, which
+  was the condition it was waiting on. Its testing value survived: the circuit
+  exercising every glyph kind at once now lives in `CircuitCanvas.test.tsx`,
+  built from the same helpers as every other fixture.
 
 ---
 
