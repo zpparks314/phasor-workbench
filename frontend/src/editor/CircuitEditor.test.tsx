@@ -1045,6 +1045,96 @@ describe('qubits and registers', () => {
   });
 });
 
+describe('the header', () => {
+  const button = (name: string | RegExp) =>
+    screen.getByRole('button', { name });
+
+  it('undoes from the button as well as the keyboard', () => {
+    const editor = open(circuitWith(2));
+
+    editor.arm('h');
+    fireEvent.click(editor.cell('q0, column 1, empty'));
+    fireEvent.click(button(/^Undo place h on q0$/));
+
+    expect(editor.status()).toHaveTextContent('0 operations');
+  });
+
+  it('redoes from the button', () => {
+    const editor = open(circuitWith(2));
+
+    editor.arm('h');
+    fireEvent.click(editor.cell('q0, column 1, empty'));
+    editor.undo();
+    fireEvent.click(button(/^Redo place h on q0$/));
+
+    expect(editor.cell('q0, column 1, h')).toBeInTheDocument();
+  });
+
+  /** The label comes from the history entry, so it tracks the actual last edit. */
+  it('tracks what the last edit was', () => {
+    const editor = open(circuitWith(2));
+
+    editor.arm('h');
+    fireEvent.click(editor.cell('q0, column 1, empty'));
+    expect(button(/^Undo place h on q0$/)).toBeInTheDocument();
+
+    editor.arm('x');
+    fireEvent.click(editor.cell('q1, column 1, empty'));
+    expect(button(/^Undo place x on q1$/)).toBeInTheDocument();
+  });
+
+  it('starts with both disabled', () => {
+    open(circuitWith(2));
+
+    expect(button('Undo')).toBeDisabled();
+    expect(button('Redo')).toBeDisabled();
+  });
+
+  /**
+   * Clear empties the operation list and leaves the circuit's structure alone.
+   * Resetting the document -- wires, registers and identity -- is a different
+   * act that needs to know about unsaved changes, and belongs with local save.
+   */
+  it('clears the operations but keeps the wires and registers', () => {
+    const editor = open(circuitWith(3));
+
+    editor.arm('h');
+    fireEvent.click(editor.cell('q0, column 1, empty'));
+    editor.arm('x');
+    fireEvent.click(editor.cell('q1, column 1, empty'));
+
+    fireEvent.click(button('Clear 2 operations'));
+    fireEvent.click(button(/^Clear 2 operations\?$/));
+
+    expect(editor.status()).toHaveTextContent('0 operations');
+    expect(screen.getAllByRole('row')).toHaveLength(3);
+    expect(
+      screen.getByRole('spinbutton', { name: 'c0 size in bits' }),
+    ).toBeInTheDocument();
+  });
+
+  it('is one undo step however much it removed', () => {
+    const editor = open(circuitWith(2));
+
+    editor.arm('h');
+    fireEvent.click(editor.cell('q0, column 1, empty'));
+    editor.arm('x');
+    fireEvent.click(editor.cell('q1, column 1, empty'));
+
+    fireEvent.click(button('Clear 2 operations'));
+    fireEvent.click(button(/^Clear 2 operations\?$/));
+    editor.undo();
+
+    expect(editor.status()).toHaveTextContent('2 operations');
+  });
+
+  it('stays disabled on a circuit with nothing to clear', () => {
+    open(circuitWith(2));
+
+    expect(button('Clear 0 operations')).toBeDisabled();
+  });
+});
+
 describe('problems', () => {
   it('reports nothing for a valid circuit', () => {
     open();

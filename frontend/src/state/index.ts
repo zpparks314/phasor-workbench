@@ -20,6 +20,7 @@
 export {
   addClassicalRegister,
   addQubit,
+  clearOperations,
   insertOperation,
   isRetargetable,
   moveOperation,

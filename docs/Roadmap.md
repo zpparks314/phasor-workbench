@@ -264,8 +264,8 @@ Allow users to visually construct quantum circuits.
 ### Tasks
 
 * [x] Editing model and history — pure edits, snapshot stack, coalescing
-* [ ] Undo — keyboard done, no button yet
-* [ ] Redo — keyboard done, no button yet
+* [x] Undo — keyboard and header button
+* [x] Redo — keyboard and header button
 * [x] Render quantum wires — read-only canvas, all glyph kinds
 * [x] Add and remove qubits
 * [x] Add and remove classical registers — with an editable size
@@ -368,7 +368,24 @@ applies unchanged.
 from the palette, place it by pointer or keyboard, select it, move it by drag or
 `Ctrl/Cmd` + arrow, and remove it. Undo and redo work from the keyboard. Barriers
 are selectable with `b`. Violations appear in the problems strip and clear when
-fixed. 466 frontend tests.
+fixed. 489 frontend tests.
+
+**`editor/EditorHeader.tsx` carries undo, redo and clear**, a `role="toolbar"`
+with a roving focus so the header is one tab stop like every other region. The
+buttons say what they will do — "Undo place h on q0" — which is the whole reason
+ADR-0007 attaches a label to each history entry.
+
+**Clear empties the operation list; it is not "new circuit".** That separation is
+what let it land before local save. Emptying the list is an ordinary edit: one
+snapshot, one undo step, and a circuit reachable by deleting each operation in
+turn. Resetting the *document* — wires, registers and identity — needs to know
+whether there are unsaved changes, so it belongs with local save.
+
+Undo and redo are `disabled` here while an unplaceable palette entry is
+`aria-disabled`, and both are deliberate: an unavailable gate has something to
+teach, an empty undo stack does not. The roving stop never rests on a disabled
+control, because a `disabled` button cannot take focus and the region would have
+no way in.
 
 **A circuit can be built from empty.** `editor/StructureControls.tsx` adds and
 removes qubits and classical registers, and edits a register's size. It is a
@@ -475,8 +492,6 @@ too small to mean anything until a guard was added.
 
 ### Remaining
 
-* [ ] Undo/redo **buttons** — the model is done and labelled; `undoLabel` and
-  `redoLabel` exist so they can say "Undo place H" rather than "Undo"
 * [ ] Parameter editing — rotation gates place at a fixed π/2
 * [ ] Choosing a measurement's register and bit — it always writes to the first
   register's lowest free bit, so a circuit with two registers cannot reach the

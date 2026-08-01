@@ -24,6 +24,7 @@ import { createCircuitStore, insertOperation, newIdentifier } from '../state';
 import {
   addClassicalRegister,
   addQubit,
+  clearOperations,
   isRetargetable,
   moveOperation,
   operationsLostWithQubit,
@@ -42,6 +43,7 @@ import {
   type PendingPreview,
   type Settle,
 } from './CircuitCanvas';
+import { EditorHeader } from './EditorHeader';
 import { GatePalette } from './GatePalette';
 import { ProblemsStrip } from './ProblemsStrip';
 import { StructureControls } from './StructureControls';
@@ -75,7 +77,8 @@ export function CircuitEditor({
   initialCircuit,
 }: CircuitEditorProps): React.JSX.Element {
   const store = useRef(createCircuitStore(initialCircuit)).current;
-  const { circuit, selection } = useCircuitStore(store);
+  const { circuit, selection, canUndo, canRedo, undoLabel, redoLabel } =
+    useCircuitStore(store);
 
   const [armed, setArmed] = useState<PaletteItem | null>(null);
   const [cursor, setCursor] = useState<CellPosition>({ row: 0, column: 0 });
@@ -103,6 +106,24 @@ export function CircuitEditor({
   function scheduleSettle(operationId: string, fromColumn: number): void {
     settles.current += 1;
     setSettle({ operationId, fromColumn, nonce: settles.current });
+  }
+
+  /**
+   * Undo and redo drop any settle in flight.
+   *
+   * The animation describes a move that just happened; replaying it against a
+   * circuit that has been rewound would animate a journey the operation is no
+   * longer making. Shared by the header buttons and the keyboard so the two
+   * cannot diverge.
+   */
+  function undo(): void {
+    setSettle(null);
+    store.undo();
+  }
+
+  function redo(): void {
+    setSettle(null);
+    store.redo();
   }
 
   const decomposition = useMemo(() => deriveCycles(circuit), [circuit]);
@@ -562,98 +583,113 @@ export function CircuitEditor({
   }
 
   return (
-    <div className="grid h-full grid-cols-[auto_1fr] gap-6">
-      <aside className="w-44">
-        {/*
+    <div className="flex h-full flex-col gap-4">
+      {/*
+        The header spans both columns, per UI.md's region diagram. Undo and redo
+        are here as well as on the keyboard; `Ctrl/Cmd + Z` stays the accelerator.
+      */}
+      <EditorHeader
+        canUndo={canUndo}
+        canRedo={canRedo}
+        undoLabel={undoLabel}
+        redoLabel={redoLabel}
+        operationCount={circuit.operations.length}
+        onUndo={undo}
+        onRedo={redo}
+        onClear={() => {
+          store.apply(
+            `Clear ${String(circuit.operations.length)} operations`,
+            clearOperations,
+          );
+        }}
+      />
+
+      <div className="grid min-h-0 flex-1 grid-cols-[auto_1fr] gap-6">
+        <aside className="w-44">
+          {/*
           Arming a different gate abandons any placement in progress. Keeping it
           would leave a half-assigned cx waiting behind a swap the user has
           since armed, and the next canvas click would finish the wrong gate.
         */}
-        <GatePalette
-          armed={armed}
-          onArm={(name) => {
-            setArmed(name);
-            setPending(null);
-          }}
-          /*
+          <GatePalette
+            armed={armed}
+            onArm={(name) => {
+              setArmed(name);
+              setPending(null);
+            }}
+            /*
             A measurement has nowhere to write with no register declared, which
             is the one entry the circuit can currently refuse. Announced rather
             than hidden -- the model supports measurement, this circuit is not
             ready for one, and those are different statements.
           */
-          unavailable={(item) =>
-            item === 'measurement' && circuit.classicalRegisters.length === 0
-              ? 'Unavailable: add a classical register to measure into.'
-              : undefined
-          }
-        />
-      </aside>
+            unavailable={(item) =>
+              item === 'measurement' && circuit.classicalRegisters.length === 0
+                ? 'Unavailable: add a classical register to measure into.'
+                : undefined
+            }
+          />
+        </aside>
 
-      <div className="flex min-w-0 flex-col gap-4">
-        {/*
+        <div className="flex min-w-0 flex-col gap-4">
+          {/*
           Above the canvas and aligned with its gutter. Qubits and registers are
           properties of the circuit rather than things placed in it, which is why
           they are here and not in the palette.
         */}
-        <StructureControls
-          qubits={structure.qubits}
-          registers={structure.registers}
-          onAddQubit={addWire}
-          onAddRegister={addRegister}
-          onRemoveQubit={(qubitId) => {
-            store.apply(`Remove ${describeWire(qubitId)}`, (current) =>
-              removeQubit(current, qubitId),
-            );
-          }}
-          onRemoveRegister={(registerId) => {
-            store.apply(`Remove ${describeRegister(registerId)}`, (current) =>
-              removeClassicalRegister(current, registerId),
-            );
-          }}
-          onResizeRegister={(registerId, size) => {
-            store.apply(
-              `Resize ${describeRegister(registerId)} to ${String(size)} bits`,
-              (current) => setRegisterSize(current, registerId, size),
-            );
-          }}
-        />
+          <StructureControls
+            qubits={structure.qubits}
+            registers={structure.registers}
+            onAddQubit={addWire}
+            onAddRegister={addRegister}
+            onRemoveQubit={(qubitId) => {
+              store.apply(`Remove ${describeWire(qubitId)}`, (current) =>
+                removeQubit(current, qubitId),
+              );
+            }}
+            onRemoveRegister={(registerId) => {
+              store.apply(`Remove ${describeRegister(registerId)}`, (current) =>
+                removeClassicalRegister(current, registerId),
+              );
+            }}
+            onResizeRegister={(registerId, size) => {
+              store.apply(
+                `Resize ${describeRegister(registerId)} to ${String(size)} bits`,
+                (current) => setRegisterSize(current, registerId, size),
+              );
+            }}
+          />
 
-        <CircuitCanvas
-          layout={layout}
-          cells={cells}
-          cursor={cursor}
-          selection={selection}
-          armed={armed}
-          pending={pendingPreview}
-          dragging={dragging}
-          settle={settle}
-          onCursorChange={(cell) => {
-            const changed =
-              cell.row !== cursor.row || cell.column !== cursor.column;
-            moveCursor(cell);
-            // A drag applies as it goes, coalescing into one undo step, so the
-            // gate follows the pointer instead of jumping at the end. Guarded:
-            // pointer-move fires continuously over a single cell.
-            if (dragging !== null && changed) moveTo(dragging, cell, true);
-          }}
-          onActivate={activate}
-          onPickUp={pickUp}
-          onDropDrag={endDrag}
-          onNudgeSelection={nudgeSelection}
-          onUndo={() => {
-            setSettle(null);
-            store.undo();
-          }}
-          onRedo={() => {
-            setSettle(null);
-            store.redo();
-          }}
-          onCycleBarriers={cycleBarriers}
-          onSelectOperation={(id) => {
-            store.select(id);
-          }}
-          onRemoveSelection={removeSelected}
-          /*
+          <CircuitCanvas
+            layout={layout}
+            cells={cells}
+            cursor={cursor}
+            selection={selection}
+            armed={armed}
+            pending={pendingPreview}
+            dragging={dragging}
+            settle={settle}
+            onCursorChange={(cell) => {
+              const changed =
+                cell.row !== cursor.row || cell.column !== cursor.column;
+              moveCursor(cell);
+              // A drag applies as it goes, coalescing into one undo step, so the
+              // gate follows the pointer instead of jumping at the end. Guarded:
+              // pointer-move fires continuously over a single cell.
+              if (dragging !== null && changed) moveTo(dragging, cell, true);
+            }}
+            onActivate={activate}
+            onPickUp={pickUp}
+            onDropDrag={endDrag}
+            onNudgeSelection={nudgeSelection}
+            onUndo={undo}
+            onRedo={redo}
+            onCycleBarriers={cycleBarriers}
+            onSelectOperation={(id) => {
+              store.select(id);
+            }}
+            onRemoveSelection={removeSelected}
+            /*
             One job per press, most specific first. Escape carries three
             meanings in UI.md's shortcut table, and doing all of them at once
             makes the two the user did not mean invisible -- cancelling a
@@ -662,42 +698,43 @@ export function CircuitEditor({
             Cancelling a placement leaves the gate armed, so retrying it costs
             no trip back to the palette. A second press disarms.
           */
-          onCancel={() => {
-            if (pending !== null) {
-              setPending(null);
-            } else if (armed !== null) {
-              setArmed(null);
-            } else {
-              store.select(null);
-            }
-          }}
-        />
+            onCancel={() => {
+              if (pending !== null) {
+                setPending(null);
+              } else if (armed !== null) {
+                setArmed(null);
+              } else {
+                store.select(null);
+              }
+            }}
+          />
 
-        <p className="text-sm text-ink-muted" role="status">
-          {`Depth ${String(decomposition.depth)} · ${String(circuit.operations.length)} operations`}
-          {armed !== null && ` · placing ${armed}`}
-          {/*
+          <p className="text-sm text-ink-muted" role="status">
+            {`Depth ${String(decomposition.depth)} · ${String(circuit.operations.length)} operations`}
+            {armed !== null && ` · placing ${armed}`}
+            {/*
             The prompt for the next wire lives here rather than beside the
             cursor, because the cursor has not moved: a screen reader has no
             other way to learn that a placement is outstanding, or how many
             wires it still wants.
           */}
-          {pending !== null && ` · ${describeRemaining(pending) ?? ''}`}
-          {/*
+            {pending !== null && ` · ${describeRemaining(pending) ?? ''}`}
+            {/*
             The cell cursor does not follow the selection, so for anything not
             announced by aria-activedescendant -- a barrier above all -- this
             live region is how a screen reader learns what is selected.
           */}
-          {selectedLabel !== null && ` · ${selectedLabel} selected`}
-        </p>
+            {selectedLabel !== null && ` · ${selectedLabel} selected`}
+          </p>
 
-        <ProblemsStrip
-          violations={violations}
-          onSelect={(path) => {
-            const id = operationIdFromPath(circuit, path);
-            if (id !== undefined) store.select(id);
-          }}
-        />
+          <ProblemsStrip
+            violations={violations}
+            onSelect={(path) => {
+              const id = operationIdFromPath(circuit, path);
+              if (id !== undefined) store.select(id);
+            }}
+          />
+        </div>
       </div>
     </div>
   );
