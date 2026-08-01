@@ -171,14 +171,22 @@ That changes the first time the frontend reads a circuit it did not build —
 Milestone 3's local save. Deferred deliberately, per ADR-0005 section 6, so the
 dependency question is answered with that requirement in hand.
 
-**That question is now due, and it is narrower than "a dependency or not."**
-Hand-writing a shape checker is a second hand-maintained description of the
-schema, which is what [ADR-0004](decisions/ADR0004_SharedModelStrategy.md) exists
-to prevent — the backend avoids it by letting Pydantic decide unknown-ness, so
-there is no list to drift. The frontend gets that property only by validating
-against `circuit.schema.json` itself, which makes the open choice *which*
-schema-driven mechanism: a runtime validator library, or a validator compiled from
-the schema during `generate_bindings.py`. Lands in ADR-0008.
+**That question is answered by [ADR-0008](decisions/ADR0008_LocalPersistence.md):
+a validator compiled from `circuit.schema.json` during `generate_bindings.py`.**
+Ajv is a devDependency and is never shipped; the emitted validator is
+self-contained, 6 KB gzipped, and a generated file under the same rules as the
+types beside it — never hand-edited, and `--check` fails on a stale one. The
+alternative, hand-writing a shape checker, is the second description of the schema
+[ADR-0004](decisions/ADR0004_SharedModelStrategy.md) exists to prevent; the backend
+avoids it by letting Pydantic decide unknown-ness, so there is no list to drift,
+and generating the frontend's validator gives it the same property.
+
+**One implementation constraint is load-bearing and non-obvious.** `oneOf` plus
+`$ref` loses branch attribution — Ajv reports `#/additionalProperties` for every
+branch — so every non-matching operation subtype reports the fields it does not
+share as unknown. A stripper that trusts those errors deletes a gate's `name`,
+`controls` and `parameters`. Validate per subtype instead, selected through the
+schema's own `discriminator.mapping`. ADR-0008 section 2 has the detail.
 
 **Choosing `localStorage` does not remove the requirement.** A stored document was
 written by *some* build — possibly older, possibly a partial write, possibly

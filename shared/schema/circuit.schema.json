@@ -155,7 +155,7 @@
     },
     "Operation": {
       "description": "Anything occupying a position in execution order, discriminated on kind.",
-      "$comment": "The discriminator keyword is OpenAPI rather than JSON Schema 2020-12, and validators ignore it as an unknown annotation. It is present because datamodel-code-generator reads it to emit Field(discriminator='kind'). Without it Pydantic attempts every branch and reports that none matched, instead of reporting the one real error against the branch the kind names.",
+      "$comment": "The discriminator keyword is OpenAPI rather than JSON Schema 2020-12. It is present because datamodel-code-generator reads it to emit Field(discriminator='kind'); without it Pydantic attempts every branch and reports that none matched, instead of reporting the one real error against the branch the kind names. A validator will NOT simply ignore it: Ajv rejects it as an unknown keyword unless strict mode is off, and Ajv's own discriminator support rejects the mapping below. That mapping is read at generation time to build one validator per branch, because oneOf plus $ref loses branch attribution in error output -- see ADR-0008 section 2, where trusting it deletes real fields.",
       "oneOf": [
         { "$ref": "#/$defs/GateOperation" },
         { "$ref": "#/$defs/MeasurementOperation" },
