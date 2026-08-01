@@ -122,6 +122,27 @@ so it is testable without a DOM. It decides where a column sits on screen. It ne
 decides *which* column an operation occupies — that is the derivation's answer.
 Interaction design is in [UI.md](UI.md).
 
+Three of its modules are pure and DOM-free for the same reason as `layout.ts`,
+and are where the logic lives rather than in the components:
+
+| Module | Responsibility |
+|---|---|
+| `layout.ts` | `(circuit, decomposition)` → pixel geometry |
+| `placement.ts` | a drop column → a position in the canonical list |
+| `pending.ts` | the multi-qubit control-assignment sequence |
+| `palette.ts` | what the palette offers, and its grouping |
+| `glyphs.ts` | how each gate draws its target |
+
+The components — `CircuitEditor`, `CircuitCanvas`, `GatePalette`,
+`StructureControls`, `EditorHeader`, `ProblemsStrip` — render what those return
+and hold only interaction state: what is armed, where the cursor is, which
+placement is part-way through. None of that belongs in history, per ADR-0007
+section 4.
+
+`CircuitEditor` owns the store and is the only place edits are dispatched. Every
+other component receives values and callbacks, which is what keeps the
+single-source-of-truth rule checkable rather than aspirational.
+
 **`serialization/` mirrors `backend/src/phasor_workbench/serialization/`** and is
 held to the same 14 fixtures in `shared/fixtures/version/`, which declare their
 expected outcome in a language-neutral form. See

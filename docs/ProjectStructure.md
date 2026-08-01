@@ -181,6 +181,28 @@ recorded rather than left to look like oversights:
   permitted to touch browser storage, on the same principle that confines `fetch`
   to `src/api/`.
 
+## Inside `src/editor/`
+
+The split is between what can be reasoned about without a DOM and what draws.
+The first group is where the logic lives, and it is tested directly:
+
+| Module | Responsibility |
+|---|---|
+| `layout.ts` | `(circuit, decomposition)` → pixel geometry |
+| `placement.ts` | a drop column → a position in the canonical list |
+| `pending.ts` | the multi-qubit control-assignment sequence |
+| `palette.ts` | what the palette offers, and its editorial grouping |
+| `glyphs.ts` | how each gate draws its target |
+| `demoCircuit.ts` | scaffolding, removed when local save lands |
+
+The components are `CircuitEditor` (owns the store and dispatches every edit),
+`CircuitCanvas` (the SVG grid), `GatePalette`, `StructureControls` (qubits and
+registers), `EditorHeader` (undo, redo, clear), and `ProblemsStrip`.
+
+**Only `CircuitEditor` touches the store.** Everything else takes values and
+callbacks, which is what keeps the single-source-of-truth rule checkable — the
+store's state is asserted to be a bare `Circuit` in `state/store.test.ts`.
+
 The reverse asymmetry also stands: `simulation/`, `analysis/`, `importers/`, and
 `exporters/` are backend-only because `Architecture.md` forbids the frontend from
 simulating.

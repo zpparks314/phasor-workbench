@@ -253,6 +253,16 @@ implicit register), the shared-model strategy (JSON Schema as source of truth),
 version compatibility (declared version selects a mode, content decides the
 outcome), and the editing model (pure edits, snapshot history).
 
+**A barrier's targets are captured at placement and never rewritten.** Placing one
+expands it to every wire then present; adding a qubit afterwards does not join it,
+and this has already been asked once. `CircuitModel.md` settles it — there is no
+implicit "all qubits" barrier *because its meaning would change when a qubit is
+added*. Removing a qubit does shrink a barrier, which looks like the mirror image
+and is not: a removed qubit takes its reference with it, so the shrink is forced by
+referential integrity, while a new qubit is referenced by nothing. The two cases
+are also indistinguishable in the document, so a rule that widened one would widen
+the other. See `docs/UI.md` under *Placing a Barrier*.
+
 ## Rules That Outlive Any Milestone
 
 **Never hand-edit a generated file.** Change `shared/schema/circuit.schema.json`
@@ -420,6 +430,14 @@ and the repo may sit in the unsynced one.
 
 **Line endings are LF everywhere**, enforced by `.gitattributes`, which
 overrides the repo-local `core.autocrlf=true`. Do not reintroduce CRLF.
+
+**Do not bulk-edit the Markdown docs with a Python script on Windows.**
+`pathlib.read_text()` / `write_text()` default to the *locale* encoding (cp1252
+here), not UTF-8, and to platform line endings. A round trip therefore mangles
+every em dash, arrow and `π` in `docs/` and rewrites the file as CRLF, violating
+the rule above. This was hit and reverted on 2026-08-01. Use an editor, or pass
+`encoding='utf-8', newline='\n'` explicitly on both calls. `git diff` catches it
+— a replacement character or a whole-file rewrite means this happened.
 
 **Python 3.14 is installed locally.** The backend runs on it, but Qiskit does
 not yet publish 3.14 wheels — hence the optional `simulation` extra.

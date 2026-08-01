@@ -4,13 +4,17 @@ import type { Circuit } from '../model/circuit';
 import {
   addClassicalRegister,
   addQubit,
+  clearOperations,
   insertOperation,
+  isRetargetable,
   moveOperation,
   removeClassicalRegister,
   removeOperation,
   removeQubit,
   renameCircuit,
+  retargetOperation,
   setParameters,
+  setRegisterSize,
 } from './edits';
 import { createCircuitStore } from './store';
 import { barrier, circuitWith, gate, measurement } from './testCircuits';
@@ -122,6 +126,48 @@ describe('applying edits', () => {
   });
 });
 
+/**
+ * The single-source-of-truth rule, made checkable.
+ *
+ * Architecture.md requires the circuit to exist exactly once, and ADR-0001 makes
+ * the operation list canonical with everything else derived. The failure mode
+ * that rule exists to prevent is a cached decomposition, layout, or violation
+ * list riding along on the circuit and drifting from it -- so the assertion is
+ * that editing never adds a key the document did not start with.
+ *
+ * `past` and `future` are past *values* of the circuit and are not a second
+ * representation; ADR-0007 section 5 argues that at length.
+ */
+describe('the store holds a bare circuit', () => {
+  it('never grows a field the document did not start with', () => {
+    const initial = circuitWith(2);
+    const store = createCircuitStore(initial);
+
+    store.apply('Place gate', (c) =>
+      insertOperation(c, gate('op_0', 'h', ['q_0']), 0),
+    );
+    store.apply('Add qubit', (c) => addQubit(c, { id: 'q_2' }));
+    store.apply('Move operation', (c) => moveOperation(c, 'op_0', 0));
+
+    expect(Object.keys(store.getState().circuit).sort()).toEqual(
+      Object.keys(initial).sort(),
+    );
+  });
+
+  it('exposes the circuit, the selection, and history flags -- nothing else', () => {
+    const store = createCircuitStore(circuitWith(1));
+
+    expect(Object.keys(store.getState()).sort()).toEqual([
+      'canRedo',
+      'canUndo',
+      'circuit',
+      'redoLabel',
+      'selection',
+      'undoLabel',
+    ]);
+  });
+});
+
 describe('selection', () => {
   const withGate = insertOperation(start, gate('op_0', 'h', ['q_0']), 0);
 
@@ -163,7 +209,13 @@ describe('selection', () => {
  * property-testing discipline ADR-0003 established for the cycle derivation.
  */
 describe('undo restores the exact prior circuit', () => {
-  const EDIT_COUNT = 60;
+  /*
+    Raised from 60 when `clearOperations` joined the generator. A longer
+    sequence gives the circuit room to grow back between destructive edits,
+    which strengthens the property rather than accommodating it -- the guard
+    below is unchanged.
+  */
+  const EDIT_COUNT = 100;
 
   it.each([1, 2, 3, 4, 5])(
     'holds over a random edit sequence (seed %i)',
@@ -188,9 +240,10 @@ describe('undo restores the exact prior circuit', () => {
       // anything. The sequence must have built a circuit worth undoing.
       //
       // The seeds are fixed and the generator deterministic, so this cannot
-      // flake. The weakest seed reaches 9 operations and the rest exceed 12; a
-      // future change to the weights dropping below this should be looked at
-      // rather than accommodated.
+      // flake. The weakest seed reaches 16 operations and the strongest 26,
+      // over 93 to 99 recorded history steps; a future change to the weights
+      // dropping near the bound should be looked at rather than accommodated.
+      // Adding `clearOperations` did exactly that, and this guard caught it.
       expect(store.getState().canUndo).toBe(true);
       expect(store.getState().circuit).not.toEqual(initial);
       expect(
@@ -305,14 +358,29 @@ function applyRandomEdit(store: Store, random: () => number, n: number): void {
 
   if (circuit.classicalRegisters.length > 0) {
     const register = pick(circuit.classicalRegisters, random).id;
-    choices.push({
-      weight: 1,
-      run: () => {
-        store.apply('Remove register', (c) =>
-          removeClassicalRegister(c, register),
-        );
+    const size = 1 + Math.floor(random() * 4);
+
+    choices.push(
+      {
+        weight: 1,
+        run: () => {
+          store.apply('Remove register', (c) =>
+            removeClassicalRegister(c, register),
+          );
+        },
       },
-    });
+      {
+        // Shrinking below a bit a measurement writes to is a legal edit that
+        // leaves the circuit invalid, which is exactly the kind of state undo
+        // has to restore faithfully.
+        weight: 2,
+        run: () => {
+          store.apply('Resize register', (c) =>
+            setRegisterSize(c, register, size),
+          );
+        },
+      },
+    );
   }
 
   if (circuit.operations.length > 0) {
@@ -338,12 +406,42 @@ function applyRandomEdit(store: Store, random: () => number, n: number): void {
       },
     );
 
+    choices.push({
+      /*
+        Fractional, and the lowest weight here by an order of magnitude.
+        Clearing empties the operation list outright, so it flattens the circuit
+        faster than any other edit -- at weight 1 it fired often enough to hold
+        the sequence under the vacuity guard, which is the same trap the
+        structural-edit weights were tuned for and the guard catching it is the
+        guard working. It still fires several times across five seeds, which is
+        all the coverage this edit needs.
+      */
+      weight: 0.3,
+      run: () => {
+        store.apply('Clear operations', clearOperations);
+      },
+    });
+
     if (operation.kind === 'gate') {
       choices.push({
         weight: 3,
         run: () => {
           store.apply('Set parameter', (c) =>
             setParameters(c, operation.id, { theta: random() }),
+          );
+        },
+      });
+    }
+
+    // Retargeting refuses anything naming more than one qubit, so the guard is
+    // the edit's own precondition rather than a guess about which kinds qualify.
+    if (isRetargetable(operation) && circuit.qubits.length > 0) {
+      const wire = pick(circuit.qubits, random).id;
+      choices.push({
+        weight: 2,
+        run: () => {
+          store.apply('Retarget', (c) =>
+            retargetOperation(c, operation.id, wire),
           );
         },
       });
