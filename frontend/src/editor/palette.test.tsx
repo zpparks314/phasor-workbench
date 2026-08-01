@@ -3,7 +3,12 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { GATE_SIGNATURES } from '../model/spec';
 import { GatePalette } from './GatePalette';
-import { PALETTE, defaultParameters, groupedGateNames } from './palette';
+import {
+  PALETTE,
+  defaultParameters,
+  describeSignature,
+  groupedGateNames,
+} from './palette';
 
 describe('the gate list', () => {
   /**
@@ -24,16 +29,22 @@ describe('the gate list', () => {
       }
     }
   });
+});
 
-  it('marks single-qubit gates placeable and multi-qubit gates not yet', () => {
-    const placeable = PALETTE.flatMap((group) =>
-      group.entries.filter((entry) => entry.placeable).map((e) => e.name),
+describe('describeSignature', () => {
+  /**
+   * Read off the signature rather than written per gate, so it cannot disagree
+   * with the sequence `pending.ts` drives from that same signature.
+   */
+  it('names a controlled gate its target and its control', () => {
+    expect(describeSignature(GATE_SIGNATURES.cx)).toBe('1 target, 1 control');
+  });
+
+  it('pluralises, so swap and ccx read correctly', () => {
+    expect(describeSignature(GATE_SIGNATURES.swap)).toBe(
+      '2 targets, 0 controls',
     );
-
-    expect(placeable).toContain('h');
-    expect(placeable).toContain('rx');
-    expect(placeable).not.toContain('cx');
-    expect(placeable).not.toContain('swap');
+    expect(describeSignature(GATE_SIGNATURES.ccx)).toBe('1 target, 2 controls');
   });
 });
 
@@ -84,26 +95,30 @@ describe('GatePalette', () => {
   });
 
   /**
-   * Shown rather than hidden: the model supports them, this step cannot place
-   * them. `aria-disabled` rather than `disabled` so arrowing across the palette
-   * still reaches them and announces why -- a `disabled` button is skipped in
-   * silence.
+   * Multi-qubit gates arm exactly like single-qubit ones. What differs is what
+   * happens on the canvas afterwards, and no gate in the spec is unavailable
+   * any more -- this is the assertion that the `aria-disabled` treatment is
+   * gone rather than merely unused.
    */
-  it('marks a gate needing control assignment unavailable, and says why', () => {
-    render(<GatePalette armed={null} onArm={vi.fn()} />);
-    const cx = screen.getByRole('button', { name: /^cx —/ });
-
-    expect(cx).toHaveAttribute('aria-disabled', 'true');
-    expect(cx).toHaveAccessibleName(/control assignment/);
-  });
-
-  it('does not arm a gate it cannot place', () => {
+  it('arms a multi-qubit gate like any other', () => {
     const onArm = vi.fn();
     render(<GatePalette armed={null} onArm={onArm} />);
+    const cx = screen.getByRole('button', { name: /^cx —/ });
 
-    fireEvent.click(screen.getByRole('button', { name: /^cx —/ }));
+    expect(cx).not.toHaveAttribute('aria-disabled');
 
-    expect(onArm).not.toHaveBeenCalled();
+    fireEvent.click(cx);
+
+    expect(onArm).toHaveBeenCalledWith('cx');
+  });
+
+  /** UI.md: the tooltip carries a description and the gate's signature. */
+  it('announces how many wires a gate will ask for', () => {
+    render(<GatePalette armed={null} onArm={vi.fn()} />);
+
+    expect(screen.getByRole('button', { name: /^ccx —/ })).toHaveAccessibleName(
+      /1 target, 2 controls/,
+    );
   });
 
   /**
@@ -129,7 +144,7 @@ describe('GatePalette', () => {
     expect(screen.getByRole('button', { name: /^x —/ })).toHaveFocus();
   });
 
-  it('reaches an unavailable gate when arrowing past it', () => {
+  it('reaches the last gate with End', () => {
     render(<GatePalette armed={null} onArm={vi.fn()} />);
     const palette = screen.getByRole('navigation', { name: 'Gate palette' });
 

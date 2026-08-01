@@ -22,15 +22,19 @@
 import type { GateName } from '../model/circuit';
 import type { CellContent } from './placement';
 import type {
+  AnchorLayout,
   BarrierLayout,
   CircuitLayout,
   GateLayout,
+  LayoutMetrics,
   MeasurementLayout,
+  QubitRole,
   RegisterLaneLayout,
+  Segment,
   WireLayout,
 } from './layout';
 import { columnCenter } from './layout';
-import { targetGlyph } from './glyphs';
+import { targetGlyph, type TargetGlyph } from './glyphs';
 
 export interface CellPosition {
   readonly row: number;
@@ -48,12 +52,28 @@ export interface Settle {
   readonly nonce: number;
 }
 
+/**
+ * A gate whose wires are being assigned, already resolved to geometry.
+ *
+ * Built by the caller from `./pending` and the layout, so the canvas keeps
+ * having nothing to decide. `nextRole` is what the cursor preview should show,
+ * and is null only in the instant before the operation commits.
+ */
+export interface PendingPreview {
+  readonly name: GateName;
+  readonly x: number;
+  readonly anchors: readonly AnchorLayout[];
+  readonly connector: readonly Segment[];
+  readonly nextRole: QubitRole | null;
+}
+
 export interface CircuitCanvasProps {
   readonly layout: CircuitLayout;
   readonly cells: readonly (readonly CellContent[])[];
   readonly cursor: CellPosition;
   readonly selection: string | null;
   readonly armed: GateName | null;
+  readonly pending: PendingPreview | null;
   readonly dragging: string | null;
   readonly settle: Settle | null;
   readonly onCursorChange: (cell: CellPosition) => void;
@@ -75,6 +95,7 @@ export function CircuitCanvas({
   cursor,
   selection,
   armed,
+  pending,
   dragging,
   settle,
   onCursorChange,
@@ -89,7 +110,7 @@ export function CircuitCanvas({
   onRedo,
   onCycleBarriers,
 }: CircuitCanvasProps): React.JSX.Element {
-  const { lane, column: columnWidth, glyph } = layout.metrics;
+  const { lane, column: columnWidth } = layout.metrics;
 
   /**
    * The cursor is clamped on read, not stored clamped.
@@ -243,14 +264,29 @@ export function CircuitCanvas({
             </Settling>
           ))}
 
-          {armed !== null && (
-            <Preview
-              x={columnCenter(active.column, layout.metrics)}
-              y={layout.wires[active.row]?.y ?? 0}
-              glyph={glyph}
-              name={armed}
-            />
+          {/*
+            The wires already assigned, then what the next click would add. Both
+            sit above the committed operations so a pending gate is not hidden
+            behind whatever occupies the column it is being assembled over.
+          */}
+          {pending !== null && (
+            <PendingPlacement pending={pending} metrics={layout.metrics} />
           )}
+
+          {armed !== null &&
+            (pending === null || pending.nextRole !== null) && (
+              <Preview
+                x={
+                  pending === null
+                    ? columnCenter(active.column, layout.metrics)
+                    : pending.x
+                }
+                y={layout.wires[active.row]?.y ?? 0}
+                metrics={layout.metrics}
+                name={armed}
+                role={pending?.nextRole ?? 'target'}
+              />
+            )}
         </g>
 
         {layout.wires.map((wire, row) => (
@@ -683,109 +719,142 @@ function Gate({
   readonly layout: CircuitLayout;
   readonly selected: boolean;
 }): React.JSX.Element {
-  const { glyph, control } = layout.metrics;
-  const stroke = selected ? 3 : 1.5;
-  const symbol = targetGlyph(gate.name);
-  const radius = glyph * 0.28;
-  const arm = glyph * 0.2;
-
   return (
     <g data-operation-id={gate.operationId} data-selected={selected}>
       {gate.anchors
         .filter((anchor) => anchor.role === 'target')
         .map((anchor) => (
-          <g key={anchor.qubitId} data-glyph={symbol.kind}>
-            {symbol.kind === 'box' && (
-              <>
-                <rect
-                  x={gate.x - glyph / 2}
-                  y={anchor.y - glyph / 2}
-                  width={glyph}
-                  height={glyph}
-                  rx={6}
-                  className="fill-surface-raised stroke-current"
-                  strokeWidth={stroke}
-                />
-                <text
-                  x={gate.x}
-                  y={anchor.y}
-                  textAnchor="middle"
-                  dominantBaseline="central"
-                  className="fill-current font-mono text-sm"
-                >
-                  {symbol.label}
-                </text>
-              </>
-            )}
-
-            {/*
-              Unfilled, so the connector runs into it rather than stopping at
-              its edge. The cross is drawn in full rather than borrowing the
-              connector for its vertical bar -- the connector terminates at the
-              anchor centre, which would draw only the upper half.
-            */}
-            {symbol.kind === 'crossed-circle' && (
-              <>
-                <circle
-                  cx={gate.x}
-                  cy={anchor.y}
-                  r={radius}
-                  className="fill-none stroke-current"
-                  strokeWidth={stroke}
-                />
-                <line
-                  x1={gate.x - radius}
-                  y1={anchor.y}
-                  x2={gate.x + radius}
-                  y2={anchor.y}
-                  className="stroke-current"
-                  strokeWidth={stroke}
-                />
-                <line
-                  x1={gate.x}
-                  y1={anchor.y - radius}
-                  x2={gate.x}
-                  y2={anchor.y + radius}
-                  className="stroke-current"
-                  strokeWidth={stroke}
-                />
-              </>
-            )}
-
-            {/* CZ is symmetric, so its target is drawn like its control. */}
-            {symbol.kind === 'dot' && (
-              <circle
-                cx={gate.x}
-                cy={anchor.y}
-                r={selected ? control + 1.5 : control}
-                className="fill-current"
-              />
-            )}
-
-            {symbol.kind === 'swap' && (
-              <>
-                <line
-                  x1={gate.x - arm}
-                  y1={anchor.y - arm}
-                  x2={gate.x + arm}
-                  y2={anchor.y + arm}
-                  className="stroke-current"
-                  strokeWidth={stroke}
-                  strokeLinecap="round"
-                />
-                <line
-                  x1={gate.x + arm}
-                  y1={anchor.y - arm}
-                  x2={gate.x - arm}
-                  y2={anchor.y + arm}
-                  className="stroke-current"
-                  strokeWidth={stroke}
-                  strokeLinecap="round"
-                />
-              </>
-            )}
-          </g>
+          <TargetSymbol
+            key={anchor.qubitId}
+            symbol={targetGlyph(gate.name)}
+            x={gate.x}
+            y={anchor.y}
+            metrics={layout.metrics}
+            emphasised={selected}
+          />
         ))}
+    </g>
+  );
+}
+
+/**
+ * One gate target, in conventional notation.
+ *
+ * Shared by the committed gate and the placement preview rather than drawn twice.
+ * A preview that renders a `cx` as a labelled box -- which is what a generic
+ * box-and-name preview does -- would break the rule the whole notation rests on,
+ * that a box means exactly one thing, and would teach the user to expect a glyph
+ * they are not about to get.
+ */
+function TargetSymbol({
+  symbol,
+  x,
+  y,
+  metrics,
+  emphasised,
+}: {
+  readonly symbol: TargetGlyph;
+  readonly x: number;
+  readonly y: number;
+  readonly metrics: LayoutMetrics;
+  readonly emphasised: boolean;
+}): React.JSX.Element {
+  const { glyph, control } = metrics;
+  const stroke = emphasised ? 3 : 1.5;
+  const radius = glyph * 0.28;
+  const arm = glyph * 0.2;
+
+  return (
+    <g data-glyph={symbol.kind}>
+      {symbol.kind === 'box' && (
+        <>
+          <rect
+            x={x - glyph / 2}
+            y={y - glyph / 2}
+            width={glyph}
+            height={glyph}
+            rx={6}
+            className="fill-surface-raised stroke-current"
+            strokeWidth={stroke}
+          />
+          <text
+            x={x}
+            y={y}
+            textAnchor="middle"
+            dominantBaseline="central"
+            className="fill-current font-mono text-sm"
+          >
+            {symbol.label}
+          </text>
+        </>
+      )}
+
+      {/*
+        Unfilled, so the connector runs into it rather than stopping at its
+        edge. The cross is drawn in full rather than borrowing the connector
+        for its vertical bar -- the connector terminates at the anchor centre,
+        which would draw only the upper half.
+      */}
+      {symbol.kind === 'crossed-circle' && (
+        <>
+          <circle
+            cx={x}
+            cy={y}
+            r={radius}
+            className="fill-none stroke-current"
+            strokeWidth={stroke}
+          />
+          <line
+            x1={x - radius}
+            y1={y}
+            x2={x + radius}
+            y2={y}
+            className="stroke-current"
+            strokeWidth={stroke}
+          />
+          <line
+            x1={x}
+            y1={y - radius}
+            x2={x}
+            y2={y + radius}
+            className="stroke-current"
+            strokeWidth={stroke}
+          />
+        </>
+      )}
+
+      {/* CZ is symmetric, so its target is drawn like its control. */}
+      {symbol.kind === 'dot' && (
+        <circle
+          cx={x}
+          cy={y}
+          r={emphasised ? control + 1.5 : control}
+          className="fill-current"
+        />
+      )}
+
+      {symbol.kind === 'swap' && (
+        <>
+          <line
+            x1={x - arm}
+            y1={y - arm}
+            x2={x + arm}
+            y2={y + arm}
+            className="stroke-current"
+            strokeWidth={stroke}
+            strokeLinecap="round"
+          />
+          <line
+            x1={x + arm}
+            y1={y - arm}
+            x2={x - arm}
+            y2={y + arm}
+            className="stroke-current"
+            strokeWidth={stroke}
+            strokeLinecap="round"
+          />
+        </>
+      )}
     </g>
   );
 }
@@ -865,39 +934,100 @@ function Barrier({
   );
 }
 
-/** What placing the armed gate here would produce. */
+/**
+ * What the next click would assign, drawn under the cursor.
+ *
+ * The glyph is the one the gate will actually render, not a generic labelled
+ * box, so the preview cannot promise a shape the commit will not deliver. A
+ * control previews as the filled dot a control always is.
+ */
 function Preview({
   x,
   y,
-  glyph,
+  metrics,
   name,
+  role,
 }: {
   readonly x: number;
   readonly y: number;
-  readonly glyph: number;
-  readonly name: string;
+  readonly metrics: LayoutMetrics;
+  readonly name: GateName;
+  readonly role: QubitRole;
 }): React.JSX.Element {
   return (
-    <g className="opacity-40" data-testid="placement-preview">
-      <rect
-        x={x - glyph / 2}
-        y={y - glyph / 2}
-        width={glyph}
-        height={glyph}
-        rx={6}
-        className="fill-surface-raised stroke-current"
-        strokeDasharray="3 3"
-        strokeWidth={1.5}
-      />
-      <text
-        x={x}
-        y={y}
-        textAnchor="middle"
-        dominantBaseline="central"
-        className="fill-current font-mono text-sm"
-      >
-        {name}
-      </text>
+    <g className="opacity-40" data-testid="placement-preview" data-role={role}>
+      {role === 'control' ? (
+        <circle
+          cx={x}
+          cy={y}
+          r={metrics.control}
+          className="fill-current"
+          data-glyph="control"
+        />
+      ) : (
+        <TargetSymbol
+          symbol={targetGlyph(name)}
+          x={x}
+          y={y}
+          metrics={metrics}
+          emphasised={false}
+        />
+      )}
+    </g>
+  );
+}
+
+/**
+ * A multi-qubit gate part-way through being placed.
+ *
+ * Drawn at full strength rather than as a preview: these wires are decided, and
+ * UI.md asks for assigned controls solid. What is still provisional is the one
+ * under the cursor, which `Preview` draws faintly, and the column -- the
+ * derivation has not seen this operation yet, so where it settles is not decided
+ * until it commits.
+ */
+function PendingPlacement({
+  pending,
+  metrics,
+}: {
+  readonly pending: PendingPreview;
+  readonly metrics: LayoutMetrics;
+}): React.JSX.Element {
+  return (
+    <g data-testid="pending-placement" data-gate={pending.name}>
+      {pending.connector.map((segment) => (
+        <line
+          key={`${String(segment.y1)}-${String(segment.y2)}`}
+          x1={pending.x}
+          y1={segment.y1}
+          x2={pending.x}
+          y2={segment.y2}
+          className="stroke-current"
+          strokeWidth={1.5}
+        />
+      ))}
+
+      {pending.anchors.map((anchor) =>
+        anchor.role === 'control' ? (
+          <circle
+            key={anchor.qubitId}
+            cx={pending.x}
+            cy={anchor.y}
+            r={metrics.control}
+            className="fill-current"
+            data-glyph="control"
+          />
+        ) : (
+          <TargetSymbol
+            key={anchor.qubitId}
+            symbol={targetGlyph(pending.name)}
+            x={pending.x}
+            y={anchor.y}
+            metrics={metrics}
+            emphasised={false}
+          />
+        ),
+      )}
     </g>
   );
 }

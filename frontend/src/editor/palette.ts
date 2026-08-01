@@ -22,14 +22,6 @@ export interface PaletteEntry {
   readonly name: GateName;
   readonly description: string;
   readonly signature: GateSignature;
-  /**
-   * Whether this step can place it.
-   *
-   * Multi-qubit gates need control assignment, which is a placement sequence
-   * rather than a single action. Shown but not armable until that lands, because
-   * hiding them would misrepresent what the model supports.
-   */
-  readonly placeable: boolean;
 }
 
 export interface PaletteGroup {
@@ -72,16 +64,29 @@ const GROUPS: readonly {
 
 export const PALETTE: readonly PaletteGroup[] = GROUPS.map((group) => ({
   title: group.title,
-  entries: group.gates.map((name) => {
-    const signature = GATE_SIGNATURES[name];
-    return {
-      name,
-      signature,
-      description: DESCRIPTIONS[name],
-      placeable: signature.targets === 1 && signature.controls === 0,
-    };
-  }),
+  entries: group.gates.map((name) => ({
+    name,
+    signature: GATE_SIGNATURES[name],
+    description: DESCRIPTIONS[name],
+  })),
 }));
+
+/**
+ * A gate's arity in words, for the tooltip UI.md specifies.
+ *
+ * Read from the signature rather than written per gate, so it cannot disagree
+ * with the sequence `./pending` drives from that same signature.
+ */
+export function describeSignature(signature: GateSignature): string {
+  return [
+    `${String(signature.targets)} ${plural(signature.targets, 'target')}`,
+    `${String(signature.controls)} ${plural(signature.controls, 'control')}`,
+  ].join(', ');
+}
+
+function plural(count: number, word: string): string {
+  return count === 1 ? word : `${word}s`;
+}
 
 /** Every gate in the spec appears in exactly one group. Asserted in the tests. */
 export function groupedGateNames(): GateName[] {
