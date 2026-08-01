@@ -78,6 +78,35 @@ export function removeQubit(circuit: Circuit, qubitId: string): Circuit {
   };
 }
 
+/**
+ * How many operations removing this qubit would destroy.
+ *
+ * Runs the edit and counts the difference rather than reimplementing its rules,
+ * so the number a confirmation shows cannot drift from what the edit does. The
+ * rules are not obvious enough to restate safely: a barrier over the qubit is
+ * *shrunk* rather than removed, and so is not lost, unless it named only this
+ * qubit and is left with no targets.
+ */
+export function operationsLostWithQubit(
+  circuit: Circuit,
+  qubitId: string,
+): number {
+  return (
+    circuit.operations.length - removeQubit(circuit, qubitId).operations.length
+  );
+}
+
+/** How many operations removing this register would destroy. */
+export function operationsLostWithRegister(
+  circuit: Circuit,
+  registerId: string,
+): number {
+  return (
+    circuit.operations.length -
+    removeClassicalRegister(circuit, registerId).operations.length
+  );
+}
+
 export function addClassicalRegister(
   circuit: Circuit,
   register: NewClassicalRegister,
@@ -91,6 +120,42 @@ export function addClassicalRegister(
     ...circuit,
     classicalRegisters: [...circuit.classicalRegisters, added],
   };
+}
+
+/**
+ * Resize a register.
+ *
+ * **Shrinking below a bit a measurement already writes to is allowed**, and
+ * `validateCircuit` reports it as `CLASSICAL_BIT_OUT_OF_RANGE`. That is
+ * ADR-0007 section 7 working as intended rather than an oversight: the state is
+ * one the user can edit their way out of, by growing the register back or
+ * removing the measurement. Refusing here would be the treatment reserved for a
+ * state with no repair path -- which is why the editor refuses to assign one
+ * wire twice to a pending gate, and does not refuse this.
+ *
+ * The schema puts the floor at 1; a register of no bits is shape-invalid.
+ */
+export function setRegisterSize(
+  circuit: Circuit,
+  registerId: string,
+  size: number,
+): Circuit {
+  const index = circuit.classicalRegisters.findIndex(
+    (register) => register.id === registerId,
+  );
+  const register = circuit.classicalRegisters[index];
+  if (register === undefined) {
+    throw new Error(`No classical register with id ${registerId}.`);
+  }
+  if (!Number.isInteger(size) || size < 1) {
+    throw new Error(
+      `Register size ${String(size)} must be an integer above 0.`,
+    );
+  }
+
+  const classicalRegisters = [...circuit.classicalRegisters];
+  classicalRegisters[index] = { ...register, size };
+  return { ...circuit, classicalRegisters };
 }
 
 /** Remove a register and every measurement writing into it. */

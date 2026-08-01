@@ -267,8 +267,8 @@ Allow users to visually construct quantum circuits.
 * [ ] Undo — keyboard done, no button yet
 * [ ] Redo — keyboard done, no button yet
 * [x] Render quantum wires — read-only canvas, all glyph kinds
-* [ ] Add and remove qubits
-* [ ] Add and remove classical registers
+* [x] Add and remove qubits
+* [x] Add and remove classical registers — with an editable size
 * [x] Gate palette
 * [x] Place gates
 * [x] Remove gates
@@ -299,7 +299,7 @@ Replaced on 2026-07-30. The previous single sentence — "users can build simple
 circuits entirely within the browser" — is the goal, but it is not checkable, and
 the Definition of Done leans on these.
 
-* [ ] A user can build a circuit from empty: add and remove qubits and classical
+* [x] A user can build a circuit from empty: add and remove qubits and classical
   registers, with qubit indices contiguous from 0 at every point.
 * [ ] A user can place, move, and remove every gate in `circuit.spec.json`'s gate
   set, plus measurements and barriers.
@@ -368,7 +368,29 @@ applies unchanged.
 from the palette, place it by pointer or keyboard, select it, move it by drag or
 `Ctrl/Cmd` + arrow, and remove it. Undo and redo work from the keyboard. Barriers
 are selectable with `b`. Violations appear in the problems strip and clear when
-fixed. 423 frontend tests.
+fixed. 447 frontend tests.
+
+**A circuit can be built from empty.** `editor/StructureControls.tsx` adds and
+removes qubits and classical registers, and edits a register's size. It is a
+region of its own rather than controls inside the SVG gutter — the canvas is a
+`role="grid"` with a single tab stop, and focusable controls inside it break that
+contract. UI.md records the deviation and why.
+
+Three decisions there worth not undoing:
+
+* **A removal confirmation derives its count by running the edit**, via
+  `operationsLostWithQubit`. Restating the rules would get the interesting case
+  wrong: a barrier over the qubit is *shrunk* rather than removed, so it is not
+  lost. A message whose only job is accuracy should not hold a second copy of the
+  logic it describes.
+* **Shrinking a register below a bit a measurement writes to is allowed**, and
+  reported as `CLASSICAL_BIT_OUT_OF_RANGE`. The user can grow it back or delete
+  the measurement, so it is a state they can edit their way out of — which is
+  precisely the test that made the pending-gate duplicate-wire case a refusal
+  instead. The two agree on the principle and differ on the facts.
+* **A register is labelled by position, never by its identifier.** The fallback
+  used to be `register.id`, which was harmless when registers came from fixtures
+  and puts a UUID in the gutter now that the editor mints them.
 
 **Every gate in the spec is placeable**, multi-qubit ones by the control-assignment
 sequence in [UI.md](UI.md): the first click fixes a wire and a column, each click
@@ -427,7 +449,6 @@ too small to mean anything until a guard was added.
 ### Remaining
 
 * [ ] Measurements and barriers in the palette
-* [ ] Add and remove qubits and classical registers
 * [ ] Undo/redo **buttons** — the model is done and labelled; `undoLabel` and
   `redoLabel` exist so they can say "Undo place H" rather than "Undo"
 * [ ] Parameter editing — rotation gates place at a fixed π/2
@@ -466,7 +487,10 @@ too small to mean anything until a guard was added.
   placed it and which wires are occupied *in its eventual column* has no answer
   yet. The committed render, one click later, is where the distinction is real.
 * **`editor/demoCircuit.ts` is scaffolding** and should go once the editor opens
-  on an empty or restored circuit.
+  on an empty or restored circuit. Half of that is now satisfied — a circuit can
+  be built from empty — so the only thing still holding it is local save: with
+  nothing surviving a refresh, opening blank would mean losing the work every
+  time. It goes with that item, not before.
 
 ---
 

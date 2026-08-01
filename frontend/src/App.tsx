@@ -13,8 +13,10 @@ type BackendState =
 /**
  * Application shell.
  *
- * The circuit canvas renders here read-only; the palette, placement, and the
- * three-region layout specified in docs/UI.md arrive with the interaction work.
+ * **It still opens on scaffolding.** `createDemoCircuit` stays only until local
+ * save lands: the editor can now build a circuit from empty, but nothing yet
+ * survives a refresh, so opening blank would mean losing the work every time.
+ * Roadmap.md tracks its removal against that milestone item, not this one.
  *
  * The backend check stays because Architecture.md requires the frontend to remain
  * functional when the backend is down -- and Milestone 3 makes that easy to
@@ -52,7 +54,8 @@ export default function App() {
           Phasor Workbench
         </h1>
         <p className="mt-1 text-sm text-ink-muted">
-          Circuit editor — rendering only. Placement arrives next.
+          Circuit editor — add qubits and registers, then place gates from the
+          palette.
         </p>
       </header>
 
