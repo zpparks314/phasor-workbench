@@ -27,7 +27,7 @@ this document says what the user sees and ADR-0007 says what the code does.
 
 ```text
 ┌──────────────────────────────────────────────────────────────┐
-│  Header      name · undo · redo · save · save status         │
+│  Header      undo · redo · clear · save · save status        │
 ├───────────┬──────────────────────────────────────┬───────────┤
 │           │                                      │           │
 │  Palette  │        Circuit Canvas                │ (reserved │
@@ -385,9 +385,36 @@ clears the selection rather than leaving it pointing at nothing.
 
 Header buttons plus shortcuts. Both are labelled with what they will do — "Undo
 place H on q0" — from the label ADR-0007 attaches to each history entry. A generic
-"Undo" wastes the information the model already carries.
+"Undo" wastes the information the model already carries. History labels are
+written to stand alone, so they start capitalised; the button lowercases the first
+letter, because there the label is a clause inside a sentence.
 
-Both are disabled, not hidden, when their stack is empty.
+Both are disabled, not hidden, when their stack is empty. **This is the opposite
+of the palette's `aria-disabled` treatment, and both are deliberate**: an
+unavailable palette entry has something to teach — *this needs a register to
+measure into* — while an empty undo stack has nothing to say beyond its own
+emptiness.
+
+The header is a `role="toolbar"` with a roving focus, so it is one tab stop like
+every other region. The roving stop never rests on a disabled control: a
+`disabled` button cannot take focus, so an index pointing at one would leave the
+region with no way in at all.
+
+## Clear
+
+Empties the operation list, leaving the qubits and registers in place. It names
+its count — "Clear 3 operations" — and takes a second press to confirm, the same
+treatment as removing a qubit. It is the most destructive control in the editor,
+and the fact that one undo reverses it is not a reason to make it a single press:
+a user who did not mean it has to notice first. Disabled when there is nothing to
+clear.
+
+**Clear is not "new circuit", and the distinction is the reason it can exist
+now.** Emptying the operation list is an ordinary edit — one snapshot, one undo
+step, and a circuit the user could have reached by deleting each operation in
+turn. Resetting the *document*, dropping the wires and registers and identity with
+them, is a different act: it needs to know whether there are unsaved changes, so
+it belongs with local save rather than before it.
 
 ---
 

@@ -302,6 +302,20 @@ export function isRetargetable(operation: Operation): boolean {
   return operation.targets.length === 1 && controls.length === 0;
 }
 
+/**
+ * Remove every operation, leaving the qubits and registers in place.
+ *
+ * **Deliberately not "new circuit".** Emptying the operation list is an ordinary
+ * edit: it is one snapshot, one undo step, and the circuit it produces is one the
+ * user could have reached by deleting each operation. Resetting the *document* --
+ * dropping the wires, the registers and the identity along with them -- is a
+ * different kind of act, and it needs to know whether there are unsaved changes.
+ * That belongs with local save, not here.
+ */
+export function clearOperations(circuit: Circuit): Circuit {
+  return { ...circuit, operations: [] };
+}
+
 /** Metadata only -- the name never affects execution. */
 export function renameCircuit(circuit: Circuit, name: string): Circuit {
   return { ...circuit, name };
