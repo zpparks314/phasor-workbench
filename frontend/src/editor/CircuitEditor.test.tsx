@@ -125,6 +125,228 @@ describe('placing a gate', () => {
   });
 });
 
+/**
+ * UI.md's control-assignment sequence: place the gate on its target wire, then
+ * one click per remaining wire, committing once the signature is satisfied.
+ *
+ * Every click here goes through a `gridcell`, which is the element a pointer
+ * actually lands on -- the transparent cell layer covers the canvas. Dispatching
+ * on a glyph instead would test a path no pointer can reach.
+ */
+describe('placing a multi-qubit gate', () => {
+  it('commits a cx only once its control is assigned', () => {
+    const editor = open();
+
+    editor.arm('cx');
+    fireEvent.click(editor.cell('q1, column 1, empty'));
+
+    // Still nothing in the circuit: the signature is not satisfied.
+    expect(editor.status()).toHaveTextContent('0 operations');
+
+    fireEvent.click(editor.cell('q0, column 1, empty'));
+
+    expect(editor.status()).toHaveTextContent('1 operations');
+    expect(editor.cell('q1, column 1, cx')).toBeInTheDocument();
+    expect(editor.cell('q0, column 1, cx control')).toBeInTheDocument();
+  });
+
+  it('asks for the control, and says so where a screen reader hears it', () => {
+    const editor = open();
+
+    editor.arm('cx');
+    fireEvent.click(editor.cell('q0, column 1, empty'));
+
+    expect(editor.status()).toHaveTextContent(
+      'Click a wire to place the control',
+    );
+  });
+
+  /** ccx takes two controls, so the first prompt must not say "the control". */
+  it('counts the controls a ccx still wants', () => {
+    const editor = open();
+
+    editor.arm('ccx');
+    fireEvent.click(editor.cell('q0, column 1, empty'));
+    expect(editor.status()).toHaveTextContent(
+      'Click a wire to place 2 controls',
+    );
+
+    fireEvent.click(editor.cell('q1, column 1, empty'));
+    expect(editor.status()).toHaveTextContent(
+      'Click a wire to place the control',
+    );
+
+    fireEvent.click(editor.cell('q2, column 1, empty'));
+    expect(editor.status()).toHaveTextContent('1 operations');
+  });
+
+  /** swap is two targets and no controls; the sequence follows the signature. */
+  it('takes two targets for a swap', () => {
+    const editor = open();
+
+    editor.arm('swap');
+    fireEvent.click(editor.cell('q0, column 1, empty'));
+    expect(editor.status()).toHaveTextContent(
+      'Click a wire to place the target',
+    );
+
+    fireEvent.click(editor.cell('q2, column 1, empty'));
+
+    expect(editor.cell('q0, column 1, swap')).toBeInTheDocument();
+    expect(editor.cell('q2, column 1, swap')).toBeInTheDocument();
+  });
+
+  /**
+   * A wire already assigned is refused. Committing a cx controlled by its own
+   * target produces QUBIT_REUSED_IN_OPERATION, and no edit in the vocabulary
+   * repairs it -- retargetOperation throws for a multi-qubit operation and
+   * moving one only changes its column.
+   */
+  it('refuses the wire the target is already on', () => {
+    const editor = open();
+
+    editor.arm('cx');
+    fireEvent.click(editor.cell('q0, column 1, empty'));
+    fireEvent.click(editor.cell('q0, column 1, empty'));
+
+    expect(editor.status()).toHaveTextContent('0 operations');
+    expect(editor.status()).toHaveTextContent(
+      'Click a wire to place the control',
+    );
+
+    // And the placement is still live: another wire finishes it.
+    fireEvent.click(editor.cell('q1, column 1, empty'));
+
+    expect(screen.getByText('No problems.')).toBeInTheDocument();
+  });
+
+  /**
+   * Only the first click carries a column. A gate occupies one column across
+   * every wire it uses, so the control's column is not a second request to
+   * reconcile against the target's.
+   *
+   * Isolated rather than asserted in passing: the target asks for the column an
+   * `h` already occupies on the control wire, so the cx sorts *before* that h
+   * and pushes it right. Had the control's later column been read instead, the
+   * cx would have sorted after the h and the two would be the other way round.
+   */
+  it('ignores the column of the control click', () => {
+    const editor = open();
+
+    editor.arm('h');
+    fireEvent.click(editor.cell('q0, column 1, empty'));
+
+    editor.arm('cx');
+    fireEvent.click(editor.cell('q1, column 1, empty'));
+    fireEvent.click(editor.cell('q0, column 2, empty'));
+
+    expect(editor.cell('q1, column 1, cx')).toBeInTheDocument();
+    expect(editor.cell('q0, column 1, cx control')).toBeInTheDocument();
+    expect(editor.cell('q0, column 2, h')).toBeInTheDocument();
+  });
+
+  /** UI.md: Escape cancels the whole pending operation, not one step of it. */
+  it('cancels the whole pending operation on Escape', () => {
+    const editor = open();
+
+    editor.arm('ccx');
+    fireEvent.click(editor.cell('q0, column 1, empty'));
+    fireEvent.click(editor.cell('q1, column 1, empty'));
+    editor.press('Escape');
+
+    expect(editor.status()).not.toHaveTextContent('Click a wire');
+    expect(editor.status()).toHaveTextContent('0 operations');
+
+    // Still armed, so retrying costs no trip back to the palette, and the
+    // sequence restarts from its first wire rather than resuming.
+    editor.arm('cx');
+    fireEvent.click(editor.cell('q0, column 1, empty'));
+    fireEvent.click(editor.cell('q1, column 1, empty'));
+
+    expect(editor.cell('q0, column 1, cx')).toBeInTheDocument();
+  });
+
+  it('abandons a placement when a different gate is armed', () => {
+    const editor = open();
+
+    editor.arm('cx');
+    fireEvent.click(editor.cell('q0, column 1, empty'));
+    editor.arm('h');
+    fireEvent.click(editor.cell('q1, column 1, empty'));
+
+    expect(editor.cell('q1, column 1, h')).toBeInTheDocument();
+    expect(editor.status()).toHaveTextContent('1 operations');
+  });
+
+  /** UI.md: nothing is reachable by mouse alone, control assignment included. */
+  it('assigns a control from the keyboard', () => {
+    const editor = open();
+
+    editor.arm('cx');
+    editor.press('Enter');
+    editor.press('ArrowDown');
+    editor.press('Enter');
+
+    expect(editor.cell('q0, column 1, cx')).toBeInTheDocument();
+    expect(editor.cell('q1, column 1, cx control')).toBeInTheDocument();
+  });
+
+  /** One undo step: nothing entered the circuit until the gate committed. */
+  it('undoes a committed cx in one step', () => {
+    const editor = open();
+
+    editor.arm('cx');
+    fireEvent.click(editor.cell('q0, column 1, empty'));
+    fireEvent.click(editor.cell('q1, column 1, empty'));
+    editor.undo();
+
+    expect(editor.status()).toHaveTextContent('0 operations');
+  });
+
+  /**
+   * The drop column is a request for a multi-qubit gate too. Dropped at column
+   * 3 across two wires that nothing touches, it packs back to column 1 -- ASAP
+   * puts it wherever its own resources allow, and the busy wire is not one of
+   * them.
+   */
+  it('packs a cx left of the column it was dropped in', () => {
+    const editor = open();
+
+    // Two gates on q0, to give the canvas a third column to drop into.
+    editor.arm('h');
+    fireEvent.click(editor.cell('q0, column 1, empty'));
+    fireEvent.click(editor.cell('q0, column 2, empty'));
+
+    editor.arm('cx');
+    fireEvent.click(editor.cell('q1, column 3, empty'));
+    fireEvent.click(editor.cell('q2, column 3, empty'));
+
+    expect(editor.cell('q1, column 1, cx')).toBeInTheDocument();
+    expect(editor.cell('q2, column 1, cx control')).toBeInTheDocument();
+    expect(editor.status()).toHaveTextContent('Depth 2');
+  });
+
+  /**
+   * The other half of that rule: every wire the gate uses counts. A cx whose
+   * control wire is busy has to follow what is on it, even though its target
+   * wire is free from column 1.
+   */
+  it('holds a cx behind an operation on its control wire', () => {
+    const editor = open();
+
+    editor.arm('h');
+    fireEvent.click(editor.cell('q1, column 1, empty'));
+
+    editor.arm('cx');
+    fireEvent.click(editor.cell('q0, column 2, empty'));
+    fireEvent.click(editor.cell('q1, column 2, empty'));
+
+    expect(editor.cell('q0, column 2, cx')).toBeInTheDocument();
+    expect(editor.cell('q1, column 2, cx control')).toBeInTheDocument();
+    expect(editor.status()).toHaveTextContent('Depth 2');
+  });
+});
+
 describe('selection and removal', () => {
   it('selects an operation by clicking it', () => {
     const editor = open();

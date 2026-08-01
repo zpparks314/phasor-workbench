@@ -11,15 +11,17 @@
  * mean eighteen presses to reach the canvas. Arrow keys move between gates, Tab
  * leaves the region.
  *
- * Gates this build cannot place are `aria-disabled` rather than `disabled`, which
- * keeps them focusable so arrowing across the palette reaches them and announces
- * why they are unavailable. A `disabled` button is skipped silently, which for a
- * teaching tool is the wrong kind of quiet.
+ * **Every gate in the spec is armable.** Multi-qubit gates arm exactly like
+ * single-qubit ones; what differs is what happens on the canvas afterwards, and
+ * that sequence lives in `./pending`. UI.md's rule for a gate this build cannot
+ * place -- `aria-disabled` rather than `disabled`, so arrowing reaches it and
+ * hears why, instead of skipping it in silence -- has no subject at the moment
+ * and is waiting for measurement and barrier to join the palette.
  */
 
 import { useRef, useState } from 'react';
 
-import { PALETTE, type PaletteEntry } from './palette';
+import { PALETTE, describeSignature, type PaletteEntry } from './palette';
 import type { GateName } from '../model/circuit';
 
 export interface GatePaletteProps {
@@ -120,9 +122,10 @@ function GateButton({
   readonly register: (element: HTMLButtonElement | null) => void;
   readonly onArm: (name: GateName | null) => void;
 }): React.JSX.Element {
-  const label = entry.placeable
-    ? `${entry.name} — ${entry.description}`
-    : `${entry.name} — ${entry.description} Placing this needs control assignment, which is not built yet.`;
+  // The signature is in the name rather than the tooltip alone: a multi-qubit
+  // gate takes more clicks than a single-qubit one, and that is the difference
+  // a user needs before arming it, not after.
+  const label = `${entry.name} — ${entry.description} ${describeSignature(entry.signature)}`;
 
   return (
     <button
@@ -131,18 +134,16 @@ function GateButton({
       title={label}
       aria-label={label}
       aria-pressed={armed}
-      aria-disabled={!entry.placeable}
       tabIndex={tabbable ? 0 : -1}
-      draggable={entry.placeable}
+      draggable
       onDragStart={() => {
-        if (entry.placeable) onArm(entry.name);
+        onArm(entry.name);
       }}
       onClick={() => {
-        if (entry.placeable) onArm(armed ? null : entry.name);
+        onArm(armed ? null : entry.name);
       }}
       className={[
         'h-10 w-10 rounded border font-mono text-sm',
-        entry.placeable ? '' : 'cursor-not-allowed opacity-40',
         armed
           ? 'border-ink bg-ink text-surface'
           : 'border-ink-muted/40 bg-surface-raised text-ink',

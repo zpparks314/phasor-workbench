@@ -273,7 +273,7 @@ Allow users to visually construct quantum circuits.
 * [x] Place gates
 * [x] Remove gates
 * [x] Move gates — drag and keyboard
-* [ ] Multi-qubit gates
+* [x] Multi-qubit gates — placed by control assignment, pointer and keyboard
 * [ ] Place measurements
 * [ ] Place barriers
 * [ ] Save locally
@@ -303,7 +303,7 @@ the Definition of Done leans on these.
   registers, with qubit indices contiguous from 0 at every point.
 * [ ] A user can place, move, and remove every gate in `circuit.spec.json`'s gate
   set, plus measurements and barriers.
-* [ ] Multi-qubit gates are placed with explicit control assignment and render
+* [x] Multi-qubit gates are placed with explicit control assignment and render
   with connectors spanning intervening idle wires.
 * [ ] Render columns come from `deriveCycles` on every render. No component
   stores a coordinate, a column index, or a second copy of the circuit —
@@ -368,7 +368,26 @@ applies unchanged.
 from the palette, place it by pointer or keyboard, select it, move it by drag or
 `Ctrl/Cmd` + arrow, and remove it. Undo and redo work from the keyboard. Barriers
 are selectable with `b`. Violations appear in the problems strip and clear when
-fixed. 385 frontend tests.
+fixed. 423 frontend tests.
+
+**Every gate in the spec is placeable**, multi-qubit ones by the control-assignment
+sequence in [UI.md](UI.md): the first click fixes a wire and a column, each click
+after it adds one wire, and the operation commits when the signature is satisfied.
+`editor/pending.ts` holds that sequence as pure functions, so the whole thing is
+assertable without rendering anything. Three properties are easy to undo by
+accident:
+
+* **The sequence is driven by the signature, never by the gate's name.** `swap` is
+  two targets and no controls, `ccx` one target and two controls. A gate added to
+  `circuit.spec.json` gets its sequence for free; reading it off the name would be
+  a second description of the spec.
+* **Single- and multi-qubit placement are one code path.** A single-qubit
+  signature is satisfied by its first click, so it commits immediately and never
+  shows a pending state. Two paths that had to agree would be two chances to
+  disagree.
+* **Only the first click carries a column**, and it resolves against every qubit
+  the finished operation names — a `cx` occupies its control wire as surely as its
+  target.
 
 **`frontend/src/state/`** holds the store, the edit vocabulary and history,
 implementing [ADR-0007](decisions/ADR0007_EditingModel.md). Headless — only the
@@ -407,10 +426,6 @@ too small to mean anything until a guard was added.
 
 ### Remaining
 
-* [ ] Multi-qubit **placement** — palette entries exist and are `aria-disabled`;
-  `PaletteEntry.placeable` is the flag to remove. Needs the control-assignment
-  sequence in UI.md: place the target, then one click per control, `Escape`
-  cancelling the whole pending operation.
 * [ ] Measurements and barriers in the palette
 * [ ] Add and remove qubits and classical registers
 * [ ] Undo/redo **buttons** — the model is done and labelled; `undoLabel` and
@@ -426,6 +441,30 @@ too small to mean anything until a guard was added.
   real assistive technology before this milestone closes.
 * **An operation whose every qubit reference dangles is not drawn**, so the
   problems strip is the only route to it. That is why the strip selects by path.
+
+* **Two connector defects became reachable when multi-qubit placement landed**,
+  and neither is a placement bug — both are in `editor/layout.ts`. They were
+  unreachable before only because the palette could not place the gates that
+  produce them, and the demo circuit happens not to contain the arrangement.
+  Both need a circuit where two multi-qubit gates share a cycle without sharing a
+  wire, e.g. `cx(q0, q3)` beside `cx(q1, q2)`:
+
+  1. `occupancyByCycle` records an operation's `targets` but not its `controls`,
+     so a connector crossing another operation's **control dot** gets the 12px
+     empty-wire gap instead of glyph clearance. With `control: 5` that leaves
+     about a pixel between the line and the dot — reading as contact, which is
+     exactly what UI.md calls the gap semantically load-bearing to prevent. The
+     one-line fix is wrong on its own: `glyphClearance` is sized for a 40px box
+     and is far too wide for a 10px dot, so this wants a third clearance value.
+  2. Two connectors in one cycle land on the **same x**, nested or overlapping,
+     with nothing to distinguish them. No cheap fix; the usual answers are
+     splitting the cycle or offsetting one line, and both are design decisions.
+
+* **The pending-placement connector uses the empty-wire gap throughout**, even
+  where a glyph sits on a crossed wire. That is deliberate rather than the same
+  bug: a pending operation is not in the circuit, so `deriveCycles` has not
+  placed it and which wires are occupied *in its eventual column* has no answer
+  yet. The committed render, one click later, is where the distinction is real.
 * **`editor/demoCircuit.ts` is scaffolding** and should go once the editor opens
   on an empty or restored circuit.
 

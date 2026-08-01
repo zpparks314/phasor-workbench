@@ -275,6 +275,29 @@ partial cancellation invites a half-placed gate nobody meant to keep.
 `swap` takes two targets and no controls; `cx` takes one of each. The sequence is
 driven by the signature, never by the gate's name or qubit total.
 
+**Only the first click carries a column.** A gate occupies one column across
+every wire it uses — that is what makes it one entry in the canonical list — so a
+later click has no column to contribute and is read for its wire alone. The
+column the *first* click asked for is the request that
+[the placement rule](#the-drop-column-is-a-request-not-a-result) resolves, and it
+resolves it against every qubit the finished operation names.
+
+**A wire already assigned is refused, not assigned twice.** This is the one place
+the editor declines an edit rather than committing it and letting the problems
+strip report, and the exception is narrow enough to state precisely: a `cx`
+controlled by its own target is a `QUBIT_REUSED_IN_OPERATION` violation that
+*nothing in the edit vocabulary can repair*. `retargetOperation` refuses a
+multi-qubit operation by design — which of its qubits a retarget meant is
+ambiguous — and moving one only changes its column, so the user would be left
+with an operation they can only delete. ADR-0007 §7's "edits do not validate"
+governs invalid states the user can edit their way out of; this is not one.
+The pending overlay draws the taken wires, so the refusal is visible rather than
+a click that does nothing for no stated reason.
+
+Arming a different gate abandons a placement in progress, on the same reasoning:
+finishing a half-assigned `cx` with a wire meant for the `swap` since armed would
+commit a gate nobody asked for.
+
 ## Moving and Removing
 
 **Move** — drag a placed operation to a new cell, or select it and press
@@ -361,7 +384,7 @@ markup being right on paper proves little.
 | `Home` / `End` | first / last column on the current wire |
 | `Enter` / `Space` | place the armed gate, or select the operation under the cursor |
 | `Delete` / `Backspace` | remove the selection |
-| `Escape` | disarm, cancel a pending multi-qubit gate, or clear selection |
+| `Escape` | cancel a pending multi-qubit gate, else disarm, else clear selection |
 | `Ctrl/Cmd` + arrow | move the selected operation |
 | `b` / `Shift` + `B` | select the next / previous barrier |
 | `Ctrl/Cmd` + `Z` | undo |
@@ -375,6 +398,11 @@ Gates this build cannot place are **`aria-disabled`, not `disabled`**. A
 `disabled` button is skipped in silence, so arrowing across the palette would pass
 over them without saying why — for a teaching tool, the wrong kind of quiet. They
 stay focusable and announce that they are unavailable.
+
+This rule has no subject at present: every gate in `circuit.spec.json` is
+placeable now that control assignment exists, and the treatment was removed with
+the flag that drove it rather than left in place unused. It applies again when
+measurement and barrier join the palette.
 
 Hovering a cell moves the cursor, so the placement preview follows the mouse.
 Pointer and keyboard share one cursor rather than the pointer having a hover state

@@ -212,6 +212,36 @@ export function columnCenter(cycle: number, metrics: LayoutMetrics): number {
   return metrics.gutter + (cycle + 0.5) * metrics.column;
 }
 
+/**
+ * The provisional connector for a gate that is still being placed.
+ *
+ * Breaks at every wire the pending operation does not name, for the reason the
+ * committed connector does: only the qubits it names are its resources, and a
+ * line drawn straight through an uninvolved wire reads as contact. That signal
+ * is worth as much mid-placement as after it -- more, since assigning the wrong
+ * control is the mistake this sequence exists to make visible.
+ *
+ * **The empty-wire gap is used throughout, including where a glyph sits.** The
+ * wider clearance distinguishes an occupied crossing from an empty one, and a
+ * pending operation has no cycle yet -- `deriveCycles` has not seen it, because
+ * it is not in the circuit. Which wires are occupied *in its eventual column* is
+ * therefore not yet a question with an answer. The committed render, one click
+ * later, is where the distinction becomes real.
+ */
+export function pendingConnector(
+  anchors: readonly AnchorLayout[],
+  layout: CircuitLayout,
+): Segment[] {
+  return connectorFor(
+    anchors.map((anchor) => anchor.y),
+    new Set(anchors.map((anchor) => anchor.qubitId)),
+    layout.wires,
+    layout.registers,
+    new Set<string>(),
+    layout.metrics,
+  );
+}
+
 function layoutWires(circuit: Circuit, metrics: LayoutMetrics): WireLayout[] {
   return [...circuit.qubits]
     .sort((a, b) => a.index - b.index)

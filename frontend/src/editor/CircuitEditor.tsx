@@ -29,11 +29,26 @@ import {
 } from '../state/edits';
 import { useCircuitStore } from '../state/useCircuitStore';
 import { validateCircuit } from '../validation';
-import { CircuitCanvas, type CellPosition, type Settle } from './CircuitCanvas';
+import {
+  CircuitCanvas,
+  type CellPosition,
+  type PendingPreview,
+  type Settle,
+} from './CircuitCanvas';
 import { GatePalette } from './GatePalette';
 import { ProblemsStrip } from './ProblemsStrip';
-import { layoutCircuit } from './layout';
-import { defaultParameters } from './palette';
+import { columnCenter, layoutCircuit, pendingConnector } from './layout';
+import {
+  assignQubit,
+  beginPending,
+  canAssign,
+  describeRemaining,
+  isSatisfied,
+  nextRole,
+  pendingAnchors,
+  pendingOperation,
+  type PendingOperation,
+} from './pending';
 import {
   describeCells,
   insertionIndexFor,
@@ -57,6 +72,17 @@ export function CircuitEditor({
   const [cursor, setCursor] = useState<CellPosition>({ row: 0, column: 0 });
   const [dragging, setDragging] = useState<string | null>(null);
   const [settle, setSettle] = useState<Settle | null>(null);
+
+  /**
+   * A multi-qubit gate part-way through having its wires assigned.
+   *
+   * Interaction state, not circuit state: nothing is in the circuit until the
+   * signature is satisfied, so there is nothing for history to hold and nothing
+   * for `validateCircuit` to report. UI.md makes that explicit -- reporting
+   * "gate arity mismatch" between the first and second click of placing a `cx`
+   * is accurate and useless.
+   */
+  const [pending, setPending] = useState<PendingOperation | null>(null);
 
   /**
    * The column the last drag step asked for, so the settle animation can play
@@ -91,6 +117,31 @@ export function CircuitEditor({
   );
 
   /**
+   * The pending placement resolved to geometry, so the canvas keeps having
+   * nothing to decide.
+   *
+   * A wire that no longer resolves is dropped, on the same principle as
+   * `layout.ts`: an assignment can outlive the qubit it names if the circuit
+   * changes underneath it.
+   */
+  const pendingPreview = useMemo<PendingPreview | null>(() => {
+    if (pending === null) return null;
+
+    const anchors = pendingAnchors(pending).flatMap((anchor) => {
+      const wire = layout.wires.find((w) => w.qubitId === anchor.qubitId);
+      return wire === undefined ? [] : [{ ...anchor, y: wire.y }];
+    });
+
+    return {
+      name: pending.name,
+      x: columnCenter(pending.column, layout.metrics),
+      anchors,
+      connector: pendingConnector(anchors, layout),
+      nextRole: nextRole(pending),
+    };
+  }, [pending, layout]);
+
+  /**
    * Hovering moves the cursor, so the placement preview follows the mouse.
    *
    * Pointer and keyboard share one cursor rather than having a hover state
@@ -121,7 +172,7 @@ export function CircuitEditor({
       return;
     }
 
-    place(armed, qubitId, cell.column);
+    assignWire(armed, qubitId, cell.column);
   }
 
   /**
@@ -291,25 +342,58 @@ export function CircuitEditor({
           return operation === undefined ? null : describeOperation(operation);
         })();
 
-  function place(name: GateName, qubitId: string, column: number): void {
-    const signature = GATE_SIGNATURES[name];
-    const id = newIdentifier();
-    const index = insertionIndexFor(circuit, decomposition, [qubitId], column);
-    scheduleSettle(id, column);
+  /**
+   * One click of a placement, whatever stage it is at.
+   *
+   * **Single- and multi-qubit placement are the same code path**, which is the
+   * point: a single-qubit gate's signature is satisfied by its first click, so
+   * it commits immediately and never has a pending state to see. Two paths that
+   * had to agree with each other would be two chances to disagree.
+   *
+   * Only the first click carries a column -- a gate occupies one column across
+   * every wire it uses, so a later click has no column to contribute. See
+   * `./pending`.
+   */
+  function assignWire(name: GateName, qubitId: string, column: number): void {
+    if (pending === null) {
+      advance(beginPending(name, GATE_SIGNATURES[name], qubitId, column));
+      return;
+    }
 
-    store.apply(`Place ${name} on ${describeWire(qubitId)}`, (current) =>
-      insertOperation(
-        current,
-        {
-          id,
-          kind: 'gate',
-          name,
-          targets: [qubitId],
-          controls: [],
-          parameters: defaultParameters(signature),
-        },
-        index,
-      ),
+    // A wire already assigned is refused rather than taken twice, because the
+    // operation it would commit -- a cx controlled by its own target -- is one
+    // no edit in the vocabulary can repair. See `canAssign`.
+    if (!canAssign(pending, qubitId)) return;
+    advance(assignQubit(pending, qubitId));
+  }
+
+  function advance(next: PendingOperation): void {
+    if (isSatisfied(next)) {
+      commit(next);
+      setPending(null);
+      return;
+    }
+    setPending(next);
+  }
+
+  function commit(satisfied: PendingOperation): void {
+    const id = newIdentifier();
+    const operation = pendingOperation(satisfied, id);
+
+    // Every qubit it uses, not just its target. A cx occupies its control wire
+    // as surely as its target, and an index computed from the target alone puts
+    // it before something on the control that it has to follow.
+    const index = insertionIndexFor(
+      circuit,
+      decomposition,
+      qubitsOf(operation),
+      satisfied.column,
+    );
+    scheduleSettle(id, satisfied.column);
+
+    store.apply(
+      `Place ${satisfied.name} on ${satisfied.qubits.map(describeWire).join(', ')}`,
+      (current) => insertOperation(current, operation, index),
     );
     store.select(id);
   }
@@ -330,7 +414,18 @@ export function CircuitEditor({
   return (
     <div className="grid h-full grid-cols-[auto_1fr] gap-6">
       <aside className="w-44">
-        <GatePalette armed={armed} onArm={setArmed} />
+        {/*
+          Arming a different gate abandons any placement in progress. Keeping it
+          would leave a half-assigned cx waiting behind a swap the user has
+          since armed, and the next canvas click would finish the wrong gate.
+        */}
+        <GatePalette
+          armed={armed}
+          onArm={(name) => {
+            setArmed(name);
+            setPending(null);
+          }}
+        />
       </aside>
 
       <div className="flex min-w-0 flex-col gap-4">
@@ -340,6 +435,7 @@ export function CircuitEditor({
           cursor={cursor}
           selection={selection}
           armed={armed}
+          pending={pendingPreview}
           dragging={dragging}
           settle={settle}
           onCursorChange={(cell) => {
@@ -368,15 +464,36 @@ export function CircuitEditor({
             store.select(id);
           }}
           onRemoveSelection={removeSelected}
+          /*
+            One job per press, most specific first. Escape carries three
+            meanings in UI.md's shortcut table, and doing all of them at once
+            makes the two the user did not mean invisible -- cancelling a
+            half-placed cx would silently drop the selection as well.
+
+            Cancelling a placement leaves the gate armed, so retrying it costs
+            no trip back to the palette. A second press disarms.
+          */
           onCancel={() => {
-            setArmed(null);
-            store.select(null);
+            if (pending !== null) {
+              setPending(null);
+            } else if (armed !== null) {
+              setArmed(null);
+            } else {
+              store.select(null);
+            }
           }}
         />
 
         <p className="text-sm text-ink-muted" role="status">
           {`Depth ${String(decomposition.depth)} · ${String(circuit.operations.length)} operations`}
           {armed !== null && ` · placing ${armed}`}
+          {/*
+            The prompt for the next wire lives here rather than beside the
+            cursor, because the cursor has not moved: a screen reader has no
+            other way to learn that a placement is outstanding, or how many
+            wires it still wants.
+          */}
+          {pending !== null && ` · ${describeRemaining(pending) ?? ''}`}
           {/*
             The cell cursor does not follow the selection, so for anything not
             announced by aria-activedescendant -- a barrier above all -- this

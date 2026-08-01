@@ -9,7 +9,7 @@ import { validateCircuit } from '../validation';
 import { CircuitCanvas, type CircuitCanvasProps } from './CircuitCanvas';
 import { createDemoCircuit } from './demoCircuit';
 import { targetGlyph } from './glyphs';
-import { columnCenter, layoutCircuit } from './layout';
+import { columnCenter, layoutCircuit, pendingConnector } from './layout';
 import { describeCells } from './placement';
 
 function draw(circuit: Circuit, overrides: Partial<CircuitCanvasProps> = {}) {
@@ -26,6 +26,7 @@ function draw(circuit: Circuit, overrides: Partial<CircuitCanvasProps> = {}) {
     cursor: { row: 0, column: 0 },
     selection: null,
     armed: null,
+    pending: null,
     dragging: null,
     settle: null,
     onCursorChange: vi.fn(),
@@ -282,6 +283,135 @@ describe('rendering', () => {
     draw(circuitWith(2));
 
     expect(screen.queryByTestId('placement-preview')).toBeNull();
+  });
+});
+
+/**
+ * A gate part-way through having its wires assigned.
+ *
+ * The rule this section protects is the notation's: a box means exactly one
+ * thing, a single-qubit gate. A preview that drew every armed gate as a labelled
+ * box would promise a `cx` a shape it is not about to get, and would teach the
+ * wrong thing in the one place the editor is explaining itself.
+ */
+describe('a pending multi-qubit placement', () => {
+  /** Assigned wires resolved to geometry, as CircuitEditor hands them over. */
+  function pendingOver(
+    layout: ReturnType<typeof layoutCircuit>,
+    name: 'cx' | 'swap' | 'ccx',
+    assigned: readonly (readonly [string, 'target' | 'control'])[],
+    nextRole: 'target' | 'control' | null,
+  ) {
+    return {
+      name,
+      x: columnCenter(0, layout.metrics),
+      anchors: assigned.flatMap(([qubitId, role]) => {
+        const wire = layout.wires.find((w) => w.qubitId === qubitId);
+        return wire === undefined ? [] : [{ qubitId, role, y: wire.y }];
+      }),
+      connector: [],
+      nextRole,
+    };
+  }
+
+  it('previews a cx as its own glyph rather than a labelled box', () => {
+    const { container } = draw(circuitWith(2), {
+      armed: 'cx',
+      cursor: { row: 0, column: 0 },
+    });
+
+    const preview = screen.getByTestId('placement-preview');
+
+    expect(
+      preview.querySelector('[data-glyph]')?.getAttribute('data-glyph'),
+    ).toBe(targetGlyph('cx').kind);
+    expect(
+      container.querySelector('[data-testid="placement-preview"] text'),
+    ).toBeNull();
+  });
+
+  it('previews the next wire as a control once the target is assigned', () => {
+    const { layout } = draw(circuitWith(2), {
+      armed: 'cx',
+      cursor: { row: 1, column: 0 },
+      pending: pendingOver(
+        layoutCircuit(circuitWith(2), deriveCycles(circuitWith(2))),
+        'cx',
+        [['q_0', 'target']],
+        'control',
+      ),
+    });
+
+    expect(screen.getByTestId('placement-preview')).toHaveAttribute(
+      'data-role',
+      'control',
+    );
+    expect(layout.wires).toHaveLength(2);
+  });
+
+  it('draws the wires assigned so far, controls as solid dots', () => {
+    const circuit = circuitWith(3);
+    const layout = layoutCircuit(circuit, deriveCycles(circuit));
+
+    const { container } = draw(circuit, {
+      armed: 'ccx',
+      pending: pendingOver(
+        layout,
+        'ccx',
+        [
+          ['q_0', 'target'],
+          ['q_2', 'control'],
+        ],
+        'control',
+      ),
+    });
+
+    const placement = container.querySelector(
+      '[data-testid="pending-placement"]',
+    );
+
+    expect(placement?.querySelectorAll('[data-glyph="control"]')).toHaveLength(
+      1,
+    );
+    expect(
+      placement?.querySelector('[data-glyph="crossed-circle"]'),
+    ).not.toBeNull();
+  });
+
+  /**
+   * The connector breaks where it crosses a wire the operation does not name,
+   * mid-placement as much as after it. Assigning the wrong control is the
+   * mistake this sequence exists to make visible, and a line drawn straight
+   * through q1 would say the gate acts on it.
+   */
+  it('breaks its connector over a wire it does not name', () => {
+    const circuit = circuitWith(3);
+    const layout = layoutCircuit(circuit, deriveCycles(circuit));
+    const anchors = [
+      { qubitId: 'q_0', role: 'target' as const, y: layout.wires[0]?.y ?? 0 },
+      { qubitId: 'q_2', role: 'control' as const, y: layout.wires[2]?.y ?? 0 },
+    ];
+
+    expect(pendingConnector(anchors, layout)).toHaveLength(2);
+  });
+
+  it('runs unbroken where it crosses nothing', () => {
+    const circuit = circuitWith(2);
+    const layout = layoutCircuit(circuit, deriveCycles(circuit));
+    const anchors = [
+      { qubitId: 'q_0', role: 'target' as const, y: layout.wires[0]?.y ?? 0 },
+      { qubitId: 'q_1', role: 'control' as const, y: layout.wires[1]?.y ?? 0 },
+    ];
+
+    expect(pendingConnector(anchors, layout)).toHaveLength(1);
+  });
+
+  it('draws nothing when no placement is pending', () => {
+    const { container } = draw(circuitWith(2));
+
+    expect(
+      container.querySelector('[data-testid="pending-placement"]'),
+    ).toBeNull();
   });
 });
 
