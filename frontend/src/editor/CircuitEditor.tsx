@@ -46,6 +46,7 @@ import { GatePalette } from './GatePalette';
 import { ProblemsStrip } from './ProblemsStrip';
 import { StructureControls } from './StructureControls';
 import { columnCenter, layoutCircuit, pendingConnector } from './layout';
+import { isGateName, type PaletteItem } from './palette';
 import {
   assignQubit,
   beginPending,
@@ -76,7 +77,7 @@ export function CircuitEditor({
   const store = useRef(createCircuitStore(initialCircuit)).current;
   const { circuit, selection } = useCircuitStore(store);
 
-  const [armed, setArmed] = useState<GateName | null>(null);
+  const [armed, setArmed] = useState<PaletteItem | null>(null);
   const [cursor, setCursor] = useState<CellPosition>({ row: 0, column: 0 });
   const [dragging, setDragging] = useState<string | null>(null);
   const [settle, setSettle] = useState<Settle | null>(null);
@@ -180,7 +181,99 @@ export function CircuitEditor({
       return;
     }
 
-    assignWire(armed, qubitId, cell.column);
+    // Gates run the control-assignment sequence; the other two kinds are a
+    // single click, so they place outright rather than through `./pending`.
+    if (isGateName(armed)) assignWire(armed, qubitId, cell.column);
+    else if (armed === 'measurement') placeMeasurement(qubitId, cell.column);
+    else placeBarrier(cell.column);
+  }
+
+  /**
+   * Place a measurement, writing into the first register's first free bit.
+   *
+   * **Choosing the register and bit is deferred**, and this default is the whole
+   * of it: the first declared register, and the lowest bit no other measurement
+   * writes to. A circuit with two registers therefore cannot reach the second,
+   * which is a missing feature rather than a wrong one -- the circuit produced is
+   * valid, just not necessarily the one a user with two registers wanted.
+   * Roadmap.md tracks it.
+   *
+   * When every bit is taken the next one is out of range, and the circuit is
+   * invalid until the user grows the register. That is deliberate rather than
+   * clamped: `CLASSICAL_BIT_OUT_OF_RANGE` says exactly what is wrong, the size
+   * control fixes it, and clamping instead would silently write two measurements
+   * to one bit -- legal, but it makes them contend for that bit and serialises
+   * two operations the user expected to be concurrent.
+   */
+  function placeMeasurement(qubitId: string, column: number): void {
+    const register = circuit.classicalRegisters[0];
+    if (register === undefined) return;
+
+    const taken = new Set(
+      circuit.operations.flatMap((operation) =>
+        operation.kind === 'measurement' &&
+        operation.classicalTarget.register === register.id
+          ? [operation.classicalTarget.bit]
+          : [],
+      ),
+    );
+    let bit = 0;
+    while (taken.has(bit)) bit += 1;
+
+    const id = newIdentifier();
+    const index = insertionIndexFor(circuit, decomposition, [qubitId], column);
+    scheduleSettle(id, column);
+
+    store.apply(`Measure ${describeWire(qubitId)}`, (current) =>
+      insertOperation(
+        current,
+        {
+          id,
+          kind: 'measurement',
+          targets: [qubitId],
+          classicalTarget: { register: register.id, bit },
+        },
+        index,
+      ),
+    );
+    store.select(id);
+  }
+
+  /**
+   * Place a barrier across every wire currently in the circuit.
+   *
+   * **All wires, captured now rather than tracked.** A barrier's targets are
+   * authored data, and CircuitModel.md rules out an implicit "all qubits"
+   * barrier precisely because its meaning would change when a qubit is added.
+   * Expanding at placement time is what OpenQASM's bare `barrier;` does on
+   * import, and it leaves the document saying exactly what it means: a barrier
+   * over these wires, which nothing later rewrites.
+   *
+   * Removing a qubit still shrinks it, and that is not the mirror of this. A
+   * removed qubit takes its reference with it, so the shrink is forced by
+   * referential integrity; a new qubit is referenced by nothing and forces
+   * nothing.
+   */
+  function placeBarrier(column: number): void {
+    const [first, ...rest] = layout.wires.map((wire) => wire.qubitId);
+    if (first === undefined) return;
+
+    const id = newIdentifier();
+    const index = insertionIndexFor(
+      circuit,
+      decomposition,
+      [first, ...rest],
+      column,
+    );
+
+    store.apply('Place barrier', (current) =>
+      insertOperation(
+        current,
+        { id, kind: 'barrier', targets: [first, ...rest] },
+        index,
+      ),
+    );
+    store.select(id);
   }
 
   /**
@@ -482,6 +575,17 @@ export function CircuitEditor({
             setArmed(name);
             setPending(null);
           }}
+          /*
+            A measurement has nowhere to write with no register declared, which
+            is the one entry the circuit can currently refuse. Announced rather
+            than hidden -- the model supports measurement, this circuit is not
+            ready for one, and those are different statements.
+          */
+          unavailable={(item) =>
+            item === 'measurement' && circuit.classicalRegisters.length === 0
+              ? 'Unavailable: add a classical register to measure into.'
+              : undefined
+          }
         />
       </aside>
 

@@ -274,8 +274,8 @@ Allow users to visually construct quantum circuits.
 * [x] Remove gates
 * [x] Move gates — drag and keyboard
 * [x] Multi-qubit gates — placed by control assignment, pointer and keyboard
-* [ ] Place measurements
-* [ ] Place barriers
+* [x] Place measurements
+* [x] Place barriers — expanded to every wire at placement time
 * [ ] Save locally
 
 **This list was reordered and extended on 2026-07-30.** Two changes, both
@@ -301,7 +301,7 @@ the Definition of Done leans on these.
 
 * [x] A user can build a circuit from empty: add and remove qubits and classical
   registers, with qubit indices contiguous from 0 at every point.
-* [ ] A user can place, move, and remove every gate in `circuit.spec.json`'s gate
+* [x] A user can place, move, and remove every gate in `circuit.spec.json`'s gate
   set, plus measurements and barriers.
 * [x] Multi-qubit gates are placed with explicit control assignment and render
   with connectors spanning intervening idle wires.
@@ -368,7 +368,7 @@ applies unchanged.
 from the palette, place it by pointer or keyboard, select it, move it by drag or
 `Ctrl/Cmd` + arrow, and remove it. Undo and redo work from the keyboard. Barriers
 are selectable with `b`. Violations appear in the problems strip and clear when
-fixed. 447 frontend tests.
+fixed. 466 frontend tests.
 
 **A circuit can be built from empty.** `editor/StructureControls.tsx` adds and
 removes qubits and classical registers, and edits a register's size. It is a
@@ -391,6 +391,33 @@ Three decisions there worth not undoing:
 * **A register is labelled by position, never by its identifier.** The fallback
   used to be `register.id`, which was harmless when registers came from fixtures
   and puts a UUID in the gutter now that the editor mints them.
+
+**Measurements and barriers are placed from the palette**, alongside the gates,
+because they are operations and giving them a separate mode would obscure that.
+They are the one hand-written part of the palette and deliberately so: both are
+operation *kinds* in the schema, not gates, so no generated list could supply
+them.
+
+**A barrier is expanded to every wire at placement time and never rewritten.**
+This is the settled answer to "should a barrier extend when a qubit is added?" —
+it should not, and `CircuitModel.md` had already decided it: there is no implicit
+"all qubits" barrier *because its meaning would silently change when a qubit is
+added*. Expanding on placement is what an importer does with OpenQASM's bare
+`barrier;`. The asymmetry with removal is principled rather than an oversight — a
+removed qubit takes its reference with it, so shrinking is forced by referential
+integrity, while a new qubit is referenced by nothing and forces nothing. And the
+two cases are indistinguishable anyway: a barrier over all three wires and a
+barrier over exactly q0/q1/q2 are byte-identical, so auto-extending could not
+touch one without silently widening the other, changing a depth the user set
+deliberately. An explicit "extend to all wires" action remains open as a future
+addition, and has none of these problems because the user asks for it.
+
+**A measurement writes into the first register's lowest free bit**, and choosing
+the register is deferred — a circuit with two registers cannot yet reach the
+second. Missing rather than wrong: the circuit produced is valid. Running out of
+bits is reported as `CLASSICAL_BIT_OUT_OF_RANGE` rather than clamped, because
+clamping would write two measurements to one bit and silently serialise them per
+ADR-0003's per-bit contention.
 
 **Every gate in the spec is placeable**, multi-qubit ones by the control-assignment
 sequence in [UI.md](UI.md): the first click fixes a wire and a column, each click
@@ -448,10 +475,13 @@ too small to mean anything until a guard was added.
 
 ### Remaining
 
-* [ ] Measurements and barriers in the palette
 * [ ] Undo/redo **buttons** — the model is done and labelled; `undoLabel` and
   `redoLabel` exist so they can say "Undo place H" rather than "Undo"
 * [ ] Parameter editing — rotation gates place at a fixed π/2
+* [ ] Choosing a measurement's register and bit — it always writes to the first
+  register's lowest free bit, so a circuit with two registers cannot reach the
+  second. The circuit produced is valid, so this is a missing feature rather than
+  a wrong result
 * [ ] Local save, and with it ADR-0008 and `frontend/src/serialization/`
 
 **Known gaps**

@@ -431,10 +431,10 @@ Gates this build cannot place are **`aria-disabled`, not `disabled`**. A
 over them without saying why — for a teaching tool, the wrong kind of quiet. They
 stay focusable and announce that they are unavailable.
 
-This rule has no subject at present: every gate in `circuit.spec.json` is
-placeable now that control assignment exists, and the treatment was removed with
-the flag that drove it rather than left in place unused. It applies again when
-measurement and barrier join the palette.
+Every gate in `circuit.spec.json` is placeable now that control assignment
+exists, so the rule's subject today is **measurement with no classical register
+declared** — it has nowhere to write. Availability depends on the circuit rather
+than on the entry, so the editor decides it and the palette renders it.
 
 Hovering a cell moves the cursor, so the placement preview follows the mouse.
 Pointer and keyboard share one cursor rather than the pointer having a hover state
@@ -477,7 +477,60 @@ being the two things a gate signature cannot express.
 
 Measurement and barrier sit in the palette rather than in a separate mode. They
 are operations, they are placed the same way, and giving them their own mechanism
-would obscure that.
+would obscure that. They are the one hand-written part of the palette, and
+deliberately so: both are operation *kinds* in the schema rather than gates, so
+there is no generated list they could come from. `CircuitModel.md` is explicit
+that `barrier` "is an operation kind, not a gate name".
+
+**A measurement writes into the first register's lowest free bit.** Choosing the
+register and the bit is deferred, and this default is the whole of it — a circuit
+with two registers cannot yet reach the second. That is a missing feature rather
+than a wrong result: the circuit produced is valid, just not necessarily the one
+the user wanted.
+
+When every bit is taken, the next one is out of range and the circuit is invalid
+until the register grows. That is deliberate rather than clamped. Clamping would
+write two measurements to one bit — legal, but per ADR-0003 they then contend for
+that bit, which serialises two operations the user expected to run together.
+`CLASSICAL_BIT_OUT_OF_RANGE` says exactly what is wrong, and the register's size
+control is the fix.
+
+**A measurement is unavailable when no classical register is declared**, because
+it would have nowhere to write. This is the case UI.md's `aria-disabled` rule
+exists for: announced rather than hidden, since the model supports measurement and
+this particular circuit is not ready for one, and those are different statements.
+
+## Placing a Barrier
+
+**A barrier is expanded to every wire in the circuit at placement time**, and
+never rewritten afterwards.
+
+This follows from a decision `CircuitModel.md` already made: there is no implicit
+"all qubits" barrier, *because its meaning would silently change when a qubit is
+added*. Expanding on placement is exactly what an importer does with OpenQASM's
+bare `barrier;`, and it leaves the document saying what it means — a barrier over
+these wires, which nothing later rewrites.
+
+So a qubit added afterwards is **not** joined to an existing barrier. The
+asymmetry with removal is real but principled, and worth stating because it looks
+like an oversight:
+
+* **Removing a qubit shrinks a barrier**, because the removed qubit takes its
+  reference with it. Leaving it would dangle and `validateCircuit` would report
+  `UNKNOWN_QUBIT_REFERENCE`. That shrink is forced by referential integrity — the
+  same cleanup that removes gates on the wire — not a policy about barriers.
+* **Adding a qubit extends nothing**, because the new wire is referenced by
+  nothing and so forces nothing. Extending would be inventing intent.
+
+There is also no way to tell the two cases apart. A barrier over all three qubits
+of a three-qubit circuit and a barrier over exactly q0/q1/q2 are byte-identical
+documents, so auto-extending could not apply to the first without silently
+widening the second — and since barriers constrain scheduling, that would change
+the circuit's depth, which is the one thing barriers exist to control.
+
+An explicit "extend to all wires" action on a selected barrier remains available
+as a future addition. It is a user-initiated edit, so it has none of these
+problems.
 
 ---
 

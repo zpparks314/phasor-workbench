@@ -21,6 +21,7 @@
 
 import type { GateName } from '../model/circuit';
 import type { CellContent } from './placement';
+import type { PaletteItem } from './palette';
 import type {
   AnchorLayout,
   BarrierLayout,
@@ -72,7 +73,7 @@ export interface CircuitCanvasProps {
   readonly cells: readonly (readonly CellContent[])[];
   readonly cursor: CellPosition;
   readonly selection: string | null;
-  readonly armed: GateName | null;
+  readonly armed: PaletteItem | null;
   readonly pending: PendingPreview | null;
   readonly dragging: string | null;
   readonly settle: Settle | null;
@@ -293,7 +294,21 @@ export function CircuitCanvas({
             <PendingPlacement pending={pending} metrics={layout.metrics} />
           )}
 
+          {/*
+            A barrier previews across every wire, because that is what placing
+            one does -- it is expanded to the whole circuit at placement time.
+            Drawn on the boundary before the cursor's column, where it will sit.
+          */}
+          {armed === 'barrier' && layout.wires.length > 0 && (
+            <BarrierPreview
+              x={layout.metrics.gutter + active.column * layout.metrics.column}
+              wires={layout.wires}
+              reach={layout.metrics.lane * 0.4}
+            />
+          )}
+
           {armed !== null &&
+            armed !== 'barrier' &&
             (pending === null || pending.nextRole !== null) && (
               <Preview
                 x={
@@ -894,28 +909,11 @@ function Measurement({
 
   return (
     <g data-operation-id={measurement.operationId} data-selected={selected}>
-      <rect
-        x={measurement.x - glyph / 2}
-        y={anchor.y - glyph / 2}
-        width={glyph}
-        height={glyph}
-        rx={6}
-        className="fill-surface-raised stroke-current"
-        strokeWidth={selected ? 3 : 1.5}
-      />
-      {/* A meter: an arc with a needle, the conventional measurement glyph. */}
-      <path
-        d={dial(measurement.x, anchor.y, glyph)}
-        className="fill-none stroke-current"
-        strokeWidth={1.5}
-      />
-      <line
-        x1={measurement.x}
-        y1={anchor.y + glyph * 0.16}
-        x2={measurement.x + glyph * 0.24}
-        y2={anchor.y - glyph * 0.2}
-        className="stroke-current"
-        strokeWidth={1.5}
+      <MeterSymbol
+        x={measurement.x}
+        y={anchor.y}
+        metrics={layout.metrics}
+        emphasised={selected}
       />
       <text
         x={measurement.x + glyph * 0.45}
@@ -924,6 +922,54 @@ function Measurement({
       >
         {measurement.bit}
       </text>
+    </g>
+  );
+}
+
+/**
+ * A meter: an arc with a needle, the conventional measurement glyph.
+ *
+ * Shared by the committed measurement and its placement preview, for the reason
+ * `TargetSymbol` is shared -- a preview that draws something else promises a
+ * shape the commit will not deliver.
+ */
+function MeterSymbol({
+  x,
+  y,
+  metrics,
+  emphasised = false,
+}: {
+  readonly x: number;
+  readonly y: number;
+  readonly metrics: LayoutMetrics;
+  readonly emphasised?: boolean;
+}): React.JSX.Element {
+  const { glyph } = metrics;
+
+  return (
+    <g data-glyph="meter">
+      <rect
+        x={x - glyph / 2}
+        y={y - glyph / 2}
+        width={glyph}
+        height={glyph}
+        rx={6}
+        className="fill-surface-raised stroke-current"
+        strokeWidth={emphasised ? 3 : 1.5}
+      />
+      <path
+        d={dial(x, y, glyph)}
+        className="fill-none stroke-current"
+        strokeWidth={1.5}
+      />
+      <line
+        x1={x}
+        y1={y + glyph * 0.16}
+        x2={x + glyph * 0.24}
+        y2={y - glyph * 0.2}
+        className="stroke-current"
+        strokeWidth={1.5}
+      />
     </g>
   );
 }
@@ -971,12 +1017,12 @@ function Preview({
   readonly x: number;
   readonly y: number;
   readonly metrics: LayoutMetrics;
-  readonly name: GateName;
+  readonly name: Exclude<PaletteItem, 'barrier'>;
   readonly role: QubitRole;
 }): React.JSX.Element {
   return (
     <g className="opacity-40" data-testid="placement-preview" data-role={role}>
-      {role === 'control' ? (
+      {role === 'control' && (
         <circle
           cx={x}
           cy={y}
@@ -984,7 +1030,14 @@ function Preview({
           className="fill-current"
           data-glyph="control"
         />
-      ) : (
+      )}
+
+      {/* A measurement is not a gate and has no entry in the glyph table. */}
+      {role === 'target' && name === 'measurement' && (
+        <MeterSymbol x={x} y={y} metrics={metrics} />
+      )}
+
+      {role === 'target' && name !== 'measurement' && (
         <TargetSymbol
           symbol={targetGlyph(name)}
           x={x}
@@ -994,6 +1047,42 @@ function Preview({
         />
       )}
     </g>
+  );
+}
+
+/**
+ * A barrier as it would be placed: across every wire, on the boundary before
+ * the cursor's column.
+ *
+ * Full width because that is what placing one does. A barrier's targets are
+ * expanded to the circuit's wires at placement time and never rewritten
+ * afterwards -- CircuitModel.md rules out an implicit "all qubits" barrier
+ * precisely because a tracked one would change meaning when a qubit is added.
+ */
+function BarrierPreview({
+  x,
+  wires,
+  reach,
+}: {
+  readonly x: number;
+  readonly wires: readonly WireLayout[];
+  readonly reach: number;
+}): React.JSX.Element {
+  const first = wires[0];
+  const last = wires.at(-1);
+  if (first === undefined || last === undefined) return <g />;
+
+  return (
+    <line
+      data-testid="barrier-preview"
+      x1={x}
+      y1={first.y - reach}
+      x2={x}
+      y2={last.y + reach}
+      className="stroke-current opacity-40"
+      strokeWidth={2}
+      strokeDasharray="4 4"
+    />
   );
 }
 
