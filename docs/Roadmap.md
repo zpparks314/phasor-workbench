@@ -19,16 +19,25 @@ Nothing in the model is provisional, which was the point of finishing it before
 the editor: Milestone 3 builds on a settled foundation rather than on something it
 will have to renegotiate.
 
-**Milestone 3 has started with its design decisions rather than its components.**
+**Milestone 3 is one task from complete.** Everything on its list is built except
+**Save locally**, and every exit criterion is met except the two that depend on
+it. A user can build a circuit from empty in the browser: add and remove qubits
+and registers, place every gate in the spec plus measurements and barriers, move
+and remove them, undo and redo, and see violations as they appear. 489 frontend
+tests.
+
 [ADR-0007](decisions/ADR0007_EditingModel.md) is Accepted and settles the editing
 model — edits as pure functions, a bounded stack of labeled snapshots, and
 coalescing declared by the interaction. [UI.md](UI.md) is written for this
-milestone's scope. Local storage is chosen as the persistence mechanism.
+milestone's scope and has been amended as the editor was built; where it and this
+file disagree about behaviour, UI.md is the specification.
 
-Three entries remain in **Decisions Awaiting the Owner** — two scoped to Milestone
-3, one to Milestone 4. The two Milestone 3 entries are one decision cluster and
-land together in ADR-0008, alongside the frontend loader; neither blocks the
-editor work that precedes local save.
+**What remains is one feature and one ADR, and they are the same piece of work.**
+Local storage is chosen as the mechanism, but two decisions still block the code —
+both scoped to Milestone 3, both landing together in ADR-0008 alongside the
+frontend loader. They are the only remaining entries in **Decisions Awaiting the
+Owner** for this milestone; a third is scoped to Milestone 4. See *Where to Pick
+Up*.
 
 ---
 
@@ -305,20 +314,21 @@ the Definition of Done leans on these.
   set, plus measurements and barriers.
 * [x] Multi-qubit gates are placed with explicit control assignment and render
   with connectors spanning intervening idle wires.
-* [ ] Render columns come from `deriveCycles` on every render. No component
+* [x] Render columns come from `deriveCycles` on every render. No component
   stores a coordinate, a column index, or a second copy of the circuit —
   asserted by a test that the store's state is a bare `Circuit`.
-* [ ] Every violation `validateCircuit` reports is surfaced against the operation
+* [x] Every violation `validateCircuit` reports is surfaced against the operation
   it concerns and clears when fixed. No violation is cached across an edit.
-* [ ] Undo and redo restore the exact prior circuit for every edit type, verified
+* [x] Undo and redo restore the exact prior circuit for every edit type, verified
   by a property test: apply a random valid edit sequence, undo to the start,
   assert deep equality with the initial circuit.
 * [ ] A circuit survives a browser refresh, and `frontend/src/serialization/`
   produces the same outcome as the Python loader on all 14 fixtures in
   `shared/fixtures/version/`.
-* [ ] Placement, selection, and removal are operable by keyboard.
+* [x] Placement, selection, and removal are operable by keyboard.
 * [ ] `UI.md` is written; ADR-0007 and ADR-0008 are Accepted; `Frontend.md` and
-  `ProjectStructure.md` carry the new modules.
+  `ProjectStructure.md` carry the new modules. — **all but ADR-0008**, which
+  lands with local save.
 
 Two of these are worth noting for why they are cheap rather than aspirational.
 The undo property test is possible because ADR-0007 makes `state/` headless and
@@ -334,10 +344,32 @@ and parity follows transitively, exactly as it does for validation and cycles.
 Everything in this milestone assumes both. *Status* below says what exists;
 *Remaining* says what does not.
 
+**The next task is local save, and it starts with ADR-0008 rather than with
+code.** Two decisions block it, both listed below. Write the ADR first: the
+mechanism chosen for shape validation determines whether
+`shared/generate_bindings.py` gains a step, which is a cross-language change and
+not something to discover halfway through `frontend/src/serialization/`.
+
+Three things fall out of local save once it lands, and none should be attempted
+before it:
+
+* **`editor/demoCircuit.ts` goes.** It is scaffolding, and the only thing still
+  holding it is that nothing survives a refresh.
+* **"New circuit"** — the document-level reset that `clearOperations` deliberately
+  stops short of, because it needs to know about unsaved changes.
+* **The save button and save status** in `editor/EditorHeader.tsx`, which UI.md's
+  region diagram already reserves space for.
+
+**Parameter editing is the one remaining task that does not depend on save**, and
+it is small: rotation gates place at a fixed π/2, and `setParameters` is already
+in the edit vocabulary, unused. What it needs is a decision about where the
+control lives — UI.md says the palette prompts on placement, which is not what the
+editor currently does.
+
 **What is available to build on.** `frontend/src/model/` for the types,
 `frontend/src/validation/` for inline feedback, `frontend/src/cycles/` for render
 columns, `frontend/src/state/` for every change to the circuit, and
-`frontend/src/editor/` for geometry and placement.
+`frontend/src/editor/` for geometry, placement, and the components.
 
 **The constraint that shapes everything here:** `editor/layout.ts` computes pixel
 geometry, and never decides *which column* an operation occupies. That is
