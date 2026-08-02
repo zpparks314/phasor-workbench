@@ -34,3 +34,19 @@ export interface HealthResponse {
   status: 'ok';
   version: string;
 }
+
+/**
+ * `POST /api/v1/circuits/analyze`. Static analysis, no simulation.
+ *
+ * `depth` is the backend's `deriveCycles` depth -- the same derivation the
+ * canvas draws its columns from, implemented separately in Python and held to
+ * the same fixtures. The two agreeing is the point of calling this at all.
+ */
+export interface AnalysisResponse {
+  qubitCount: number;
+  gateCount: number;
+  measurementCount: number;
+  depth: number;
+  /** Occurrences per gate name. A gate that does not appear is absent. */
+  gateBreakdown: Record<string, number>;
+}

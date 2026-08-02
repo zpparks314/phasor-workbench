@@ -94,6 +94,29 @@ export async function request<T>(
       );
     }
 
+    /**
+     * A 5xx with no JSON body at all means nothing answered.
+     *
+     * In development the Vite proxy stands between the browser and the
+     * backend, and a proxy whose upstream is refusing connections replies
+     * `500` with an empty body -- so `fetch` *succeeds* and the network-level
+     * branch above never runs. Reporting the proxy's status code told the user
+     * "Request failed with status 500", which describes the transport and
+     * hides the only fact that matters: the backend is not running.
+     *
+     * The body is what separates the two. A backend that threw still answers
+     * with JSON -- either this envelope, or FastAPI's own `{"detail": ...}` --
+     * so it falls through to `INTERNAL_ERROR` below, where it belongs. Nothing
+     * answering at all produces no body to parse.
+     */
+    if (response.status >= 500 && parsed === null) {
+      throw new ApiError(
+        'BACKEND_UNAVAILABLE',
+        'Could not reach the backend. Is it running?',
+        response.status,
+      );
+    }
+
     throw new ApiError(
       'INTERNAL_ERROR',
       `Request failed with status ${String(response.status)}.`,

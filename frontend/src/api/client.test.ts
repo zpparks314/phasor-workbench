@@ -54,4 +54,43 @@ describe('request', () => {
     expect((error as ApiError).code).toBe('BACKEND_UNAVAILABLE');
     expect((error as ApiError).isUserFacing).toBe(false);
   });
+
+  /**
+   * The dev-proxy case, and the reason it needs its own branch.
+   *
+   * With the Vite proxy in front of a backend that is not running, the proxy
+   * answers 500 with an empty body -- so `fetch` resolves and the rejection
+   * branch above never fires. Reporting the status code said "Request failed
+   * with status 500", which is true about the transport and useless about the
+   * cause.
+   */
+  it('treats a bodyless 5xx as an unreachable backend, not an internal error', async () => {
+    mockFetch({
+      ok: false,
+      status: 500,
+      json: () => Promise.reject(new SyntaxError('Unexpected end of JSON')),
+    });
+
+    const error = await request('/circuits/analyze').catch((e: unknown) => e);
+
+    expect((error as ApiError).code).toBe('BACKEND_UNAVAILABLE');
+    expect((error as ApiError).message).toMatch(/is it running/i);
+  });
+
+  /**
+   * The other side of that line. A backend that threw still answers with JSON,
+   * so it must stay an internal error -- collapsing both into "unreachable"
+   * would hide real backend faults behind a message saying it is not running.
+   */
+  it('keeps a 500 that carries a body as an internal error', async () => {
+    mockFetch({
+      ok: false,
+      status: 500,
+      json: () => Promise.resolve({ detail: 'Internal Server Error' }),
+    });
+
+    const error = await request('/circuits/analyze').catch((e: unknown) => e);
+
+    expect((error as ApiError).code).toBe('INTERNAL_ERROR');
+  });
 });

@@ -149,7 +149,7 @@ Validation rules are defined in [CircuitModel.md](CircuitModel.md) and shared wi
 
 ## `POST /api/v1/circuits/analyze`
 
-Static analysis. No simulation.
+Static analysis. No simulation. **Implemented in Milestone 4** — the first endpoint to take a circuit, and the rest of this section is now description rather than plan.
 
 **Request**
 
@@ -164,12 +164,22 @@ Static analysis. No simulation.
   "qubitCount": 2,
   "gateCount": 2,
   "measurementCount": 2,
-  "depth": 2,
+  "depth": 3,
   "gateBreakdown": { "h": 1, "cx": 1 }
 }
 ```
 
 Cheap enough to call on every edit, which is why it is separate from simulation.
+
+**The depth in that example was `2` until 2026-08-02, and it was wrong.** The circuit it describes is `h(q0)`, `cx(q0, q1)`, then a measurement on each wire: the two measurements share a cycle, so the decomposition is three cycles deep, not two. The number was written by hand before anything could compute it. It now comes from `derive_cycles`, and the endpoint's test asserts this body verbatim so the document and the implementation cannot drift again.
+
+Three properties worth stating, because each is a decision rather than an accident:
+
+* **`depth` is the cycle derivation's, never a recount.** It is the same component the canvas draws its columns from, implemented separately in both languages and held to the same fixtures. A second opinion about depth is exactly what ADR-0001 forbids.
+* **A barrier is counted as neither a gate nor a measurement**, so `gateCount + measurementCount` is deliberately not the operation count. A barrier is an authoring constraint rather than something the circuit does. It can still *raise* depth by levelling an unequal frontier, which is not a contradiction — it occupies no cycle of its own while changing which cycle other operations land in.
+* **A gate absent from the circuit is absent from `gateBreakdown`**, rather than present with a zero.
+
+The request body is loaded through the versioned loader before it is validated, per ADR-0006 — a document can be well-shaped and still not a legal circuit, and the two stages report different codes. An invalid circuit returns `422` with `CIRCUIT_INVALID` and one `details` entry per violation, carrying the shared spec's codes unchanged.
 
 ---
 

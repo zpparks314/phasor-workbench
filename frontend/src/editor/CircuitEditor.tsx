@@ -53,9 +53,11 @@ import {
   type PendingPreview,
   type Settle,
 } from './CircuitCanvas';
+import { AnalysisPanel } from './AnalysisPanel';
 import { EditorHeader } from './EditorHeader';
 import { GatePalette } from './GatePalette';
 import { Inspector } from './Inspector';
+import { useAnalysis } from './useAnalysis';
 import { ProblemsStrip } from './ProblemsStrip';
 import { StructureControls } from './StructureControls';
 import { columnCenter, layoutCircuit, pendingConnector } from './layout';
@@ -638,6 +640,16 @@ export function CircuitEditor({
   }
 
   /**
+   * The backend's own analysis, debounced and abortable.
+   *
+   * The only network call the editor makes. It is deliberately not what the
+   * status line reads -- that stays local, because a render must never wait on
+   * the network -- so the editor keeps working exactly as before when the
+   * backend is down.
+   */
+  const analysis = useAnalysis(circuit);
+
+  /**
    * Write one parameter, coalescing until the interaction ends.
    *
    * Every call merges into the same history entry, so dragging the angle slider
@@ -848,12 +860,13 @@ export function CircuitEditor({
         </div>
 
         {/*
-          The inspector takes the column Milestone 3 reserved. Milestone 4's
-          results panel joins it beneath rather than replacing it: one is what
-          the selected operation *is*, the other what the whole circuit *does*,
-          and they are read at different moments.
+          The inspector takes the column Milestone 3 reserved, and the analysis
+          panel sits beneath it rather than replacing it: one is what the
+          selected operation *is*, the other what the whole circuit *amounts
+          to*, and they are read at different moments. Simulation results join
+          them below.
         */}
-        <aside>
+        <aside className="flex flex-col gap-6">
           <Inspector
             operation={selected}
             registers={layout.registers.map((lane) => ({
@@ -867,6 +880,8 @@ export function CircuitEditor({
             }}
             onClassicalTargetChange={changeClassicalTarget}
           />
+
+          <AnalysisPanel state={analysis} />
         </aside>
       </div>
     </div>
