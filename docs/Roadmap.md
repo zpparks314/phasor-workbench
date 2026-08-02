@@ -423,7 +423,10 @@ usable without it.
 ADR-0006 section 5 recorded: the frontend now reads circuits it did not build. Its
 shape validator is compiled from `circuit.schema.json` during generation, per
 [ADR-0008](decisions/ADR0008_LocalPersistence.md) — Ajv is a devDependency and
-nothing it produces is imported at runtime.
+nothing it produces is imported at runtime, which holds only because the emitted
+module is **bundled** during generation. `standaloneCode` alone emits `require`
+calls a browser cannot resolve; that shipped once and blanked the page, and is
+now asserted against.
 
 Two findings from building it, both recorded where they bite:
 
