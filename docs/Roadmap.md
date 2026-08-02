@@ -25,11 +25,13 @@ remove qubits and registers, place every gate in the spec plus measurements and
 barriers, move and remove them, undo and redo, see violations as they appear, and
 save work that survives a refresh. 609 frontend tests and 256 backend.
 
-**Milestone 4 (Simulation MVP) may begin, and owes no decisions.** It is the
-first milestone to need the backend since Milestone 2, and the first to need
-Qiskit. The interpreter question that was its one open entry was resolved on
-2026-08-02 by discovering it no longer existed — Qiskit runs on native 3.14. See
-*Decisions Awaiting the Owner*.
+**Milestone 4 (Simulation MVP) is under way and owes no decisions.** The
+interpreter question that was its one open entry was resolved on 2026-08-02 by
+discovering it no longer existed — Qiskit runs on native 3.14. See *Decisions
+Awaiting the Owner*.
+
+The backend is no longer idle: it serves `POST /api/v1/circuits/analyze`, the
+first endpoint to take a circuit, and the frontend calls it.
 
 [ADR-0007](decisions/ADR0007_EditingModel.md) is Accepted and settles the editing
 model — edits as pure functions, a bounded stack of labeled snapshots, and
@@ -616,13 +618,13 @@ Execute circuits and display results.
 
 * [x] Parameter editing — an inspector, which closed the measurement-target
   deferral at the same time
-* [ ] Backend API
+* [x] Backend API — `POST /api/v1/circuits/analyze`, the first circuit endpoint
 * [ ] Qiskit integration
 * [ ] Statevector simulation
 * [ ] Measurement simulation
 * [ ] Probability display
-* [ ] Gate count
-* [ ] Circuit depth
+* [x] Gate count
+* [x] Circuit depth
 
 ### Exit Criteria
 
@@ -644,11 +646,24 @@ accessible names over one value, why an out-of-range bit is reported while a
 fractional one is refused, and why the π caption is a rendering rather than a unit
 conversion.
 
-**Then the backend, which has been idle since Milestone 2.** It already validates
-and derives cycles, so gate count and circuit depth are close to free —
-`deriveCycles` returns depth today, in both languages, agreeing on every fixture.
-Those two tasks are the cheapest way to prove the API round trip before Qiskit is
-involved at all.
+**`POST /api/v1/circuits/analyze` is the first circuit endpoint**, and it proved
+the round trip exactly as intended: nothing new had to be computed. Depth comes
+from `derive_cycles`, and the endpoint's test asserts API.md's example body
+verbatim — which immediately caught that the example's stated depth of 2 was
+wrong for the circuit it showed. It is 3, and the document now says so.
+
+Two things fell out of building it that are worth knowing before the next
+endpoint:
+
+* **The request body is a raw document, loaded before it is validated.** Binding
+  FastAPI straight to `Circuit` would skip ADR-0006's version decision entirely
+  and phrase failures in Pydantic's vocabulary instead of the shared spec's
+  violation codes, which the frontend already renders.
+* **`VITE_USE_MOCK_API` landed, and it is not one mechanism.** A response the
+  frontend cannot derive is recorded; a response that is a pure function of the
+  request is computed. Analysis is the second kind, and a recording would have
+  answered every circuit with one circuit's numbers. See
+  [Frontend.md](Frontend.md) under *Mocking*.
 
 **The interpreter is settled and needs no further thought.** `pip install -e
 ".[dev,simulation]"` works on 3.11 through 3.14, natively and in the container,
@@ -663,11 +678,12 @@ neither would have looked wrong afterwards. A dependency claim in a document is
 evidence about the day it was written. Re-run it before designing around it; here
 that cost one `pip install` in a throwaway venv.
 
-**The frontend needs no new architecture for results.** UI.md reserves the right
-column and the three-column grid already exists, so adding the panel is not a
-re-layout. `api/` is still the only module permitted to call `fetch`, and
-`VITE_USE_MOCK_API` is specified but unimplemented — it lands with the first real
-endpoint, which is this milestone.
+**The frontend needed no new architecture, and the reservation paid off.**
+Filling UI.md's reserved right column cost one grid template and one `aside`;
+nothing else moved. The inspector is in it and the analysis panel sits beneath,
+with simulation results to join them below. `api/` remains the only module
+permitted to call `fetch` — `editor/useAnalysis.ts` is the React side of that
+boundary and holds no `fetch` of its own.
 
 ---
 

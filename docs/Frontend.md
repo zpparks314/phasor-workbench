@@ -243,20 +243,52 @@ from *the request or backend failed*. Only the former should surface as
 inline editor feedback; the latter belongs in a status area. Conflating them
 produces interfaces that blame the user for infrastructure problems.
 
+**A 5xx with no JSON body is reported as an unreachable backend, not an internal
+error**, and the reason is the dev proxy. A backend that is simply not running is
+*not* a network-level failure from the browser's point of view: the Vite proxy
+answers on its behalf with `500` and an empty body, so `fetch` resolves and the
+`catch` around it never runs. Until 2026-08-02 that surfaced as "Request failed
+with status 500" — accurate about the transport, and silent about the only fact
+worth knowing.
+
+The body is what separates the two cases. A backend that threw still answers with
+JSON, either the error envelope or FastAPI's own `{"detail": ...}`, so it stays
+an internal error; nothing answering at all leaves nothing to parse. Collapsing
+both into "unreachable" would hide real backend faults behind a message saying it
+is not running.
+
+This was invisible for two milestones because nothing called an endpoint. The
+first one that did found it immediately.
+
 ## Mocking
 
 Architecture.md requires the frontend to stay functional when the backend is
 unavailable.
 
-`VITE_USE_MOCK_API` will switch the client to recorded responses. Those
-recordings are validated against the backend's OpenAPI schema by the contract
-tests in `tests/contract/`, so they cannot silently drift.
+`VITE_USE_MOCK_API` switches the client away from the network. It landed on
+2026-08-02 with `/circuits/analyze`, the first circuit endpoint — as this section
+had said it would, having waited through Milestone 2 (no endpoints) and Milestone
+3 (no backend calls at all, since validation, cycles, and local save are
+client-side).
 
-Not yet implemented. It was expected to land with the first real endpoint in
-Milestone 2, and did not — Milestone 2 added no endpoints, and Milestone 3 makes
-no backend calls at all, since validation, cycles, and local save are all
-client-side. It lands with the first circuit endpoint in Milestone 4, which is
-also when `tests/contract/` gains something to run.
+**It is not one mechanism, and the difference is the response's nature rather
+than a preference.** This section previously described recorded responses only.
+
+* **A response the frontend cannot derive is recorded.** A statevector has to
+  come from somewhere; a recording is honest about being a fixture, and
+  validating it against the backend's OpenAPI schema in `tests/contract/` is what
+  stops it drifting. This is still the plan for the simulation endpoints.
+* **A response that is a pure function of the request is computed.**
+  `/circuits/analyze` is one: counts and a depth, entirely determined by the
+  circuit posted. A recording would answer every circuit with one circuit's
+  numbers, so the panel would display a depth belonging to something the user is
+  not looking at — worse than showing nothing, in a tool whose purpose is making
+  a circuit legible. `api/analysis.ts` computes it instead.
+
+The computed mock introduces no second implementation of anything: depth comes
+from the same `deriveCycles` the canvas calls, and only the counting — a filter
+and a length — lives in the mock. When the backend is reachable it is the sole
+source of these numbers.
 
 ---
 
