@@ -30,18 +30,20 @@ this document says what the user sees and ADR-0007 says what the code does.
 │  Header      undo · redo · clear · save · save status        │
 ├───────────┬──────────────────────────────────────┬───────────┤
 │           │                                      │           │
-│  Palette  │        Circuit Canvas                │ (reserved │
-│           │                                      │  for M4   │
-│           │                                      │  results) │
+│  Palette  │        Circuit Canvas                │ Inspector │
+│           │                                      │           │
+│           │                                      │           │
 │           │                                      │           │
 ├───────────┴──────────────────────────────────────┴───────────┤
 │  Problems     violations from validateCircuit                 │
 └──────────────────────────────────────────────────────────────┘
 ```
 
-Four regions in Milestone 3. The right column is **reserved and not rendered** —
-Milestone 4's results and visualization panel goes there, and the layout is built
-as a three-column grid now so that adding it is not a re-layout.
+Four regions in Milestone 3. The right column was **reserved and not rendered**
+through that milestone so that filling it would not be a re-layout, and the
+reservation paid off exactly as intended: the inspector fills it at the cost of
+one grid template and one `aside`, with nothing else moved. Milestone 4's
+results panel joins it below.
 
 The canvas is the only region that scrolls. It scrolls horizontally as the
 circuit deepens; the qubit label gutter is sticky against the left edge so wire
@@ -507,18 +509,93 @@ conversion happens anywhere; a hidden one is a bug waiting to happen.
 
 ## The Inspector
 
+**Built in Milestone 4**, on 2026-08-02, and this section now describes what
+exists.
+
 A panel showing the selected operation's editable properties, and nothing when
 nothing is selected. It is where a rotation's angle is changed, and it is
 deliberately general rather than a rotation-angle box: **a measurement's register
 and bit belong here too**, and so does any future per-operation property. Both of
-those are on the deferred list already, which is the argument for one panel rather
-than a control per property.
+those were on the deferred list, which was the argument for one panel rather than
+a control per property — and both closed together when it landed.
 
 Editing a parameter goes through `setParameters` like every other change — one
 edit, one undo step, labelled with what it did. An invalid or non-finite value is
 reported by `validateCircuit` in the problems strip rather than refused at the
 input, on the same principle as everything else the editor accepts: the user can
 fix it, so it is a state to report rather than a state to prevent.
+
+An operation with nothing to edit — an `h`, a `cx`, a barrier — says so rather
+than showing an empty panel. A panel that renders nothing is indistinguishable
+from a broken one.
+
+**Which parameters a gate has is read from the signature in `model/spec.ts`,
+never from its name.** `p` takes `lambda` where the rotations take `theta`, and a
+name-to-parameter mapping written here would be a second copy of
+`circuit.spec.json`. A gate added to the spec gets its controls for free.
+
+### Angles
+
+Two controls over one value: a number input for saying *exactly*
+0.7853981633974483, and a slider for finding out what the gate does as the angle
+sweeps. The slider spans a full turn each way; angles beyond it stay reachable by
+typing and are never clamped, because `rz` by 7π is a legitimate circuit and an
+input that clamped on render would rewrite the circuit just by displaying it.
+
+Both coalesce into one history entry, closed when the interaction ends — the
+mechanism ADR-0007 built for gate drags. Exploring an angle costs one undo step,
+not one per pointer move.
+
+The two carry **different accessible names** — "theta (radians)" and "Adjust
+theta". Two controls over one value are two things a screen reader user has to
+tell apart, and near-identical names make that impossible. Neither name repeats
+its role, which the reader announces already.
+
+Beside the input, the same value is written relative to π — "π/2" rather than
+1.5707963267948966. **This is a rendering, not a second unit**, and the rule that
+parameters are radians with no conversion anywhere is intact: the value in, the
+value stored, and the value displayed are one number. Only exact sixteenths of a
+turn are named as fractions; anything else falls back to a decimal multiple,
+because rounding to the nearest clean fraction would print a confident "π/4" for
+a value that is not one. The caption is `aria-hidden`, since the input already
+announces the authoritative number.
+
+### A measurement's register and bit
+
+A register chooser and a bit. **This is what makes a second register reachable at
+all** — placement writes into the first register's lowest free bit and nothing
+else could change it, so a circuit with two registers previously could not use
+the second.
+
+A bit past the end of its register is permitted and reported as
+`CLASSICAL_BIT_OUT_OF_RANGE`, not clamped. The identical circuit is already
+reachable by shrinking the register from the structure controls, so refusing it
+here would make the same document legal or illegal depending on which control
+produced it. A negative or fractional bit *is* refused, because the schema floors
+it at an integer 0 — that is shape-invalid rather than semantically wrong, and a
+shape-invalid document is one this build cannot re-read.
+
+## The Analysis Panel
+
+Counts, depth, and the gate mix, from `POST /api/v1/circuits/analyze`. Under the
+inspector, in the same column.
+
+**Every number in it comes from the backend, and that is the point.** The status
+line under the canvas shows a locally derived depth and always will — a render
+must not wait on the network — so this is the *backend's* answer to the same
+question, sitting a few inches away. The two `deriveCycles` implementations
+disagreeing becomes visible to a person, not only to the fixture suite.
+
+Requests are debounced and the one in flight is aborted when the circuit changes
+again. Both matter: dragging the angle slider produces a new circuit per pointer
+move, and a slow answer about an old circuit must never overwrite a fast answer
+about the current one.
+
+A failure is phrased as the user's only when it is theirs. `CIRCUIT_INVALID`
+means the problems strip is already listing the reasons, so the panel defers to
+it rather than restating them; anything else means the backend is unreachable or
+broken, which is not something to blame a person for. The editor stays fully
+usable either way.
 
 The gate list is read from `model/spec.ts` and is never hand-written. The
 **grouping** above and the descriptions are editorial and live in the palette,
