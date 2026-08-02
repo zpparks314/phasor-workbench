@@ -57,6 +57,8 @@ import { AnalysisPanel } from './AnalysisPanel';
 import { EditorHeader } from './EditorHeader';
 import { GatePalette } from './GatePalette';
 import { Inspector } from './Inspector';
+import { ResultsPanel } from './ResultsPanel';
+import { useSimulation } from './useSimulation';
 import { useAnalysis } from './useAnalysis';
 import { ProblemsStrip } from './ProblemsStrip';
 import { StructureControls } from './StructureControls';
@@ -234,6 +236,15 @@ export function CircuitEditor({
    * backend is down.
    */
   const analysis = useAnalysis(circuit);
+
+  /**
+   * The state, live; and the counts, when asked for.
+   *
+   * Two triggers rather than one, because the operations differ in kind: a
+   * statevector is a property the circuit has, sampling is an experiment it is
+   * put through. See `./useSimulation`.
+   */
+  const simulation = useSimulation(circuit);
 
   /**
    * The pending placement resolved to geometry, so the canvas keeps having
@@ -912,6 +923,24 @@ export function CircuitEditor({
           />
 
           <AnalysisPanel state={analysis} />
+
+          {/*
+            Sampling needs something measured, and says so rather than failing
+            when pressed -- the same treatment the palette gives a measurement
+            with no register to write into.
+          */}
+          <ResultsPanel
+            statevector={simulation.statevector}
+            sample={simulation.sample}
+            onRunSample={simulation.runSample}
+            samplingUnavailable={
+              circuit.operations.some(
+                (operation) => operation.kind === 'measurement',
+              )
+                ? undefined
+                : 'Add a measurement to sample this circuit.'
+            }
+          />
         </aside>
       </div>
     </div>

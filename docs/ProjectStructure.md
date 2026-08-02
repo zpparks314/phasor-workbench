@@ -199,6 +199,8 @@ The first group is where the logic lives, and it is tested directly:
 | `glyphs.ts` | how each gate draws its target |
 | `angles.ts` | a radian value written relative to π, for display |
 | `useAnalysis.ts` | the debounced, abortable call to `/circuits/analyze` |
+| `useSimulation.ts` | the live statevector, and sampling on request |
+| `outcomes.ts` | merging exact and sampled probabilities into one ranked list |
 | `demoCircuit.ts` | scaffolding, removed when local save lands |
 
 `useAnalysis.ts` is the one entry here that imports React, and it is in `editor/`
@@ -210,7 +212,8 @@ The components are `CircuitEditor` (owns the store and dispatches every edit),
 `CircuitCanvas` (the SVG grid), `GatePalette`, `StructureControls` (qubits and
 registers), `ViewControls` (what the canvas draws), `EditorHeader` (undo, redo,
 clear), `ProblemsStrip`, `Inspector` (the selected operation's editable
-properties), and `AnalysisPanel` (the backend's counts and depth).
+properties), `AnalysisPanel` (the backend's counts and depth), and
+`ResultsPanel` (the final state, and measurement counts).
 
 `StructureControls` and `ViewControls` are separate on purpose: everything in the
 first is an edit with an undo step, and nothing in the second touches the circuit

@@ -50,3 +50,37 @@ export interface AnalysisResponse {
   /** Occurrences per gate name. A gate that does not appear is absent. */
   gateBreakdown: Record<string, number>;
 }
+
+/**
+ * `POST /api/v1/simulations/statevector`.
+ *
+ * Bit ordering is docs/Simulation.md's throughout: **qubit 0 is the rightmost
+ * bit of `basisState`**. Nothing on this side reverses it, and a reversal
+ * appearing here would be a bug rather than a safeguard.
+ *
+ * `probabilities` is sparse -- outcomes indistinguishable from zero are absent
+ * rather than listed as `1e-17` -- while `amplitudes` is complete, because the
+ * amplitudes *are* the state and the probabilities are a summary of it.
+ * Omitted entirely when `includeProbabilities` is false.
+ */
+export interface StatevectorResponse {
+  qubitCount: number;
+  amplitudes: { basisState: string; real: number; imaginary: number }[];
+  probabilities?: { basisState: string; probability: number }[];
+}
+
+/**
+ * `POST /api/v1/simulations/sample`.
+ *
+ * Keyed by **classical register value**, not qubit state -- what the registers
+ * hold after the shot, which is only the bits a measurement wrote to.
+ *
+ * `seed` is echoed, and is `null` when the run was not seeded. That is
+ * information rather than an omission: an unseeded run is not reproducible.
+ */
+export interface SampleResponse {
+  shots: number;
+  seed: number | null;
+  counts: Record<string, number>;
+  probabilities: Record<string, number>;
+}
