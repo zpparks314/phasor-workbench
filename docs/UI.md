@@ -867,8 +867,14 @@ what makes the preserved fields unrecoverable — they are keyed to positions th
 edit moves, per [ADR-0008](decisions/ADR0008_LocalPersistence.md) section 3 — so
 warning at save would be warning after the decision.
 
-Milestone 3 has no backend calls, so backend-unavailable is not an editor state.
-The existing status treatment is unchanged.
+**Backend-unavailable became an editor state in Milestone 4**, where this section
+previously said it was not one. The analysis and results panels each degrade to
+an unavailable message carrying the backend's own code rather than a transport
+status, and a statevector refused for size says so specifically. Neither empties
+the canvas: the circuit is local and stays editable while the backend is down.
+
+That leaves **import failure** as the one entry in this list with no
+implementation, which is Milestone 5's error-handling task.
 
 ---
 
