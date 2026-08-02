@@ -357,14 +357,12 @@ touch rather than what is next. Milestone 4 begins below.
 
 **Deferred deliberately, and each recorded where it bites:**
 
-* **Parameter editing** — rotation gates place at a fixed π/2 and `setParameters`
-  sits unused. **Decided 2026-08-02** and moved into Milestone 4, where it is a
-  prerequisite rather than polish: an inspector on the selection, not a prompt on
-  placement. See [UI.md](UI.md) under *The Inspector*.
-* **Choosing a measurement's register and bit** — it always writes to the first
-  register's lowest free bit, so a second register is unreachable. The circuit
-  produced is valid, so this is a missing feature rather than a wrong result. It
-  belongs in the same inspector, and should land with it.
+* ~~**Parameter editing**~~ — **done 2026-08-02**, in Milestone 4. Rotations
+  still place at π/2; the inspector edits the selection afterwards rather than
+  prompting on placement. See [UI.md](UI.md) under *The Inspector*.
+* ~~**Choosing a measurement's register and bit**~~ — **done 2026-08-02**, in the
+  same inspector and the same change, which is what one general panel rather than
+  a control per property was for. A second register is now reachable.
 * **"New circuit"** — the document-level reset `clearOperations` stops short of.
   Now unblocked, since unsaved changes are finally knowable.
 * **`invalid/shape/` fixtures** — the directory is an empty placeholder and the
@@ -565,11 +563,9 @@ too small to mean anything until a guard was added.
 
 ### Remaining
 
-* [ ] Parameter editing — rotation gates place at a fixed π/2
-* [ ] Choosing a measurement's register and bit — it always writes to the first
-  register's lowest free bit, so a circuit with two registers cannot reach the
-  second. The circuit produced is valid, so this is a missing feature rather than
-  a wrong result
+Both entries here — parameter editing, and choosing a measurement's register and
+bit — were **done on 2026-08-02** as Milestone 4's first task, in one inspector.
+Nothing from Milestone 3 is outstanding except the known gaps below.
 
 **Known gaps**
 
@@ -618,7 +614,8 @@ Execute circuits and display results.
 
 ### Tasks
 
-* [ ] Parameter editing — an inspector, and the prerequisite below
+* [x] Parameter editing — an inspector, which closed the measurement-target
+  deferral at the same time
 * [ ] Backend API
 * [ ] Qiskit integration
 * [ ] Statevector simulation
@@ -638,18 +635,14 @@ Users can build a circuit and receive valid simulation results.
 written before anything existed and both end with open questions that are still
 open. Expect to revise them as this is built.
 
-**Start with parameter editing, before any Qiskit code.** It is listed first
-because it is a prerequisite rather than a leftover: `rx`, `ry`, `rz` and `p`
-place at a fixed π/2 and nothing can change them, so a statevector simulator would
-be demonstrating a circuit whose every rotation is a quarter turn. The exit
-criterion above is not reachable while that is true.
-
-The design is settled — [UI.md](UI.md) under *The Inspector*, decided 2026-08-02.
-Place at π/2 and edit the selection afterwards, rather than prompting on placement
-as UI.md originally said. `setParameters` is already in the edit vocabulary,
-unused, and needs no change. Build the panel general rather than
-rotation-specific: **a measurement's register and bit belong in it too**, which
-closes the other deferred item on the list below at the same time.
+**Parameter editing is done**, and it closed both of Milestone 3's deferred items
+at once — which was the argument for one general panel rather than an angle box.
+Rotations still place at π/2 and are edited afterwards; `setParameters` needed no
+change, and `setClassicalTarget` was added beside it for the measurement half.
+Every decision inside it is in [UI.md](UI.md) under *The Inspector*: the two
+accessible names over one value, why an out-of-range bit is reported while a
+fractional one is refused, and why the π caption is a rendering rather than a unit
+conversion.
 
 **Then the backend, which has been idle since Milestone 2.** It already validates
 and derives cycles, so gate count and circuit depth are close to free —

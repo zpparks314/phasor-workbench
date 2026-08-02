@@ -7,8 +7,10 @@
  * circuit the store holds, and their output is handed to the components and
  * discarded. See docs/Architecture.md and ADR-0001.
  *
- * The three regions are from UI.md. The right column is reserved for Milestone
- * 4's results panel and is not rendered, so adding it is not a re-layout.
+ * The regions are from UI.md. The right column was reserved and unrendered
+ * through Milestone 3 so that filling it would not be a re-layout; the inspector
+ * fills it, and Milestone 4's results panel joins it below rather than
+ * displacing it.
  *
  * Interaction state that is *not* the circuit -- what is armed, where the cell
  * cursor is -- lives in component state deliberately. ADR-0007 section 4 keeps it
@@ -18,7 +20,12 @@
 import { useMemo, useRef, useState } from 'react';
 
 import { deriveCycles } from '../cycles';
-import type { Circuit, GateName, Operation } from '../model/circuit';
+import type {
+  Circuit,
+  ClassicalTarget,
+  GateName,
+  Operation,
+} from '../model/circuit';
 import { GATE_SIGNATURES } from '../model/spec';
 import { createCircuitStore, insertOperation, newIdentifier } from '../state';
 import {
@@ -33,6 +40,8 @@ import {
   removeOperation,
   removeQubit,
   retargetOperation,
+  setClassicalTarget,
+  setParameters,
   setRegisterSize,
 } from '../state/edits';
 import { saveCircuit } from '../persistence';
@@ -46,6 +55,7 @@ import {
 } from './CircuitCanvas';
 import { EditorHeader } from './EditorHeader';
 import { GatePalette } from './GatePalette';
+import { Inspector } from './Inspector';
 import { ProblemsStrip } from './ProblemsStrip';
 import { StructureControls } from './StructureControls';
 import { columnCenter, layoutCircuit, pendingConnector } from './layout';
@@ -180,6 +190,23 @@ export function CircuitEditor({
   const violations = useMemo(
     () => validateCircuit(circuit).violations,
     [circuit],
+  );
+
+  /**
+   * The selected operation itself, for the inspector and the status line.
+   *
+   * Looked up from the circuit on every render rather than held beside the
+   * selection. The store keeps an identifier for the reason ADR-0007 section 4
+   * gives, and a cached operation object would be the second copy of circuit
+   * state this project forbids -- stale the moment any edit lands.
+   */
+  const selected = useMemo(
+    () =>
+      selection === null
+        ? null
+        : (circuit.operations.find((candidate) => candidate.id === selection) ??
+          null),
+    [circuit, selection],
   );
 
   /**
@@ -490,15 +517,7 @@ export function CircuitEditor({
     return operation.kind === 'gate' ? operation.name : operation.kind;
   }
 
-  const selectedLabel =
-    selection === null
-      ? null
-      : (() => {
-          const operation = circuit.operations.find(
-            (candidate) => candidate.id === selection,
-          );
-          return operation === undefined ? null : describeOperation(operation);
-        })();
+  const selectedLabel = selected === null ? null : describeOperation(selected);
 
   /**
    * One click of a placement, whatever stage it is at.
@@ -618,6 +637,51 @@ export function CircuitEditor({
     );
   }
 
+  /**
+   * Write one parameter, coalescing until the interaction ends.
+   *
+   * Every call merges into the same history entry, so dragging the angle slider
+   * across a hundred values costs one undo step rather than a hundred -- the
+   * mechanism ADR-0007 built for gate drags, applied unchanged.
+   *
+   * The key names the operation *and* the parameter: a two-parameter gate
+   * should not have an edit to the second silently absorb the first.
+   *
+   * Not clamped, not validated. A NaN from an emptied field reaches the circuit
+   * and `validateCircuit` reports `PARAMETER_NOT_FINITE`, which is UI.md's rule
+   * for every input the editor has.
+   */
+  function changeParameter(parameter: string, radians: number): void {
+    if (selected?.kind !== 'gate') return;
+    const operationId = selected.id;
+
+    store.apply(
+      `Set ${selected.name} ${parameter}`,
+      (current) =>
+        setParameters(current, operationId, {
+          ...selected.parameters,
+          [parameter]: radians,
+        }),
+      { coalescingKey: `parameter:${operationId}:${parameter}` },
+    );
+  }
+
+  /**
+   * Point the selected measurement at a register and bit.
+   *
+   * Not coalesced: each choice is a discrete decision rather than a step in a
+   * continuous gesture, so each is its own undo step.
+   */
+  function changeClassicalTarget(target: ClassicalTarget): void {
+    if (selected?.kind !== 'measurement') return;
+    const operationId = selected.id;
+
+    store.apply(
+      `Measure into ${describeRegister(target.register)}[${String(target.bit)}]`,
+      (current) => setClassicalTarget(current, operationId, target),
+    );
+  }
+
   return (
     <div className="flex h-full flex-col gap-4">
       {/*
@@ -643,7 +707,14 @@ export function CircuitEditor({
         }}
       />
 
-      <div className="grid min-h-0 flex-1 grid-cols-[auto_1fr] gap-6">
+      {/*
+        Three columns, which is what UI.md's region diagram always described --
+        the right one was reserved and unrendered through Milestone 3 so that
+        filling it would not be a re-layout. This is that fill, and it was
+        exactly the change the reservation promised: one grid template, one
+        `aside`, and nothing else moved.
+      */}
+      <div className="grid min-h-0 flex-1 grid-cols-[auto_1fr_auto] gap-6">
         <aside className="w-44">
           {/*
           Arming a different gate abandons any placement in progress. Keeping it
@@ -775,6 +846,28 @@ export function CircuitEditor({
             }}
           />
         </div>
+
+        {/*
+          The inspector takes the column Milestone 3 reserved. Milestone 4's
+          results panel joins it beneath rather than replacing it: one is what
+          the selected operation *is*, the other what the whole circuit *does*,
+          and they are read at different moments.
+        */}
+        <aside>
+          <Inspector
+            operation={selected}
+            registers={layout.registers.map((lane) => ({
+              id: lane.registerId,
+              label: lane.label,
+              size: lane.size,
+            }))}
+            onParameterChange={changeParameter}
+            onParameterCommit={() => {
+              store.endCoalescing();
+            }}
+            onClassicalTargetChange={changeClassicalTarget}
+          />
+        </aside>
       </div>
     </div>
   );

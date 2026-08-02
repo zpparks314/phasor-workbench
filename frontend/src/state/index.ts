@@ -29,6 +29,7 @@ export {
   removeQubit,
   renameCircuit,
   retargetOperation,
+  setClassicalTarget,
   setParameters,
   setRegisterSize,
   type NewClassicalRegister,

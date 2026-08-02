@@ -1305,4 +1305,153 @@ describe('regions', () => {
       screen.getByRole('region', { name: 'Problems' }),
     ).toBeInTheDocument();
   });
+
+  it('fills the column reserved for the inspector', () => {
+    open();
+
+    expect(
+      screen.getByRole('region', { name: 'Inspector' }),
+    ).toBeInTheDocument();
+  });
+});
+
+/**
+ * These assert the *wiring*. `Inspector.test.tsx` proves the panel reports what
+ * it is given; only running it against the real store proves an edit reaches
+ * the circuit, goes through history, and costs the right number of undo steps.
+ */
+describe('the inspector', () => {
+  /**
+   * Disarm, then click the operation.
+   *
+   * The Escape is load-bearing and was missing at first: placing leaves the
+   * gate armed, so a click on the occupied cell means "place another here", not
+   * "select that". Without it these tests quietly asserted against a second
+   * gate placed on top of the first -- and the angle assertions still passed,
+   * because the duplicate carried the same default. Hence the operation count
+   * in the test below, which is what actually catches it.
+   */
+  function selectPlaced(editor: ReturnType<typeof open>, cell: string) {
+    editor.press('Escape');
+    fireEvent.click(editor.cell(cell));
+  }
+
+  const angle = () => screen.getByRole('spinbutton', { name: /theta/i });
+
+  it('edits a placed rotation, which places at a quarter turn', () => {
+    const editor = open();
+
+    editor.arm('rx');
+    fireEvent.click(editor.cell('q0, column 1, empty'));
+    selectPlaced(editor, 'q0, column 1, rx');
+
+    expect(editor.status()).toHaveTextContent('1 operations');
+    expect(angle()).toHaveValue(Math.PI / 2);
+
+    fireEvent.change(angle(), { target: { value: String(Math.PI) } });
+
+    expect(angle()).toHaveValue(Math.PI);
+  });
+
+  /**
+   * The reason `changeParameter` coalesces. Exploring an angle should be one
+   * step to undo, not one per keystroke -- and the step must restore the value
+   * the gate was placed with rather than an intermediate.
+   */
+  it('collapses a run of angle edits into one undo step', () => {
+    const editor = open();
+
+    editor.arm('rx');
+    fireEvent.click(editor.cell('q0, column 1, empty'));
+    selectPlaced(editor, 'q0, column 1, rx');
+
+    fireEvent.change(angle(), { target: { value: '1' } });
+    fireEvent.change(angle(), { target: { value: '1.2' } });
+    fireEvent.change(angle(), { target: { value: '1.25' } });
+    fireEvent.blur(angle());
+
+    editor.undo();
+
+    expect(angle()).toHaveValue(Math.PI / 2);
+  });
+
+  it('starts a new undo step after the interaction ends', () => {
+    const editor = open();
+
+    editor.arm('rz');
+    fireEvent.click(editor.cell('q0, column 1, empty'));
+    selectPlaced(editor, 'q0, column 1, rz');
+
+    fireEvent.change(angle(), { target: { value: '1' } });
+    fireEvent.blur(angle());
+    fireEvent.change(angle(), { target: { value: '2' } });
+    fireEvent.blur(angle());
+
+    editor.undo();
+
+    expect(angle()).toHaveValue(1);
+  });
+
+  /**
+   * An emptied field is reported rather than refused, per UI.md. The violation
+   * appearing is the whole point: the circuit is knowably wrong and says why.
+   */
+  it('reports a non-finite angle instead of refusing it', () => {
+    const editor = open();
+
+    editor.arm('rx');
+    fireEvent.click(editor.cell('q0, column 1, empty'));
+    selectPlaced(editor, 'q0, column 1, rx');
+
+    fireEvent.change(angle(), { target: { value: '' } });
+
+    expect(screen.getByText(/PARAMETER_NOT_FINITE/)).toBeInTheDocument();
+  });
+
+  /**
+   * The deferred item this panel closes. Placement always writes into the first
+   * register's lowest free bit, so before the inspector a second register was
+   * unreachable by any interaction at all.
+   */
+  it('reaches a second classical register', () => {
+    const twoRegisters: Circuit = {
+      ...circuitWith(1),
+      classicalRegisters: [
+        { id: 'c_0', size: 2 },
+        { id: 'c_1', size: 2 },
+      ],
+    };
+    const editor = open(twoRegisters);
+
+    editor.arm('measurement');
+    fireEvent.click(editor.cell('q0, column 1, empty'));
+    selectPlaced(editor, 'q0, column 1, measurement');
+
+    fireEvent.change(screen.getByRole('combobox', { name: /register/i }), {
+      target: { value: 'c_1' },
+    });
+
+    expect(screen.getByRole('combobox', { name: /register/i })).toHaveValue(
+      'c_1',
+    );
+    expect(editor.status()).toHaveTextContent('1 operations');
+  });
+
+  /**
+   * Two presses, because Escape does one job at a time: placing leaves the gate
+   * armed, so the first disarms and only the second reaches the selection. That
+   * ordering is UI.md's, and the panel following it is the point of the test.
+   */
+  it('says nothing is selected once the selection clears', () => {
+    const editor = open();
+
+    editor.arm('h');
+    fireEvent.click(editor.cell('q0, column 1, empty'));
+    expect(screen.getByText(/no editable properties/i)).toBeInTheDocument();
+
+    editor.press('Escape');
+    editor.press('Escape');
+
+    expect(screen.getByText(/select an operation/i)).toBeInTheDocument();
+  });
 });

@@ -25,6 +25,7 @@
 import type {
   Circuit,
   ClassicalRegister,
+  ClassicalTarget,
   Operation,
   Qubit,
 } from '../model/circuit';
@@ -261,6 +262,55 @@ export function setParameters(
 
   const operations = [...circuit.operations];
   operations[index] = { ...operation, parameters: { ...parameters } };
+  return { ...circuit, operations };
+}
+
+/**
+ * Point a measurement at a different register and bit.
+ *
+ * The counterpart to `setParameters` for the other operation kind that carries
+ * an editable property, and the edit that finally makes a second register
+ * reachable -- placement always writes into the first.
+ *
+ * What it refuses and what it permits follows `setRegisterSize` exactly, and the
+ * line is ADR-0007 section 7's: refuse what no later edit could repair, report
+ * what the user can edit their way out of.
+ *
+ * - An unknown register is refused. Nothing in the document would name it, so
+ *   the result is a dangling reference the user has no control to fix -- the
+ *   same reason this function throws on an unknown operation id.
+ * - A **bit beyond the register's size is permitted**, and `validateCircuit`
+ *   reports `CLASSICAL_BIT_OUT_OF_RANGE`. Growing the register or choosing
+ *   another bit repairs it, which is precisely the state `setRegisterSize`
+ *   already allows to be created from the other direction. Refusing here would
+ *   make the same circuit legal or illegal depending on which control produced
+ *   it.
+ * - A negative or non-integer bit is refused, because the schema's `minimum: 0`
+ *   integer makes it shape-invalid rather than semantically wrong, and a
+ *   shape-invalid document is one this build cannot re-read.
+ */
+export function setClassicalTarget(
+  circuit: Circuit,
+  operationId: string,
+  target: ClassicalTarget,
+): Circuit {
+  const { operation, index } = locate(circuit, operationId);
+  if (operation.kind !== 'measurement') {
+    throw new Error(
+      `Operation ${operationId} is a ${operation.kind}; only measurements carry a classical target.`,
+    );
+  }
+  if (!circuit.classicalRegisters.some((r) => r.id === target.register)) {
+    throw new Error(`No classical register with id ${target.register}.`);
+  }
+  if (!Number.isInteger(target.bit) || target.bit < 0) {
+    throw new Error(
+      `Bit ${String(target.bit)} must be an integer of 0 or above.`,
+    );
+  }
+
+  const operations = [...circuit.operations];
+  operations[index] = { ...operation, classicalTarget: { ...target } };
   return { ...circuit, operations };
 }
 

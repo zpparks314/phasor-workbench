@@ -13,9 +13,11 @@ import {
   removeQubit,
   renameCircuit,
   retargetOperation,
+  setClassicalTarget,
   setParameters,
   setRegisterSize,
 } from './edits';
+import { validateCircuit } from '../validation';
 import { barrier, circuitWith, gate, measurement } from './testCircuits';
 
 describe('qubits', () => {
@@ -412,6 +414,82 @@ describe('setParameters', () => {
     expect(() => setParameters(withBarrier, 'op_1', {})).toThrow(
       'only gates carry parameters',
     );
+  });
+});
+
+describe('setClassicalTarget', () => {
+  const base = insertOperation(
+    addClassicalRegister(circuitWith(1), { id: 'c_1', size: 4 }),
+    measurement('op_0', 'q_0', 'c_0', 0),
+    0,
+  );
+
+  it('retargets a measurement at another register', () => {
+    const circuit = setClassicalTarget(base, 'op_0', {
+      register: 'c_1',
+      bit: 2,
+    });
+
+    expect(circuit.operations[0]).toMatchObject({
+      classicalTarget: { register: 'c_1', bit: 2 },
+    });
+  });
+
+  it("copies the target rather than aliasing the caller's", () => {
+    const target = { register: 'c_1', bit: 1 };
+    const circuit = setClassicalTarget(base, 'op_0', target);
+    target.bit = 3;
+
+    expect(circuit.operations[0]).toMatchObject({
+      classicalTarget: { bit: 1 },
+    });
+  });
+
+  /**
+   * The mirror of `setRegisterSize` allowing a shrink below a written bit. The
+   * same circuit is reachable from either control, so refusing it here would
+   * make its legality depend on which one produced it. `validateCircuit`
+   * reports CLASSICAL_BIT_OUT_OF_RANGE and both repairs stay available.
+   */
+  it('allows a bit beyond the register size', () => {
+    const circuit = setClassicalTarget(base, 'op_0', {
+      register: 'c_0',
+      bit: 9,
+    });
+
+    expect(circuit.operations[0]).toMatchObject({
+      classicalTarget: { bit: 9 },
+    });
+    expect(validateCircuit(circuit).violations.map((v) => v.code)).toContain(
+      'CLASSICAL_BIT_OUT_OF_RANGE',
+    );
+  });
+
+  it('refuses an operation that carries no classical target', () => {
+    const withGate = insertOperation(
+      circuitWith(1),
+      gate('op_1', 'h', ['q_0']),
+      0,
+    );
+
+    expect(() =>
+      setClassicalTarget(withGate, 'op_1', { register: 'c_0', bit: 0 }),
+    ).toThrow('only measurements carry a classical target');
+  });
+
+  // Refused rather than reported, unlike the out-of-range bit above: nothing in
+  // the document names this register, so no control the user has could repair
+  // the dangling reference.
+  it('refuses a register that does not exist', () => {
+    expect(() =>
+      setClassicalTarget(base, 'op_0', { register: 'c_9', bit: 0 }),
+    ).toThrow('c_9');
+  });
+
+  it.each([-1, 1.5])('refuses a shape-invalid bit (%s)', (bit) => {
+    expect(() =>
+      setClassicalTarget(base, 'op_0', { register: 'c_0', bit }),
+    ).toThrow('must be an integer');
   });
 });
 
