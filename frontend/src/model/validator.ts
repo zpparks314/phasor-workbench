@@ -14,271 +14,55 @@
 export const OPERATION_DISCRIMINATOR = 'kind';
 export const OPERATION_KINDS = ['gate', 'measurement', 'barrier'];
 
-export const validateDocument = validate20;
-const schema31 = {
-  $schema: 'https://json-schema.org/draft/2020-12/schema',
-  title: 'Circuit',
-  description:
-    'The canonical Phasor Workbench circuit. Specified in docs/CircuitModel.md; shaped by ADR-0001 (flat operation list, derived cycles), ADR-0002 (stable opaque identifiers), and ADR-0004 (this schema is the source of truth for the wire format). Structural rules only -- referential, semantic, and order-dependent validation is hand-written in both languages. The cycle decomposition is derived and never appears here.',
-  type: 'object',
-  additionalProperties: false,
-  required: [
-    'schemaVersion',
-    'id',
-    'qubits',
-    'classicalRegisters',
-    'operations',
-  ],
-  properties: {
-    schemaVersion: {
-      description:
-        'Semantic version of the model. Migration policy lives in docs/CircuitModel.md.',
-      type: 'string',
-      pattern: '^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$',
-    },
-    id: { $ref: '#/$defs/Identifier' },
-    name: { type: 'string' },
-    qubits: { type: 'array', items: { $ref: '#/$defs/Qubit' } },
-    classicalRegisters: {
-      description:
-        'Required, but may be empty. There is no implicit default register; every measurement names a register declared here.',
-      type: 'array',
-      items: { $ref: '#/$defs/ClassicalRegister' },
-    },
-    operations: { type: 'array' },
-    metadata: { $ref: '#/$defs/Metadata' },
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __commonJS = (cb, mod) =>
+  function __require() {
+    try {
+      return (
+        mod ||
+          (0, cb[__getOwnPropNames(cb)[0]])(
+            (mod = { exports: {} }).exports,
+            mod,
+          ),
+        mod.exports
+      );
+    } catch (e) {
+      throw ((mod = 0), e);
+    }
+  };
+
+// frontend/node_modules/ajv/dist/runtime/ucs2length.js
+var require_ucs2length = __commonJS({
+  'frontend/node_modules/ajv/dist/runtime/ucs2length.js'(exports) {
+    'use strict';
+    Object.defineProperty(exports, '__esModule', { value: true });
+    function ucs2length(str) {
+      const len = str.length;
+      let length = 0;
+      let pos = 0;
+      let value;
+      while (pos < len) {
+        length++;
+        value = str.charCodeAt(pos++);
+        if (value >= 55296 && value <= 56319 && pos < len) {
+          value = str.charCodeAt(pos);
+          if ((value & 64512) === 56320) pos++;
+        }
+      }
+      return length;
+    }
+    exports.default = ucs2length;
+    ucs2length.code = 'require("ajv/dist/runtime/ucs2length").default';
   },
-  $defs: {
-    Identifier: {
-      description:
-        'Opaque stable identifier, generated client-side. Nothing may parse meaning out of it. See ADR-0002.',
-      $comment:
-        'Used only where an identifier is minted -- the id field of a first-class object. Positions that merely reference an identifier use IdentifierRef instead; see the note there.',
-      type: 'string',
-      minLength: 1,
-      maxLength: 64,
-    },
-    IdentifierRef: {
-      description:
-        'A reference to an identifier declared elsewhere in the circuit.',
-      $comment:
-        "Deliberately unconstrained, for two reasons. Correctness: a reference is validated by resolution -- 'this id must name a declared qubit' -- which is hand-written and strictly stronger than a length check, because a resolved id already satisfied Identifier where it was minted. Practical: datamodel-code-generator wraps any *constrained* string appearing inside an array in RootModel[str], which is unhashable and unequal to a plain str, breaking the set-membership check every referential rule performs. An unconstrained string generates as list[str].",
-      type: 'string',
-    },
-    Qubit: {
-      description: 'A single quantum wire.',
-      type: 'object',
-      additionalProperties: false,
-      required: ['id', 'index'],
-      properties: {
-        id: { $ref: '#/$defs/Identifier' },
-        index: {
-          description:
-            'Position on the wire stack. Contiguity from 0 is validated in code, not here.',
-          type: 'integer',
-          minimum: 0,
-        },
-        label: { type: 'string' },
-      },
-    },
-    ClassicalRegister: {
-      description:
-        'A named group of classical bits that measurement results are written into.',
-      type: 'object',
-      additionalProperties: false,
-      required: ['id', 'size'],
-      properties: {
-        id: { $ref: '#/$defs/Identifier' },
-        size: { type: 'integer', minimum: 1 },
-        label: { type: 'string' },
-      },
-    },
-    ClassicalTarget: {
-      description:
-        'A single bit within a declared classical register. Contention is tracked per bit -- see ADR-0003.',
-      type: 'object',
-      additionalProperties: false,
-      required: ['register', 'bit'],
-      properties: {
-        register: { $ref: '#/$defs/IdentifierRef' },
-        bit: {
-          description:
-            "Index within the register. Bounds against the register's size are validated in code.",
-          type: 'integer',
-          minimum: 0,
-        },
-      },
-    },
-    GateName: {
-      description:
-        'Lowercase, following OpenQASM convention. Arity is validated in code -- expressing it here would require one branch per gate.',
-      type: 'string',
-      enum: [
-        'i',
-        'h',
-        'x',
-        'y',
-        'z',
-        's',
-        'sdg',
-        't',
-        'tdg',
-        'rx',
-        'ry',
-        'rz',
-        'p',
-        'cx',
-        'cy',
-        'cz',
-        'swap',
-        'ccx',
-      ],
-    },
-    GateOperation: {
-      description: 'A unitary operation on one or more qubits.',
-      type: 'object',
-      additionalProperties: false,
-      required: ['id', 'kind', 'name', 'targets'],
-      properties: {
-        id: { $ref: '#/$defs/Identifier' },
-        kind: { const: 'gate' },
-        name: { $ref: '#/$defs/GateName' },
-        targets: {
-          type: 'array',
-          minItems: 1,
-          items: { $ref: '#/$defs/IdentifierRef' },
-        },
-        controls: {
-          description:
-            'Control qubits. Control count is never encoded into the gate name.',
-          type: 'array',
-          items: { $ref: '#/$defs/IdentifierRef' },
-          default: [],
-        },
-        parameters: {
-          description:
-            'Angles in radians. Which parameters a given gate requires is validated in code.',
-          type: 'object',
-          additionalProperties: { type: 'number' },
-          default: {},
-        },
-      },
-    },
-    MeasurementOperation: {
-      description:
-        'A projective measurement writing into a classical bit. While mid-circuit measurement is deferred, a measured qubit is terminal -- enforced in code, not here.',
-      type: 'object',
-      additionalProperties: false,
-      required: ['id', 'kind', 'targets', 'classicalTarget'],
-      properties: {
-        id: { $ref: '#/$defs/Identifier' },
-        kind: { const: 'measurement' },
-        targets: {
-          type: 'array',
-          minItems: 1,
-          maxItems: 1,
-          items: { $ref: '#/$defs/IdentifierRef' },
-        },
-        classicalTarget: { $ref: '#/$defs/ClassicalTarget' },
-      },
-    },
-    BarrierOperation: {
-      description:
-        'An authoring constraint preventing operations from being scheduled across it. Occupies no cycle and does not contribute to depth -- see ADR-0003. Carries no controls, parameters, or classical target.',
-      type: 'object',
-      additionalProperties: false,
-      required: ['id', 'kind', 'targets'],
-      properties: {
-        id: { $ref: '#/$defs/Identifier' },
-        kind: { const: 'barrier' },
-        targets: {
-          description:
-            "Required and non-empty. There is no implicit all-qubits barrier; importers expand OpenQASM's bare barrier at import time.",
-          type: 'array',
-          minItems: 1,
-          items: { $ref: '#/$defs/IdentifierRef' },
-        },
-      },
-    },
-    Operation: {
-      description:
-        'Anything occupying a position in execution order, discriminated on kind.',
-      $comment:
-        "The discriminator keyword is OpenAPI rather than JSON Schema 2020-12. It is present because datamodel-code-generator reads it to emit Field(discriminator='kind'); without it Pydantic attempts every branch and reports that none matched, instead of reporting the one real error against the branch the kind names. A validator will NOT simply ignore it: Ajv rejects it as an unknown keyword unless strict mode is off, and Ajv's own discriminator support rejects the mapping below. That mapping is read at generation time to build one validator per branch, because oneOf plus $ref loses branch attribution in error output -- see ADR-0008 section 2, where trusting it deletes real fields.",
-      oneOf: [
-        { $ref: '#/$defs/GateOperation' },
-        { $ref: '#/$defs/MeasurementOperation' },
-        { $ref: '#/$defs/BarrierOperation' },
-      ],
-      discriminator: {
-        propertyName: 'kind',
-        mapping: {
-          gate: '#/$defs/GateOperation',
-          measurement: '#/$defs/MeasurementOperation',
-          barrier: '#/$defs/BarrierOperation',
-        },
-      },
-    },
-    Metadata: {
-      description:
-        'Descriptive only. If the simulator would behave differently based on a field here, that field belongs in the model proper.',
-      $comment:
-        "additionalProperties is false here for the same reason it is everywhere else, and its absence was a bug: Pydantic's default silently discarded unknown metadata keys, so they never round-tripped and no error said so. Unknown fields are the loader's business, not a parser default -- see ADR-0006.",
-      type: 'object',
-      additionalProperties: false,
-      properties: {
-        description: { type: 'string' },
-        author: { type: 'string' },
-        createdAt: { type: 'string', format: 'date-time' },
-        updatedAt: { type: 'string', format: 'date-time' },
-      },
-    },
-  },
-};
-const schema32 = {
-  description:
-    'Opaque stable identifier, generated client-side. Nothing may parse meaning out of it. See ADR-0002.',
-  $comment:
-    'Used only where an identifier is minted -- the id field of a first-class object. Positions that merely reference an identifier use IdentifierRef instead; see the note there.',
-  type: 'string',
-  minLength: 1,
-  maxLength: 64,
-};
-const schema37 = {
-  description:
-    'Descriptive only. If the simulator would behave differently based on a field here, that field belongs in the model proper.',
-  $comment:
-    "additionalProperties is false here for the same reason it is everywhere else, and its absence was a bug: Pydantic's default silently discarded unknown metadata keys, so they never round-tripped and no error said so. Unknown fields are the loader's business, not a parser default -- see ADR-0006.",
-  type: 'object',
-  additionalProperties: false,
-  properties: {
-    description: { type: 'string' },
-    author: { type: 'string' },
-    createdAt: { type: 'string', format: 'date-time' },
-    updatedAt: { type: 'string', format: 'date-time' },
-  },
-};
-const pattern4 = new RegExp(
+});
+
+// frontend/scripts/validator.js
+var validateDocument = validate20;
+var pattern4 = new RegExp(
   '^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$',
   'u',
 );
-const func1 = require('ajv/dist/runtime/ucs2length').default;
-const schema33 = {
-  description: 'A single quantum wire.',
-  type: 'object',
-  additionalProperties: false,
-  required: ['id', 'index'],
-  properties: {
-    id: { $ref: '#/$defs/Identifier' },
-    index: {
-      description:
-        'Position on the wire stack. Contiguity from 0 is validated in code, not here.',
-      type: 'integer',
-      minimum: 0,
-    },
-    label: { type: 'string' },
-  },
-};
+var func1 = require_ucs2length().default;
 function validate21(
   data,
   {
@@ -293,19 +77,19 @@ function validate21(
   let errors = 0;
   const evaluated0 = validate21.evaluated;
   if (evaluated0.dynamicProps) {
-    evaluated0.props = undefined;
+    evaluated0.props = void 0;
   }
   if (evaluated0.dynamicItems) {
-    evaluated0.items = undefined;
+    evaluated0.items = void 0;
   }
   if (data && typeof data == 'object' && !Array.isArray(data)) {
-    if (data.id === undefined) {
+    if (data.id === void 0) {
       const err0 = {
         instancePath,
         schemaPath: '#/required',
         keyword: 'required',
         params: { missingProperty: 'id' },
-        message: "must have required property '" + 'id' + "'",
+        message: "must have required property 'id'",
       };
       if (vErrors === null) {
         vErrors = [err0];
@@ -314,13 +98,13 @@ function validate21(
       }
       errors++;
     }
-    if (data.index === undefined) {
+    if (data.index === void 0) {
       const err1 = {
         instancePath,
         schemaPath: '#/required',
         keyword: 'required',
         params: { missingProperty: 'index' },
-        message: "must have required property '" + 'index' + "'",
+        message: "must have required property 'index'",
       };
       if (vErrors === null) {
         vErrors = [err1];
@@ -346,7 +130,7 @@ function validate21(
         errors++;
       }
     }
-    if (data.id !== undefined) {
+    if (data.id !== void 0) {
       let data0 = data.id;
       if (typeof data0 === 'string') {
         if (func1(data0) > 64) {
@@ -395,7 +179,7 @@ function validate21(
         errors++;
       }
     }
-    if (data.index !== undefined) {
+    if (data.index !== void 0) {
       let data1 = data.index;
       if (!(typeof data1 == 'number' && !(data1 % 1) && !isNaN(data1))) {
         const err6 = {
@@ -430,7 +214,7 @@ function validate21(
         }
       }
     }
-    if (data.label !== undefined) {
+    if (data.label !== void 0) {
       if (typeof data.label !== 'string') {
         const err8 = {
           instancePath: instancePath + '/label',
@@ -470,18 +254,6 @@ validate21.evaluated = {
   dynamicProps: false,
   dynamicItems: false,
 };
-const schema35 = {
-  description:
-    'A named group of classical bits that measurement results are written into.',
-  type: 'object',
-  additionalProperties: false,
-  required: ['id', 'size'],
-  properties: {
-    id: { $ref: '#/$defs/Identifier' },
-    size: { type: 'integer', minimum: 1 },
-    label: { type: 'string' },
-  },
-};
 function validate23(
   data,
   {
@@ -496,19 +268,19 @@ function validate23(
   let errors = 0;
   const evaluated0 = validate23.evaluated;
   if (evaluated0.dynamicProps) {
-    evaluated0.props = undefined;
+    evaluated0.props = void 0;
   }
   if (evaluated0.dynamicItems) {
-    evaluated0.items = undefined;
+    evaluated0.items = void 0;
   }
   if (data && typeof data == 'object' && !Array.isArray(data)) {
-    if (data.id === undefined) {
+    if (data.id === void 0) {
       const err0 = {
         instancePath,
         schemaPath: '#/required',
         keyword: 'required',
         params: { missingProperty: 'id' },
-        message: "must have required property '" + 'id' + "'",
+        message: "must have required property 'id'",
       };
       if (vErrors === null) {
         vErrors = [err0];
@@ -517,13 +289,13 @@ function validate23(
       }
       errors++;
     }
-    if (data.size === undefined) {
+    if (data.size === void 0) {
       const err1 = {
         instancePath,
         schemaPath: '#/required',
         keyword: 'required',
         params: { missingProperty: 'size' },
-        message: "must have required property '" + 'size' + "'",
+        message: "must have required property 'size'",
       };
       if (vErrors === null) {
         vErrors = [err1];
@@ -549,7 +321,7 @@ function validate23(
         errors++;
       }
     }
-    if (data.id !== undefined) {
+    if (data.id !== void 0) {
       let data0 = data.id;
       if (typeof data0 === 'string') {
         if (func1(data0) > 64) {
@@ -598,7 +370,7 @@ function validate23(
         errors++;
       }
     }
-    if (data.size !== undefined) {
+    if (data.size !== void 0) {
       let data1 = data.size;
       if (!(typeof data1 == 'number' && !(data1 % 1) && !isNaN(data1))) {
         const err6 = {
@@ -633,7 +405,7 @@ function validate23(
         }
       }
     }
-    if (data.label !== undefined) {
+    if (data.label !== void 0) {
       if (typeof data.label !== 'string') {
         const err8 = {
           instancePath: instancePath + '/label',
@@ -687,19 +459,19 @@ function validate20(
   let errors = 0;
   const evaluated0 = validate20.evaluated;
   if (evaluated0.dynamicProps) {
-    evaluated0.props = undefined;
+    evaluated0.props = void 0;
   }
   if (evaluated0.dynamicItems) {
-    evaluated0.items = undefined;
+    evaluated0.items = void 0;
   }
   if (data && typeof data == 'object' && !Array.isArray(data)) {
-    if (data.schemaVersion === undefined) {
+    if (data.schemaVersion === void 0) {
       const err0 = {
         instancePath,
         schemaPath: '#/required',
         keyword: 'required',
         params: { missingProperty: 'schemaVersion' },
-        message: "must have required property '" + 'schemaVersion' + "'",
+        message: "must have required property 'schemaVersion'",
       };
       if (vErrors === null) {
         vErrors = [err0];
@@ -708,13 +480,13 @@ function validate20(
       }
       errors++;
     }
-    if (data.id === undefined) {
+    if (data.id === void 0) {
       const err1 = {
         instancePath,
         schemaPath: '#/required',
         keyword: 'required',
         params: { missingProperty: 'id' },
-        message: "must have required property '" + 'id' + "'",
+        message: "must have required property 'id'",
       };
       if (vErrors === null) {
         vErrors = [err1];
@@ -723,13 +495,13 @@ function validate20(
       }
       errors++;
     }
-    if (data.qubits === undefined) {
+    if (data.qubits === void 0) {
       const err2 = {
         instancePath,
         schemaPath: '#/required',
         keyword: 'required',
         params: { missingProperty: 'qubits' },
-        message: "must have required property '" + 'qubits' + "'",
+        message: "must have required property 'qubits'",
       };
       if (vErrors === null) {
         vErrors = [err2];
@@ -738,13 +510,13 @@ function validate20(
       }
       errors++;
     }
-    if (data.classicalRegisters === undefined) {
+    if (data.classicalRegisters === void 0) {
       const err3 = {
         instancePath,
         schemaPath: '#/required',
         keyword: 'required',
         params: { missingProperty: 'classicalRegisters' },
-        message: "must have required property '" + 'classicalRegisters' + "'",
+        message: "must have required property 'classicalRegisters'",
       };
       if (vErrors === null) {
         vErrors = [err3];
@@ -753,13 +525,13 @@ function validate20(
       }
       errors++;
     }
-    if (data.operations === undefined) {
+    if (data.operations === void 0) {
       const err4 = {
         instancePath,
         schemaPath: '#/required',
         keyword: 'required',
         params: { missingProperty: 'operations' },
-        message: "must have required property '" + 'operations' + "'",
+        message: "must have required property 'operations'",
       };
       if (vErrors === null) {
         vErrors = [err4];
@@ -793,7 +565,7 @@ function validate20(
         errors++;
       }
     }
-    if (data.schemaVersion !== undefined) {
+    if (data.schemaVersion !== void 0) {
       let data0 = data.schemaVersion;
       if (typeof data0 === 'string') {
         if (!pattern4.test(data0)) {
@@ -805,9 +577,7 @@ function validate20(
               pattern: '^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$',
             },
             message:
-              'must match pattern "' +
-              '^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$' +
-              '"',
+              'must match pattern "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"',
           };
           if (vErrors === null) {
             vErrors = [err6];
@@ -832,7 +602,7 @@ function validate20(
         errors++;
       }
     }
-    if (data.id !== undefined) {
+    if (data.id !== void 0) {
       let data1 = data.id;
       if (typeof data1 === 'string') {
         if (func1(data1) > 64) {
@@ -881,7 +651,7 @@ function validate20(
         errors++;
       }
     }
-    if (data.name !== undefined) {
+    if (data.name !== void 0) {
       if (typeof data.name !== 'string') {
         const err11 = {
           instancePath: instancePath + '/name',
@@ -898,7 +668,7 @@ function validate20(
         errors++;
       }
     }
-    if (data.qubits !== undefined) {
+    if (data.qubits !== void 0) {
       let data3 = data.qubits;
       if (Array.isArray(data3)) {
         const len0 = data3.length;
@@ -935,7 +705,7 @@ function validate20(
         errors++;
       }
     }
-    if (data.classicalRegisters !== undefined) {
+    if (data.classicalRegisters !== void 0) {
       let data5 = data.classicalRegisters;
       if (Array.isArray(data5)) {
         const len1 = data5.length;
@@ -972,7 +742,7 @@ function validate20(
         errors++;
       }
     }
-    if (data.operations !== undefined) {
+    if (data.operations !== void 0) {
       if (!Array.isArray(data.operations)) {
         const err14 = {
           instancePath: instancePath + '/operations',
@@ -989,7 +759,7 @@ function validate20(
         errors++;
       }
     }
-    if (data.metadata !== undefined) {
+    if (data.metadata !== void 0) {
       let data8 = data.metadata;
       if (data8 && typeof data8 == 'object' && !Array.isArray(data8)) {
         for (const key1 in data8) {
@@ -1014,7 +784,7 @@ function validate20(
             errors++;
           }
         }
-        if (data8.description !== undefined) {
+        if (data8.description !== void 0) {
           if (typeof data8.description !== 'string') {
             const err16 = {
               instancePath: instancePath + '/metadata/description',
@@ -1031,7 +801,7 @@ function validate20(
             errors++;
           }
         }
-        if (data8.author !== undefined) {
+        if (data8.author !== void 0) {
           if (typeof data8.author !== 'string') {
             const err17 = {
               instancePath: instancePath + '/metadata/author',
@@ -1048,7 +818,7 @@ function validate20(
             errors++;
           }
         }
-        if (data8.createdAt !== undefined) {
+        if (data8.createdAt !== void 0) {
           if (!(typeof data8.createdAt === 'string')) {
             const err18 = {
               instancePath: instancePath + '/metadata/createdAt',
@@ -1065,7 +835,7 @@ function validate20(
             errors++;
           }
         }
-        if (data8.updatedAt !== undefined) {
+        if (data8.updatedAt !== void 0) {
           if (!(typeof data8.updatedAt === 'string')) {
             const err19 = {
               instancePath: instancePath + '/metadata/updatedAt',
@@ -1121,228 +891,8 @@ validate20.evaluated = {
   dynamicProps: false,
   dynamicItems: false,
 };
-export const validateGate = validate25;
-const schema38 = {
-  $schema: 'https://json-schema.org/draft/2020-12/schema',
-  $ref: '#/$defs/GateOperation',
-  $defs: {
-    Identifier: {
-      description:
-        'Opaque stable identifier, generated client-side. Nothing may parse meaning out of it. See ADR-0002.',
-      $comment:
-        'Used only where an identifier is minted -- the id field of a first-class object. Positions that merely reference an identifier use IdentifierRef instead; see the note there.',
-      type: 'string',
-      minLength: 1,
-      maxLength: 64,
-    },
-    IdentifierRef: {
-      description:
-        'A reference to an identifier declared elsewhere in the circuit.',
-      $comment:
-        "Deliberately unconstrained, for two reasons. Correctness: a reference is validated by resolution -- 'this id must name a declared qubit' -- which is hand-written and strictly stronger than a length check, because a resolved id already satisfied Identifier where it was minted. Practical: datamodel-code-generator wraps any *constrained* string appearing inside an array in RootModel[str], which is unhashable and unequal to a plain str, breaking the set-membership check every referential rule performs. An unconstrained string generates as list[str].",
-      type: 'string',
-    },
-    Qubit: {
-      description: 'A single quantum wire.',
-      type: 'object',
-      additionalProperties: false,
-      required: ['id', 'index'],
-      properties: {
-        id: { $ref: '#/$defs/Identifier' },
-        index: {
-          description:
-            'Position on the wire stack. Contiguity from 0 is validated in code, not here.',
-          type: 'integer',
-          minimum: 0,
-        },
-        label: { type: 'string' },
-      },
-    },
-    ClassicalRegister: {
-      description:
-        'A named group of classical bits that measurement results are written into.',
-      type: 'object',
-      additionalProperties: false,
-      required: ['id', 'size'],
-      properties: {
-        id: { $ref: '#/$defs/Identifier' },
-        size: { type: 'integer', minimum: 1 },
-        label: { type: 'string' },
-      },
-    },
-    ClassicalTarget: {
-      description:
-        'A single bit within a declared classical register. Contention is tracked per bit -- see ADR-0003.',
-      type: 'object',
-      additionalProperties: false,
-      required: ['register', 'bit'],
-      properties: {
-        register: { $ref: '#/$defs/IdentifierRef' },
-        bit: {
-          description:
-            "Index within the register. Bounds against the register's size are validated in code.",
-          type: 'integer',
-          minimum: 0,
-        },
-      },
-    },
-    GateName: {
-      description:
-        'Lowercase, following OpenQASM convention. Arity is validated in code -- expressing it here would require one branch per gate.',
-      type: 'string',
-      enum: [
-        'i',
-        'h',
-        'x',
-        'y',
-        'z',
-        's',
-        'sdg',
-        't',
-        'tdg',
-        'rx',
-        'ry',
-        'rz',
-        'p',
-        'cx',
-        'cy',
-        'cz',
-        'swap',
-        'ccx',
-      ],
-    },
-    GateOperation: {
-      description: 'A unitary operation on one or more qubits.',
-      type: 'object',
-      additionalProperties: false,
-      required: ['id', 'kind', 'name', 'targets'],
-      properties: {
-        id: { $ref: '#/$defs/Identifier' },
-        kind: { const: 'gate' },
-        name: { $ref: '#/$defs/GateName' },
-        targets: {
-          type: 'array',
-          minItems: 1,
-          items: { $ref: '#/$defs/IdentifierRef' },
-        },
-        controls: {
-          description:
-            'Control qubits. Control count is never encoded into the gate name.',
-          type: 'array',
-          items: { $ref: '#/$defs/IdentifierRef' },
-          default: [],
-        },
-        parameters: {
-          description:
-            'Angles in radians. Which parameters a given gate requires is validated in code.',
-          type: 'object',
-          additionalProperties: { type: 'number' },
-          default: {},
-        },
-      },
-    },
-    MeasurementOperation: {
-      description:
-        'A projective measurement writing into a classical bit. While mid-circuit measurement is deferred, a measured qubit is terminal -- enforced in code, not here.',
-      type: 'object',
-      additionalProperties: false,
-      required: ['id', 'kind', 'targets', 'classicalTarget'],
-      properties: {
-        id: { $ref: '#/$defs/Identifier' },
-        kind: { const: 'measurement' },
-        targets: {
-          type: 'array',
-          minItems: 1,
-          maxItems: 1,
-          items: { $ref: '#/$defs/IdentifierRef' },
-        },
-        classicalTarget: { $ref: '#/$defs/ClassicalTarget' },
-      },
-    },
-    BarrierOperation: {
-      description:
-        'An authoring constraint preventing operations from being scheduled across it. Occupies no cycle and does not contribute to depth -- see ADR-0003. Carries no controls, parameters, or classical target.',
-      type: 'object',
-      additionalProperties: false,
-      required: ['id', 'kind', 'targets'],
-      properties: {
-        id: { $ref: '#/$defs/Identifier' },
-        kind: { const: 'barrier' },
-        targets: {
-          description:
-            "Required and non-empty. There is no implicit all-qubits barrier; importers expand OpenQASM's bare barrier at import time.",
-          type: 'array',
-          minItems: 1,
-          items: { $ref: '#/$defs/IdentifierRef' },
-        },
-      },
-    },
-    Operation: {
-      description:
-        'Anything occupying a position in execution order, discriminated on kind.',
-      $comment:
-        "The discriminator keyword is OpenAPI rather than JSON Schema 2020-12. It is present because datamodel-code-generator reads it to emit Field(discriminator='kind'); without it Pydantic attempts every branch and reports that none matched, instead of reporting the one real error against the branch the kind names. A validator will NOT simply ignore it: Ajv rejects it as an unknown keyword unless strict mode is off, and Ajv's own discriminator support rejects the mapping below. That mapping is read at generation time to build one validator per branch, because oneOf plus $ref loses branch attribution in error output -- see ADR-0008 section 2, where trusting it deletes real fields.",
-      oneOf: [
-        { $ref: '#/$defs/GateOperation' },
-        { $ref: '#/$defs/MeasurementOperation' },
-        { $ref: '#/$defs/BarrierOperation' },
-      ],
-      discriminator: {
-        propertyName: 'kind',
-        mapping: {
-          gate: '#/$defs/GateOperation',
-          measurement: '#/$defs/MeasurementOperation',
-          barrier: '#/$defs/BarrierOperation',
-        },
-      },
-    },
-    Metadata: {
-      description:
-        'Descriptive only. If the simulator would behave differently based on a field here, that field belongs in the model proper.',
-      $comment:
-        "additionalProperties is false here for the same reason it is everywhere else, and its absence was a bug: Pydantic's default silently discarded unknown metadata keys, so they never round-tripped and no error said so. Unknown fields are the loader's business, not a parser default -- see ADR-0006.",
-      type: 'object',
-      additionalProperties: false,
-      properties: {
-        description: { type: 'string' },
-        author: { type: 'string' },
-        createdAt: { type: 'string', format: 'date-time' },
-        updatedAt: { type: 'string', format: 'date-time' },
-      },
-    },
-  },
-};
-const schema39 = {
-  description: 'A unitary operation on one or more qubits.',
-  type: 'object',
-  additionalProperties: false,
-  required: ['id', 'kind', 'name', 'targets'],
-  properties: {
-    id: { $ref: '#/$defs/Identifier' },
-    kind: { const: 'gate' },
-    name: { $ref: '#/$defs/GateName' },
-    targets: {
-      type: 'array',
-      minItems: 1,
-      items: { $ref: '#/$defs/IdentifierRef' },
-    },
-    controls: {
-      description:
-        'Control qubits. Control count is never encoded into the gate name.',
-      type: 'array',
-      items: { $ref: '#/$defs/IdentifierRef' },
-      default: [],
-    },
-    parameters: {
-      description:
-        'Angles in radians. Which parameters a given gate requires is validated in code.',
-      type: 'object',
-      additionalProperties: { type: 'number' },
-      default: {},
-    },
-  },
-};
-const schema41 = {
+var validateGate = validate25;
+var schema41 = {
   description:
     'Lowercase, following OpenQASM convention. Arity is validated in code -- expressing it here would require one branch per gate.',
   type: 'string',
@@ -1367,13 +917,6 @@ const schema41 = {
     'ccx',
   ],
 };
-const schema42 = {
-  description:
-    'A reference to an identifier declared elsewhere in the circuit.',
-  $comment:
-    "Deliberately unconstrained, for two reasons. Correctness: a reference is validated by resolution -- 'this id must name a declared qubit' -- which is hand-written and strictly stronger than a length check, because a resolved id already satisfied Identifier where it was minted. Practical: datamodel-code-generator wraps any *constrained* string appearing inside an array in RootModel[str], which is unhashable and unequal to a plain str, breaking the set-membership check every referential rule performs. An unconstrained string generates as list[str].",
-  type: 'string',
-};
 function validate26(
   data,
   {
@@ -1388,19 +931,19 @@ function validate26(
   let errors = 0;
   const evaluated0 = validate26.evaluated;
   if (evaluated0.dynamicProps) {
-    evaluated0.props = undefined;
+    evaluated0.props = void 0;
   }
   if (evaluated0.dynamicItems) {
-    evaluated0.items = undefined;
+    evaluated0.items = void 0;
   }
   if (data && typeof data == 'object' && !Array.isArray(data)) {
-    if (data.id === undefined) {
+    if (data.id === void 0) {
       const err0 = {
         instancePath,
         schemaPath: '#/required',
         keyword: 'required',
         params: { missingProperty: 'id' },
-        message: "must have required property '" + 'id' + "'",
+        message: "must have required property 'id'",
       };
       if (vErrors === null) {
         vErrors = [err0];
@@ -1409,13 +952,13 @@ function validate26(
       }
       errors++;
     }
-    if (data.kind === undefined) {
+    if (data.kind === void 0) {
       const err1 = {
         instancePath,
         schemaPath: '#/required',
         keyword: 'required',
         params: { missingProperty: 'kind' },
-        message: "must have required property '" + 'kind' + "'",
+        message: "must have required property 'kind'",
       };
       if (vErrors === null) {
         vErrors = [err1];
@@ -1424,13 +967,13 @@ function validate26(
       }
       errors++;
     }
-    if (data.name === undefined) {
+    if (data.name === void 0) {
       const err2 = {
         instancePath,
         schemaPath: '#/required',
         keyword: 'required',
         params: { missingProperty: 'name' },
-        message: "must have required property '" + 'name' + "'",
+        message: "must have required property 'name'",
       };
       if (vErrors === null) {
         vErrors = [err2];
@@ -1439,13 +982,13 @@ function validate26(
       }
       errors++;
     }
-    if (data.targets === undefined) {
+    if (data.targets === void 0) {
       const err3 = {
         instancePath,
         schemaPath: '#/required',
         keyword: 'required',
         params: { missingProperty: 'targets' },
-        message: "must have required property '" + 'targets' + "'",
+        message: "must have required property 'targets'",
       };
       if (vErrors === null) {
         vErrors = [err3];
@@ -1478,7 +1021,7 @@ function validate26(
         errors++;
       }
     }
-    if (data.id !== undefined) {
+    if (data.id !== void 0) {
       let data0 = data.id;
       if (typeof data0 === 'string') {
         if (func1(data0) > 64) {
@@ -1527,7 +1070,7 @@ function validate26(
         errors++;
       }
     }
-    if (data.kind !== undefined) {
+    if (data.kind !== void 0) {
       if ('gate' !== data.kind) {
         const err8 = {
           instancePath: instancePath + '/kind',
@@ -1544,7 +1087,7 @@ function validate26(
         errors++;
       }
     }
-    if (data.name !== undefined) {
+    if (data.name !== void 0) {
       let data2 = data.name;
       if (typeof data2 !== 'string') {
         const err9 = {
@@ -1596,7 +1139,7 @@ function validate26(
         errors++;
       }
     }
-    if (data.targets !== undefined) {
+    if (data.targets !== void 0) {
       let data3 = data.targets;
       if (Array.isArray(data3)) {
         if (data3.length < 1) {
@@ -1648,7 +1191,7 @@ function validate26(
         errors++;
       }
     }
-    if (data.controls !== undefined) {
+    if (data.controls !== void 0) {
       let data5 = data.controls;
       if (Array.isArray(data5)) {
         const len1 = data5.length;
@@ -1685,7 +1228,7 @@ function validate26(
         errors++;
       }
     }
-    if (data.parameters !== undefined) {
+    if (data.parameters !== void 0) {
       let data7 = data.parameters;
       if (data7 && typeof data7 == 'object' && !Array.isArray(data7)) {
         for (const key1 in data7) {
@@ -1761,10 +1304,10 @@ function validate25(
   let errors = 0;
   const evaluated0 = validate25.evaluated;
   if (evaluated0.dynamicProps) {
-    evaluated0.props = undefined;
+    evaluated0.props = void 0;
   }
   if (evaluated0.dynamicItems) {
-    evaluated0.items = undefined;
+    evaluated0.items = void 0;
   }
   if (
     !validate26(data, {
@@ -1787,231 +1330,7 @@ validate25.evaluated = {
   dynamicProps: false,
   dynamicItems: false,
 };
-export const validateMeasurement = validate28;
-const schema44 = {
-  $schema: 'https://json-schema.org/draft/2020-12/schema',
-  $ref: '#/$defs/MeasurementOperation',
-  $defs: {
-    Identifier: {
-      description:
-        'Opaque stable identifier, generated client-side. Nothing may parse meaning out of it. See ADR-0002.',
-      $comment:
-        'Used only where an identifier is minted -- the id field of a first-class object. Positions that merely reference an identifier use IdentifierRef instead; see the note there.',
-      type: 'string',
-      minLength: 1,
-      maxLength: 64,
-    },
-    IdentifierRef: {
-      description:
-        'A reference to an identifier declared elsewhere in the circuit.',
-      $comment:
-        "Deliberately unconstrained, for two reasons. Correctness: a reference is validated by resolution -- 'this id must name a declared qubit' -- which is hand-written and strictly stronger than a length check, because a resolved id already satisfied Identifier where it was minted. Practical: datamodel-code-generator wraps any *constrained* string appearing inside an array in RootModel[str], which is unhashable and unequal to a plain str, breaking the set-membership check every referential rule performs. An unconstrained string generates as list[str].",
-      type: 'string',
-    },
-    Qubit: {
-      description: 'A single quantum wire.',
-      type: 'object',
-      additionalProperties: false,
-      required: ['id', 'index'],
-      properties: {
-        id: { $ref: '#/$defs/Identifier' },
-        index: {
-          description:
-            'Position on the wire stack. Contiguity from 0 is validated in code, not here.',
-          type: 'integer',
-          minimum: 0,
-        },
-        label: { type: 'string' },
-      },
-    },
-    ClassicalRegister: {
-      description:
-        'A named group of classical bits that measurement results are written into.',
-      type: 'object',
-      additionalProperties: false,
-      required: ['id', 'size'],
-      properties: {
-        id: { $ref: '#/$defs/Identifier' },
-        size: { type: 'integer', minimum: 1 },
-        label: { type: 'string' },
-      },
-    },
-    ClassicalTarget: {
-      description:
-        'A single bit within a declared classical register. Contention is tracked per bit -- see ADR-0003.',
-      type: 'object',
-      additionalProperties: false,
-      required: ['register', 'bit'],
-      properties: {
-        register: { $ref: '#/$defs/IdentifierRef' },
-        bit: {
-          description:
-            "Index within the register. Bounds against the register's size are validated in code.",
-          type: 'integer',
-          minimum: 0,
-        },
-      },
-    },
-    GateName: {
-      description:
-        'Lowercase, following OpenQASM convention. Arity is validated in code -- expressing it here would require one branch per gate.',
-      type: 'string',
-      enum: [
-        'i',
-        'h',
-        'x',
-        'y',
-        'z',
-        's',
-        'sdg',
-        't',
-        'tdg',
-        'rx',
-        'ry',
-        'rz',
-        'p',
-        'cx',
-        'cy',
-        'cz',
-        'swap',
-        'ccx',
-      ],
-    },
-    GateOperation: {
-      description: 'A unitary operation on one or more qubits.',
-      type: 'object',
-      additionalProperties: false,
-      required: ['id', 'kind', 'name', 'targets'],
-      properties: {
-        id: { $ref: '#/$defs/Identifier' },
-        kind: { const: 'gate' },
-        name: { $ref: '#/$defs/GateName' },
-        targets: {
-          type: 'array',
-          minItems: 1,
-          items: { $ref: '#/$defs/IdentifierRef' },
-        },
-        controls: {
-          description:
-            'Control qubits. Control count is never encoded into the gate name.',
-          type: 'array',
-          items: { $ref: '#/$defs/IdentifierRef' },
-          default: [],
-        },
-        parameters: {
-          description:
-            'Angles in radians. Which parameters a given gate requires is validated in code.',
-          type: 'object',
-          additionalProperties: { type: 'number' },
-          default: {},
-        },
-      },
-    },
-    MeasurementOperation: {
-      description:
-        'A projective measurement writing into a classical bit. While mid-circuit measurement is deferred, a measured qubit is terminal -- enforced in code, not here.',
-      type: 'object',
-      additionalProperties: false,
-      required: ['id', 'kind', 'targets', 'classicalTarget'],
-      properties: {
-        id: { $ref: '#/$defs/Identifier' },
-        kind: { const: 'measurement' },
-        targets: {
-          type: 'array',
-          minItems: 1,
-          maxItems: 1,
-          items: { $ref: '#/$defs/IdentifierRef' },
-        },
-        classicalTarget: { $ref: '#/$defs/ClassicalTarget' },
-      },
-    },
-    BarrierOperation: {
-      description:
-        'An authoring constraint preventing operations from being scheduled across it. Occupies no cycle and does not contribute to depth -- see ADR-0003. Carries no controls, parameters, or classical target.',
-      type: 'object',
-      additionalProperties: false,
-      required: ['id', 'kind', 'targets'],
-      properties: {
-        id: { $ref: '#/$defs/Identifier' },
-        kind: { const: 'barrier' },
-        targets: {
-          description:
-            "Required and non-empty. There is no implicit all-qubits barrier; importers expand OpenQASM's bare barrier at import time.",
-          type: 'array',
-          minItems: 1,
-          items: { $ref: '#/$defs/IdentifierRef' },
-        },
-      },
-    },
-    Operation: {
-      description:
-        'Anything occupying a position in execution order, discriminated on kind.',
-      $comment:
-        "The discriminator keyword is OpenAPI rather than JSON Schema 2020-12. It is present because datamodel-code-generator reads it to emit Field(discriminator='kind'); without it Pydantic attempts every branch and reports that none matched, instead of reporting the one real error against the branch the kind names. A validator will NOT simply ignore it: Ajv rejects it as an unknown keyword unless strict mode is off, and Ajv's own discriminator support rejects the mapping below. That mapping is read at generation time to build one validator per branch, because oneOf plus $ref loses branch attribution in error output -- see ADR-0008 section 2, where trusting it deletes real fields.",
-      oneOf: [
-        { $ref: '#/$defs/GateOperation' },
-        { $ref: '#/$defs/MeasurementOperation' },
-        { $ref: '#/$defs/BarrierOperation' },
-      ],
-      discriminator: {
-        propertyName: 'kind',
-        mapping: {
-          gate: '#/$defs/GateOperation',
-          measurement: '#/$defs/MeasurementOperation',
-          barrier: '#/$defs/BarrierOperation',
-        },
-      },
-    },
-    Metadata: {
-      description:
-        'Descriptive only. If the simulator would behave differently based on a field here, that field belongs in the model proper.',
-      $comment:
-        "additionalProperties is false here for the same reason it is everywhere else, and its absence was a bug: Pydantic's default silently discarded unknown metadata keys, so they never round-tripped and no error said so. Unknown fields are the loader's business, not a parser default -- see ADR-0006.",
-      type: 'object',
-      additionalProperties: false,
-      properties: {
-        description: { type: 'string' },
-        author: { type: 'string' },
-        createdAt: { type: 'string', format: 'date-time' },
-        updatedAt: { type: 'string', format: 'date-time' },
-      },
-    },
-  },
-};
-const schema45 = {
-  description:
-    'A projective measurement writing into a classical bit. While mid-circuit measurement is deferred, a measured qubit is terminal -- enforced in code, not here.',
-  type: 'object',
-  additionalProperties: false,
-  required: ['id', 'kind', 'targets', 'classicalTarget'],
-  properties: {
-    id: { $ref: '#/$defs/Identifier' },
-    kind: { const: 'measurement' },
-    targets: {
-      type: 'array',
-      minItems: 1,
-      maxItems: 1,
-      items: { $ref: '#/$defs/IdentifierRef' },
-    },
-    classicalTarget: { $ref: '#/$defs/ClassicalTarget' },
-  },
-};
-const schema48 = {
-  description:
-    'A single bit within a declared classical register. Contention is tracked per bit -- see ADR-0003.',
-  type: 'object',
-  additionalProperties: false,
-  required: ['register', 'bit'],
-  properties: {
-    register: { $ref: '#/$defs/IdentifierRef' },
-    bit: {
-      description:
-        "Index within the register. Bounds against the register's size are validated in code.",
-      type: 'integer',
-      minimum: 0,
-    },
-  },
-};
+var validateMeasurement = validate28;
 function validate30(
   data,
   {
@@ -2026,19 +1345,19 @@ function validate30(
   let errors = 0;
   const evaluated0 = validate30.evaluated;
   if (evaluated0.dynamicProps) {
-    evaluated0.props = undefined;
+    evaluated0.props = void 0;
   }
   if (evaluated0.dynamicItems) {
-    evaluated0.items = undefined;
+    evaluated0.items = void 0;
   }
   if (data && typeof data == 'object' && !Array.isArray(data)) {
-    if (data.register === undefined) {
+    if (data.register === void 0) {
       const err0 = {
         instancePath,
         schemaPath: '#/required',
         keyword: 'required',
         params: { missingProperty: 'register' },
-        message: "must have required property '" + 'register' + "'",
+        message: "must have required property 'register'",
       };
       if (vErrors === null) {
         vErrors = [err0];
@@ -2047,13 +1366,13 @@ function validate30(
       }
       errors++;
     }
-    if (data.bit === undefined) {
+    if (data.bit === void 0) {
       const err1 = {
         instancePath,
         schemaPath: '#/required',
         keyword: 'required',
         params: { missingProperty: 'bit' },
-        message: "must have required property '" + 'bit' + "'",
+        message: "must have required property 'bit'",
       };
       if (vErrors === null) {
         vErrors = [err1];
@@ -2079,7 +1398,7 @@ function validate30(
         errors++;
       }
     }
-    if (data.register !== undefined) {
+    if (data.register !== void 0) {
       if (typeof data.register !== 'string') {
         const err3 = {
           instancePath: instancePath + '/register',
@@ -2096,7 +1415,7 @@ function validate30(
         errors++;
       }
     }
-    if (data.bit !== undefined) {
+    if (data.bit !== void 0) {
       let data1 = data.bit;
       if (!(typeof data1 == 'number' && !(data1 % 1) && !isNaN(data1))) {
         const err4 = {
@@ -2168,19 +1487,19 @@ function validate29(
   let errors = 0;
   const evaluated0 = validate29.evaluated;
   if (evaluated0.dynamicProps) {
-    evaluated0.props = undefined;
+    evaluated0.props = void 0;
   }
   if (evaluated0.dynamicItems) {
-    evaluated0.items = undefined;
+    evaluated0.items = void 0;
   }
   if (data && typeof data == 'object' && !Array.isArray(data)) {
-    if (data.id === undefined) {
+    if (data.id === void 0) {
       const err0 = {
         instancePath,
         schemaPath: '#/required',
         keyword: 'required',
         params: { missingProperty: 'id' },
-        message: "must have required property '" + 'id' + "'",
+        message: "must have required property 'id'",
       };
       if (vErrors === null) {
         vErrors = [err0];
@@ -2189,13 +1508,13 @@ function validate29(
       }
       errors++;
     }
-    if (data.kind === undefined) {
+    if (data.kind === void 0) {
       const err1 = {
         instancePath,
         schemaPath: '#/required',
         keyword: 'required',
         params: { missingProperty: 'kind' },
-        message: "must have required property '" + 'kind' + "'",
+        message: "must have required property 'kind'",
       };
       if (vErrors === null) {
         vErrors = [err1];
@@ -2204,13 +1523,13 @@ function validate29(
       }
       errors++;
     }
-    if (data.targets === undefined) {
+    if (data.targets === void 0) {
       const err2 = {
         instancePath,
         schemaPath: '#/required',
         keyword: 'required',
         params: { missingProperty: 'targets' },
-        message: "must have required property '" + 'targets' + "'",
+        message: "must have required property 'targets'",
       };
       if (vErrors === null) {
         vErrors = [err2];
@@ -2219,13 +1538,13 @@ function validate29(
       }
       errors++;
     }
-    if (data.classicalTarget === undefined) {
+    if (data.classicalTarget === void 0) {
       const err3 = {
         instancePath,
         schemaPath: '#/required',
         keyword: 'required',
         params: { missingProperty: 'classicalTarget' },
-        message: "must have required property '" + 'classicalTarget' + "'",
+        message: "must have required property 'classicalTarget'",
       };
       if (vErrors === null) {
         vErrors = [err3];
@@ -2256,7 +1575,7 @@ function validate29(
         errors++;
       }
     }
-    if (data.id !== undefined) {
+    if (data.id !== void 0) {
       let data0 = data.id;
       if (typeof data0 === 'string') {
         if (func1(data0) > 64) {
@@ -2305,7 +1624,7 @@ function validate29(
         errors++;
       }
     }
-    if (data.kind !== undefined) {
+    if (data.kind !== void 0) {
       if ('measurement' !== data.kind) {
         const err8 = {
           instancePath: instancePath + '/kind',
@@ -2322,7 +1641,7 @@ function validate29(
         errors++;
       }
     }
-    if (data.targets !== undefined) {
+    if (data.targets !== void 0) {
       let data2 = data.targets;
       if (Array.isArray(data2)) {
         if (data2.length > 1) {
@@ -2389,7 +1708,7 @@ function validate29(
         errors++;
       }
     }
-    if (data.classicalTarget !== undefined) {
+    if (data.classicalTarget !== void 0) {
       if (
         !validate30(data.classicalTarget, {
           instancePath: instancePath + '/classicalTarget',
@@ -2443,10 +1762,10 @@ function validate28(
   let errors = 0;
   const evaluated0 = validate28.evaluated;
   if (evaluated0.dynamicProps) {
-    evaluated0.props = undefined;
+    evaluated0.props = void 0;
   }
   if (evaluated0.dynamicItems) {
-    evaluated0.items = undefined;
+    evaluated0.items = void 0;
   }
   if (
     !validate29(data, {
@@ -2469,215 +1788,7 @@ validate28.evaluated = {
   dynamicProps: false,
   dynamicItems: false,
 };
-export const validateBarrier = validate33;
-const schema50 = {
-  $schema: 'https://json-schema.org/draft/2020-12/schema',
-  $ref: '#/$defs/BarrierOperation',
-  $defs: {
-    Identifier: {
-      description:
-        'Opaque stable identifier, generated client-side. Nothing may parse meaning out of it. See ADR-0002.',
-      $comment:
-        'Used only where an identifier is minted -- the id field of a first-class object. Positions that merely reference an identifier use IdentifierRef instead; see the note there.',
-      type: 'string',
-      minLength: 1,
-      maxLength: 64,
-    },
-    IdentifierRef: {
-      description:
-        'A reference to an identifier declared elsewhere in the circuit.',
-      $comment:
-        "Deliberately unconstrained, for two reasons. Correctness: a reference is validated by resolution -- 'this id must name a declared qubit' -- which is hand-written and strictly stronger than a length check, because a resolved id already satisfied Identifier where it was minted. Practical: datamodel-code-generator wraps any *constrained* string appearing inside an array in RootModel[str], which is unhashable and unequal to a plain str, breaking the set-membership check every referential rule performs. An unconstrained string generates as list[str].",
-      type: 'string',
-    },
-    Qubit: {
-      description: 'A single quantum wire.',
-      type: 'object',
-      additionalProperties: false,
-      required: ['id', 'index'],
-      properties: {
-        id: { $ref: '#/$defs/Identifier' },
-        index: {
-          description:
-            'Position on the wire stack. Contiguity from 0 is validated in code, not here.',
-          type: 'integer',
-          minimum: 0,
-        },
-        label: { type: 'string' },
-      },
-    },
-    ClassicalRegister: {
-      description:
-        'A named group of classical bits that measurement results are written into.',
-      type: 'object',
-      additionalProperties: false,
-      required: ['id', 'size'],
-      properties: {
-        id: { $ref: '#/$defs/Identifier' },
-        size: { type: 'integer', minimum: 1 },
-        label: { type: 'string' },
-      },
-    },
-    ClassicalTarget: {
-      description:
-        'A single bit within a declared classical register. Contention is tracked per bit -- see ADR-0003.',
-      type: 'object',
-      additionalProperties: false,
-      required: ['register', 'bit'],
-      properties: {
-        register: { $ref: '#/$defs/IdentifierRef' },
-        bit: {
-          description:
-            "Index within the register. Bounds against the register's size are validated in code.",
-          type: 'integer',
-          minimum: 0,
-        },
-      },
-    },
-    GateName: {
-      description:
-        'Lowercase, following OpenQASM convention. Arity is validated in code -- expressing it here would require one branch per gate.',
-      type: 'string',
-      enum: [
-        'i',
-        'h',
-        'x',
-        'y',
-        'z',
-        's',
-        'sdg',
-        't',
-        'tdg',
-        'rx',
-        'ry',
-        'rz',
-        'p',
-        'cx',
-        'cy',
-        'cz',
-        'swap',
-        'ccx',
-      ],
-    },
-    GateOperation: {
-      description: 'A unitary operation on one or more qubits.',
-      type: 'object',
-      additionalProperties: false,
-      required: ['id', 'kind', 'name', 'targets'],
-      properties: {
-        id: { $ref: '#/$defs/Identifier' },
-        kind: { const: 'gate' },
-        name: { $ref: '#/$defs/GateName' },
-        targets: {
-          type: 'array',
-          minItems: 1,
-          items: { $ref: '#/$defs/IdentifierRef' },
-        },
-        controls: {
-          description:
-            'Control qubits. Control count is never encoded into the gate name.',
-          type: 'array',
-          items: { $ref: '#/$defs/IdentifierRef' },
-          default: [],
-        },
-        parameters: {
-          description:
-            'Angles in radians. Which parameters a given gate requires is validated in code.',
-          type: 'object',
-          additionalProperties: { type: 'number' },
-          default: {},
-        },
-      },
-    },
-    MeasurementOperation: {
-      description:
-        'A projective measurement writing into a classical bit. While mid-circuit measurement is deferred, a measured qubit is terminal -- enforced in code, not here.',
-      type: 'object',
-      additionalProperties: false,
-      required: ['id', 'kind', 'targets', 'classicalTarget'],
-      properties: {
-        id: { $ref: '#/$defs/Identifier' },
-        kind: { const: 'measurement' },
-        targets: {
-          type: 'array',
-          minItems: 1,
-          maxItems: 1,
-          items: { $ref: '#/$defs/IdentifierRef' },
-        },
-        classicalTarget: { $ref: '#/$defs/ClassicalTarget' },
-      },
-    },
-    BarrierOperation: {
-      description:
-        'An authoring constraint preventing operations from being scheduled across it. Occupies no cycle and does not contribute to depth -- see ADR-0003. Carries no controls, parameters, or classical target.',
-      type: 'object',
-      additionalProperties: false,
-      required: ['id', 'kind', 'targets'],
-      properties: {
-        id: { $ref: '#/$defs/Identifier' },
-        kind: { const: 'barrier' },
-        targets: {
-          description:
-            "Required and non-empty. There is no implicit all-qubits barrier; importers expand OpenQASM's bare barrier at import time.",
-          type: 'array',
-          minItems: 1,
-          items: { $ref: '#/$defs/IdentifierRef' },
-        },
-      },
-    },
-    Operation: {
-      description:
-        'Anything occupying a position in execution order, discriminated on kind.',
-      $comment:
-        "The discriminator keyword is OpenAPI rather than JSON Schema 2020-12. It is present because datamodel-code-generator reads it to emit Field(discriminator='kind'); without it Pydantic attempts every branch and reports that none matched, instead of reporting the one real error against the branch the kind names. A validator will NOT simply ignore it: Ajv rejects it as an unknown keyword unless strict mode is off, and Ajv's own discriminator support rejects the mapping below. That mapping is read at generation time to build one validator per branch, because oneOf plus $ref loses branch attribution in error output -- see ADR-0008 section 2, where trusting it deletes real fields.",
-      oneOf: [
-        { $ref: '#/$defs/GateOperation' },
-        { $ref: '#/$defs/MeasurementOperation' },
-        { $ref: '#/$defs/BarrierOperation' },
-      ],
-      discriminator: {
-        propertyName: 'kind',
-        mapping: {
-          gate: '#/$defs/GateOperation',
-          measurement: '#/$defs/MeasurementOperation',
-          barrier: '#/$defs/BarrierOperation',
-        },
-      },
-    },
-    Metadata: {
-      description:
-        'Descriptive only. If the simulator would behave differently based on a field here, that field belongs in the model proper.',
-      $comment:
-        "additionalProperties is false here for the same reason it is everywhere else, and its absence was a bug: Pydantic's default silently discarded unknown metadata keys, so they never round-tripped and no error said so. Unknown fields are the loader's business, not a parser default -- see ADR-0006.",
-      type: 'object',
-      additionalProperties: false,
-      properties: {
-        description: { type: 'string' },
-        author: { type: 'string' },
-        createdAt: { type: 'string', format: 'date-time' },
-        updatedAt: { type: 'string', format: 'date-time' },
-      },
-    },
-  },
-};
-const schema51 = {
-  description:
-    'An authoring constraint preventing operations from being scheduled across it. Occupies no cycle and does not contribute to depth -- see ADR-0003. Carries no controls, parameters, or classical target.',
-  type: 'object',
-  additionalProperties: false,
-  required: ['id', 'kind', 'targets'],
-  properties: {
-    id: { $ref: '#/$defs/Identifier' },
-    kind: { const: 'barrier' },
-    targets: {
-      description:
-        "Required and non-empty. There is no implicit all-qubits barrier; importers expand OpenQASM's bare barrier at import time.",
-      type: 'array',
-      minItems: 1,
-      items: { $ref: '#/$defs/IdentifierRef' },
-    },
-  },
-};
+var validateBarrier = validate33;
 function validate34(
   data,
   {
@@ -2692,19 +1803,19 @@ function validate34(
   let errors = 0;
   const evaluated0 = validate34.evaluated;
   if (evaluated0.dynamicProps) {
-    evaluated0.props = undefined;
+    evaluated0.props = void 0;
   }
   if (evaluated0.dynamicItems) {
-    evaluated0.items = undefined;
+    evaluated0.items = void 0;
   }
   if (data && typeof data == 'object' && !Array.isArray(data)) {
-    if (data.id === undefined) {
+    if (data.id === void 0) {
       const err0 = {
         instancePath,
         schemaPath: '#/required',
         keyword: 'required',
         params: { missingProperty: 'id' },
-        message: "must have required property '" + 'id' + "'",
+        message: "must have required property 'id'",
       };
       if (vErrors === null) {
         vErrors = [err0];
@@ -2713,13 +1824,13 @@ function validate34(
       }
       errors++;
     }
-    if (data.kind === undefined) {
+    if (data.kind === void 0) {
       const err1 = {
         instancePath,
         schemaPath: '#/required',
         keyword: 'required',
         params: { missingProperty: 'kind' },
-        message: "must have required property '" + 'kind' + "'",
+        message: "must have required property 'kind'",
       };
       if (vErrors === null) {
         vErrors = [err1];
@@ -2728,13 +1839,13 @@ function validate34(
       }
       errors++;
     }
-    if (data.targets === undefined) {
+    if (data.targets === void 0) {
       const err2 = {
         instancePath,
         schemaPath: '#/required',
         keyword: 'required',
         params: { missingProperty: 'targets' },
-        message: "must have required property '" + 'targets' + "'",
+        message: "must have required property 'targets'",
       };
       if (vErrors === null) {
         vErrors = [err2];
@@ -2760,7 +1871,7 @@ function validate34(
         errors++;
       }
     }
-    if (data.id !== undefined) {
+    if (data.id !== void 0) {
       let data0 = data.id;
       if (typeof data0 === 'string') {
         if (func1(data0) > 64) {
@@ -2809,7 +1920,7 @@ function validate34(
         errors++;
       }
     }
-    if (data.kind !== undefined) {
+    if (data.kind !== void 0) {
       if ('barrier' !== data.kind) {
         const err7 = {
           instancePath: instancePath + '/kind',
@@ -2826,7 +1937,7 @@ function validate34(
         errors++;
       }
     }
-    if (data.targets !== undefined) {
+    if (data.targets !== void 0) {
       let data2 = data.targets;
       if (Array.isArray(data2)) {
         if (data2.length < 1) {
@@ -2915,10 +2026,10 @@ function validate33(
   let errors = 0;
   const evaluated0 = validate33.evaluated;
   if (evaluated0.dynamicProps) {
-    evaluated0.props = undefined;
+    evaluated0.props = void 0;
   }
   if (evaluated0.dynamicItems) {
-    evaluated0.items = undefined;
+    evaluated0.items = void 0;
   }
   if (
     !validate34(data, {
@@ -2941,3 +2052,4 @@ validate33.evaluated = {
   dynamicProps: false,
   dynamicItems: false,
 };
+export { validateBarrier, validateDocument, validateGate, validateMeasurement };

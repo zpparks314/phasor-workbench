@@ -70,6 +70,21 @@ simplicity, and it is the option that fits the mechanism ADR-0004 already
 established. `generate_bindings.py` needs `frontend/node_modules` and drives the
 frontend's own toolchain, so a Node step is not a new kind of thing for it to do.
 
+> **Correction, 2026-08-02.** The row above claiming no runtime imports was true
+> of the decision and *false of the first implementation*. Ajv's `standaloneCode`
+> emits CommonJS `require` calls for its runtime helpers — `ucs2length`, pulled in
+> by the `minLength`/`maxLength` on `Identifier` — and `require` does not exist in
+> a browser, so the module threw during evaluation and the application rendered
+> nothing. It shipped because the check for it was a line-anchored search that a
+> mid-line `require(` slipped past, and because the whole suite runs in Node,
+> where `require` is defined.
+>
+> The decision is unchanged; the implementation now bundles the generated module
+> so the property actually holds, and `serialization/validator.test.ts` asserts it
+> by resolution rather than by spelling. The lesson is the one this project
+> already learned about pointer events: **a suite passing in one environment says
+> nothing about whether the code loads in another.**
+
 ### 2. Validation dispatches on the discriminator before checking a subtype
 
 This is an implementation constraint rather than a preference, and it was found

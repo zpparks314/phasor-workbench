@@ -9,9 +9,9 @@
  * source, so `shared/README.md`'s dependency rule still holds.
  *
  * **Ajv is a devDependency and nothing it produces depends on it at runtime.**
- * ADR-0008 section 1 measured that: the emitted code has no imports at all, and
- * costs about 6 KB gzipped against roughly 30 KB for shipping Ajv itself, which
- * would also have to compile the schema through `new Function` on every load.
+ * That is ADR-0008 section 1's central property, and it does not hold for
+ * `standaloneCode` alone -- see the note above the esbuild call below. The
+ * emitted module is bundled here so that it holds for the artifact itself.
  *
  * **One validator per operation subtype, not one for the whole document.**
  * `oneOf` plus `$ref` loses branch attribution in Ajv's error output --
@@ -25,9 +25,13 @@
 
 import { writeFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
+import { dirname } from 'node:path';
+import process from 'node:process';
+import { fileURLToPath } from 'node:url';
 
 import Ajv2020 from 'ajv/dist/2020.js';
 import standaloneCode from 'ajv/dist/standalone/index.js';
+import { build } from 'esbuild';
 
 const [schemaPath, outputPath] = process.argv.slice(2);
 
@@ -110,7 +114,36 @@ export const OPERATION_KINDS = ${JSON.stringify(kinds)};
 // no longer in directive position and becomes a no-op expression -- which
 // Prettier then renders as `('use strict');`. ES modules are strict regardless,
 // so it is dropped rather than left to read as something meaningful.
-const code = standaloneCode(ajv, exports).replace(/^"use strict";\s*/, '');
+const generated = standaloneCode(ajv, exports).replace(/^"use strict";\s*/, '');
+
+/*
+  Bundled, because `standaloneCode` is not self-contained on its own.
+
+  Ajv emits CommonJS `require` calls for its runtime helpers -- `ucs2length` for
+  the `minLength`/`maxLength` on `Identifier`, and others for other keywords. In
+  a browser `require` is not defined, so the module throws while it is being
+  evaluated and the whole application renders nothing. Node has `require`, so a
+  test suite is entirely happy with the broken file; that is how this shipped.
+
+  Bundling inlines them. It is done here rather than left to Vite because the
+  property this decision rests on -- ADR-0008 section 1's "nothing it produces is
+  imported at runtime" -- has to hold for the artifact itself, not merely for one
+  consumer's bundler. `validator.test.ts` asserts it.
+*/
+const bundled = await build({
+  stdin: {
+    contents: generated,
+    resolveDir: dirname(fileURLToPath(import.meta.url)),
+    sourcefile: 'validator.js',
+    loader: 'js',
+  },
+  bundle: true,
+  format: 'esm',
+  platform: 'browser',
+  write: false,
+});
+
+const code = bundled.outputFiles[0].text;
 
 writeFileSync(outputPath, `${banner}\n${code}`);
 

@@ -190,9 +190,15 @@ dependency question is answered with that requirement in hand.
 
 **That question is answered by [ADR-0008](decisions/ADR0008_LocalPersistence.md):
 a validator compiled from `circuit.schema.json` during `generate_bindings.py`.**
-Ajv is a devDependency and is never shipped; the emitted validator is
-self-contained, 6 KB gzipped, and a generated file under the same rules as the
-types beside it — never hand-edited, and `--check` fails on a stale one. The
+Ajv is a devDependency and is never shipped. The emitted validator is a generated
+file under the same rules as the types beside it — never hand-edited, and
+`--check` fails on a stale one.
+
+**It is bundled during generation, and that is not cosmetic.** `standaloneCode`
+emits CommonJS `require` calls for Ajv's runtime helpers, which a browser cannot
+resolve — the module throws while being evaluated and the page renders nothing.
+Node has `require`, so tests pass regardless; `serialization/validator.test.ts`
+asserts self-containment by resolution instead. The
 alternative, hand-writing a shape checker, is the second description of the schema
 [ADR-0004](decisions/ADR0004_SharedModelStrategy.md) exists to prevent; the backend
 avoids it by letting Pydantic decide unknown-ness, so there is no list to drift,
