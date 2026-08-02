@@ -30,20 +30,30 @@ this document says what the user sees and ADR-0007 says what the code does.
 │  Header      undo · redo · clear · save · save status        │
 ├───────────┬──────────────────────────────────────┬───────────┤
 │           │                                      │           │
-│  Palette  │        Circuit Canvas                │ Inspector │
-│           │                                      │           │
-│           │                                      │           │
+│           │  Structure · View                    │ Inspector │
+│  Palette  │        Circuit Canvas                │           │
+│           │                                      │ Analysis  │
 │           │                                      │           │
 ├───────────┴──────────────────────────────────────┴───────────┤
 │  Problems     violations from validateCircuit                 │
 └──────────────────────────────────────────────────────────────┘
 ```
 
-Four regions in Milestone 3. The right column was **reserved and not rendered**
-through that milestone so that filling it would not be a re-layout, and the
-reservation paid off exactly as intended: the inspector fills it at the cost of
-one grid template and one `aside`, with nothing else moved. Milestone 4's
-results panel joins it below.
+Four regions in Milestone 3, five now. The right column was **reserved and not
+rendered** through Milestone 3, and the reservation paid off exactly as intended:
+filling it in Milestone 4 cost one grid template and one `aside`, and nothing
+else moved.
+
+It holds the inspector and, beneath it, the analysis panel. They answer different
+questions — what the selected operation *is*, and what the whole circuit *amounts
+to* — and simulation results will join them below rather than displace either.
+
+Above the canvas sit two control regions, and the line between them is worth
+holding. **Circuit structure** changes the document: qubits, registers, register
+size, every one of them an edit with an undo step. **View** changes only what is
+drawn, touches the circuit not at all, and is never undoable. Two sets of
+controls that look alike and behave completely differently should not share a
+heading.
 
 The canvas is the only region that scrolls. It scrolls horizontally as the
 circuit deepens; the qubit label gutter is sticky against the left edge so wire
@@ -625,6 +635,86 @@ control is the fix.
 it would have nowhere to write. This is the case UI.md's `aria-disabled` rule
 exists for: announced rather than hidden, since the model supports measurement and
 this particular circuit is not ready for one, and those are different statements.
+
+## Cycle Labels
+
+An opt-in row of cycle indices above the canvas, each sitting over a faint band
+behind alternate cycles. Added 2026-08-02. It makes depth legible: the number the
+analysis panel reports becomes something you can count along the circuit, and the
+ASAP packing that pulls a gate leftwards becomes visible as the cycle it landed
+in rather than a movement you have to infer.
+
+### Why a band and not a box
+
+An outline around each cycle was the first proposal, and it was rejected for a
+reason that is not about clutter. **A barrier is a dashed vertical rule on a
+column boundary.** Boxing every cycle puts a rule on *every* boundary, so the one
+mark in the editor whose vertical-line-ness carries meaning becomes one dashed
+line in a picket fence of solid ones. That is the same class of mistake as
+collapsing the two connector gap widths — a distinction the reader depends on,
+erased by a decoration.
+
+A tint has no edges to be confused with. It also scales: three adjacent boxes are
+a diagram, twenty are a ladder, whereas alternating bands read the same at any
+depth.
+
+**Achromatic, using `surface-raised`.** Blue was proposed and declined. Every
+light-mode token is chroma 0 — the interface has no hue at all today — so the
+first colour introduced would be the most salient thing on screen, and spending
+it on a structural aid rather than on circuit content inverts the hierarchy. The
+Colour section below budgets colour for gate families, selection, violations and
+the like; cycle grouping is not among them. Reusing the existing token also means
+dark mode is already handled, where the band lands slightly *lighter* than the
+surface rather than darker.
+
+The band is painted before the wires, so it sits behind the circuit rather than
+over it, and it spans down past the classical register lanes so a measurement's
+connector stays inside its own cycle.
+
+**Off by default.** The labels are extra ink on a canvas whose default state
+should stay clean, and they answer a question you are not always asking.
+
+**Zero-based, and the whole editor now agrees.** The labels read 0, 1, 2 —
+matching `deriveCycles`, `depth`, the analysis panel, and the drop column that
+`placement.ts` takes. Until this landed, a cell's accessible name said "column 1"
+for cycle 0, which was harmless while the number was audible only. Making it
+visible would have put two numbers for one position on the same screen, off by
+one, so the accessible names became `"q0, cycle 0, h"` in the same change. The
+word is **cycle** throughout, per ADR-0001 and ADR-0003; "column" is the
+rendering term for the same thing and is now confined to the code that computes
+pixels.
+
+**Only cycles 0 to depth − 1.** The canvas offers one empty column past the end
+to append into, so `columnCount` is `depth + 1`. Labelling that column would name
+a cycle the decomposition does not have.
+
+**Unavailable when there is nothing to label**, which covers both an empty
+circuit and bare wires with no operations — one rule rather than two, and it is
+the honest one: the question is whether any cycle exists, not whether any qubit
+does. Announced with a reason rather than hidden, the same treatment the palette
+gives a measurement with no register to write into. The control keeps focus and
+refuses the change, because a `disabled` input cannot be focused and this region
+holds only the one control.
+
+**A barrier gets no label**, occupying no cycle of its own. It can still raise
+depth by levelling an unequal frontier, and the labels follow the resulting depth
+— which is another reason they come from `deriveCycles` rather than from counting
+operations.
+
+The labels are `aria-hidden`. Every cell already announces its own cycle, so
+exposing them again would make a reader say each index once as a label and once
+per cell in the column. They are a visual aid to a number that is already
+available non-visually — which is also why they were not built as a
+`columnheader` row: that would add a row to a grid whose `aria-activedescendant`
+model assumes one row per qubit, and that model has still never been checked
+against real assistive technology.
+
+They draw inside the canvas's existing top margin and change no geometry.
+`layout.ts` is a pure `(circuit, decomposition) -> geometry` function and must
+not learn about view state; keeping the labels in the margin also means toggling
+them does not reflow the circuit, so nothing jumps under the pointer. The band's
+top edge is a constant in the canvas for the same reason — where a decoration
+starts is a property of the decoration, not of the circuit's geometry.
 
 ## Placing a Barrier
 

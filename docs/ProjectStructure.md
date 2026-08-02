@@ -197,11 +197,24 @@ The first group is where the logic lives, and it is tested directly:
 | `pending.ts` | the multi-qubit control-assignment sequence |
 | `palette.ts` | what the palette offers, and its editorial grouping |
 | `glyphs.ts` | how each gate draws its target |
+| `angles.ts` | a radian value written relative to π, for display |
+| `useAnalysis.ts` | the debounced, abortable call to `/circuits/analyze` |
 | `demoCircuit.ts` | scaffolding, removed when local save lands |
+
+`useAnalysis.ts` is the one entry here that imports React, and it is in `editor/`
+rather than `api/` deliberately: `api/` is the module permitted to call `fetch`
+and it imports no framework, the same split `state/` keeps between the headless
+store and `useCircuitStore`.
 
 The components are `CircuitEditor` (owns the store and dispatches every edit),
 `CircuitCanvas` (the SVG grid), `GatePalette`, `StructureControls` (qubits and
-registers), `EditorHeader` (undo, redo, clear), and `ProblemsStrip`.
+registers), `ViewControls` (what the canvas draws), `EditorHeader` (undo, redo,
+clear), `ProblemsStrip`, `Inspector` (the selected operation's editable
+properties), and `AnalysisPanel` (the backend's counts and depth).
+
+`StructureControls` and `ViewControls` are separate on purpose: everything in the
+first is an edit with an undo step, and nothing in the second touches the circuit
+at all.
 
 **Only `CircuitEditor` touches the store.** Everything else takes values and
 callbacks, which is what keeps the single-source-of-truth rule checkable — the

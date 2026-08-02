@@ -55,16 +55,16 @@ describe('placing a gate', () => {
     const editor = open();
 
     editor.arm('h');
-    fireEvent.click(editor.cell('q1, column 1, empty'));
+    fireEvent.click(editor.cell('q1, cycle 0, empty'));
 
-    expect(editor.cell('q1, column 1, h')).toBeInTheDocument();
+    expect(editor.cell('q1, cycle 0, h')).toBeInTheDocument();
     expect(editor.status()).toHaveTextContent('1 operations');
   });
 
   it('does nothing on a cell click when no gate is armed', () => {
     const editor = open();
 
-    fireEvent.click(editor.cell('q0, column 1, empty'));
+    fireEvent.click(editor.cell('q0, cycle 0, empty'));
 
     expect(editor.status()).toHaveTextContent('0 operations');
   });
@@ -81,7 +81,7 @@ describe('placing a gate', () => {
     const editor = open();
 
     editor.arm('rx');
-    fireEvent.click(editor.cell('q0, column 1, empty'));
+    fireEvent.click(editor.cell('q0, cycle 0, empty'));
 
     // A missing or unrecognised parameter would be reported here.
     expect(screen.getByText('No problems.')).toBeInTheDocument();
@@ -96,11 +96,11 @@ describe('placing a gate', () => {
     const editor = open();
 
     editor.arm('h');
-    fireEvent.click(editor.cell('q0, column 1, empty'));
+    fireEvent.click(editor.cell('q0, cycle 0, empty'));
     editor.arm('x');
-    fireEvent.click(editor.cell('q1, column 2, empty'));
+    fireEvent.click(editor.cell('q1, cycle 1, empty'));
 
-    expect(editor.cell('q1, column 1, x')).toBeInTheDocument();
+    expect(editor.cell('q1, cycle 0, x')).toBeInTheDocument();
     expect(editor.status()).toHaveTextContent('Depth 1');
   });
 
@@ -108,11 +108,11 @@ describe('placing a gate', () => {
     const editor = open();
 
     editor.arm('h');
-    fireEvent.click(editor.cell('q0, column 1, empty'));
+    fireEvent.click(editor.cell('q0, cycle 0, empty'));
     editor.arm('x');
-    fireEvent.click(editor.cell('q0, column 2, empty'));
+    fireEvent.click(editor.cell('q0, cycle 1, empty'));
 
-    expect(editor.cell('q0, column 2, x')).toBeInTheDocument();
+    expect(editor.cell('q0, cycle 1, x')).toBeInTheDocument();
     expect(editor.status()).toHaveTextContent('Depth 2');
   });
 
@@ -120,9 +120,9 @@ describe('placing a gate', () => {
     const editor = open();
 
     editor.arm('h');
-    fireEvent.click(editor.cell('q0, column 1, empty'));
+    fireEvent.click(editor.cell('q0, cycle 0, empty'));
 
-    expect(editor.cell('q0, column 2, empty')).toBeInTheDocument();
+    expect(editor.cell('q0, cycle 1, empty')).toBeInTheDocument();
   });
 });
 
@@ -139,23 +139,23 @@ describe('placing a multi-qubit gate', () => {
     const editor = open();
 
     editor.arm('cx');
-    fireEvent.click(editor.cell('q1, column 1, empty'));
+    fireEvent.click(editor.cell('q1, cycle 0, empty'));
 
     // Still nothing in the circuit: the signature is not satisfied.
     expect(editor.status()).toHaveTextContent('0 operations');
 
-    fireEvent.click(editor.cell('q0, column 1, empty'));
+    fireEvent.click(editor.cell('q0, cycle 0, empty'));
 
     expect(editor.status()).toHaveTextContent('1 operations');
-    expect(editor.cell('q1, column 1, cx')).toBeInTheDocument();
-    expect(editor.cell('q0, column 1, cx control')).toBeInTheDocument();
+    expect(editor.cell('q1, cycle 0, cx')).toBeInTheDocument();
+    expect(editor.cell('q0, cycle 0, cx control')).toBeInTheDocument();
   });
 
   it('asks for the control, and says so where a screen reader hears it', () => {
     const editor = open();
 
     editor.arm('cx');
-    fireEvent.click(editor.cell('q0, column 1, empty'));
+    fireEvent.click(editor.cell('q0, cycle 0, empty'));
 
     expect(editor.status()).toHaveTextContent(
       'Click a wire to place the control',
@@ -167,17 +167,17 @@ describe('placing a multi-qubit gate', () => {
     const editor = open();
 
     editor.arm('ccx');
-    fireEvent.click(editor.cell('q0, column 1, empty'));
+    fireEvent.click(editor.cell('q0, cycle 0, empty'));
     expect(editor.status()).toHaveTextContent(
       'Click a wire to place 2 controls',
     );
 
-    fireEvent.click(editor.cell('q1, column 1, empty'));
+    fireEvent.click(editor.cell('q1, cycle 0, empty'));
     expect(editor.status()).toHaveTextContent(
       'Click a wire to place the control',
     );
 
-    fireEvent.click(editor.cell('q2, column 1, empty'));
+    fireEvent.click(editor.cell('q2, cycle 0, empty'));
     expect(editor.status()).toHaveTextContent('1 operations');
   });
 
@@ -186,15 +186,15 @@ describe('placing a multi-qubit gate', () => {
     const editor = open();
 
     editor.arm('swap');
-    fireEvent.click(editor.cell('q0, column 1, empty'));
+    fireEvent.click(editor.cell('q0, cycle 0, empty'));
     expect(editor.status()).toHaveTextContent(
       'Click a wire to place the target',
     );
 
-    fireEvent.click(editor.cell('q2, column 1, empty'));
+    fireEvent.click(editor.cell('q2, cycle 0, empty'));
 
-    expect(editor.cell('q0, column 1, swap')).toBeInTheDocument();
-    expect(editor.cell('q2, column 1, swap')).toBeInTheDocument();
+    expect(editor.cell('q0, cycle 0, swap')).toBeInTheDocument();
+    expect(editor.cell('q2, cycle 0, swap')).toBeInTheDocument();
   });
 
   /**
@@ -207,8 +207,8 @@ describe('placing a multi-qubit gate', () => {
     const editor = open();
 
     editor.arm('cx');
-    fireEvent.click(editor.cell('q0, column 1, empty'));
-    fireEvent.click(editor.cell('q0, column 1, empty'));
+    fireEvent.click(editor.cell('q0, cycle 0, empty'));
+    fireEvent.click(editor.cell('q0, cycle 0, empty'));
 
     expect(editor.status()).toHaveTextContent('0 operations');
     expect(editor.status()).toHaveTextContent(
@@ -216,7 +216,7 @@ describe('placing a multi-qubit gate', () => {
     );
 
     // And the placement is still live: another wire finishes it.
-    fireEvent.click(editor.cell('q1, column 1, empty'));
+    fireEvent.click(editor.cell('q1, cycle 0, empty'));
 
     expect(screen.getByText('No problems.')).toBeInTheDocument();
   });
@@ -235,15 +235,15 @@ describe('placing a multi-qubit gate', () => {
     const editor = open();
 
     editor.arm('h');
-    fireEvent.click(editor.cell('q0, column 1, empty'));
+    fireEvent.click(editor.cell('q0, cycle 0, empty'));
 
     editor.arm('cx');
-    fireEvent.click(editor.cell('q1, column 1, empty'));
-    fireEvent.click(editor.cell('q0, column 2, empty'));
+    fireEvent.click(editor.cell('q1, cycle 0, empty'));
+    fireEvent.click(editor.cell('q0, cycle 1, empty'));
 
-    expect(editor.cell('q1, column 1, cx')).toBeInTheDocument();
-    expect(editor.cell('q0, column 1, cx control')).toBeInTheDocument();
-    expect(editor.cell('q0, column 2, h')).toBeInTheDocument();
+    expect(editor.cell('q1, cycle 0, cx')).toBeInTheDocument();
+    expect(editor.cell('q0, cycle 0, cx control')).toBeInTheDocument();
+    expect(editor.cell('q0, cycle 1, h')).toBeInTheDocument();
   });
 
   /** UI.md: Escape cancels the whole pending operation, not one step of it. */
@@ -251,8 +251,8 @@ describe('placing a multi-qubit gate', () => {
     const editor = open();
 
     editor.arm('ccx');
-    fireEvent.click(editor.cell('q0, column 1, empty'));
-    fireEvent.click(editor.cell('q1, column 1, empty'));
+    fireEvent.click(editor.cell('q0, cycle 0, empty'));
+    fireEvent.click(editor.cell('q1, cycle 0, empty'));
     editor.press('Escape');
 
     expect(editor.status()).not.toHaveTextContent('Click a wire');
@@ -261,21 +261,21 @@ describe('placing a multi-qubit gate', () => {
     // Still armed, so retrying costs no trip back to the palette, and the
     // sequence restarts from its first wire rather than resuming.
     editor.arm('cx');
-    fireEvent.click(editor.cell('q0, column 1, empty'));
-    fireEvent.click(editor.cell('q1, column 1, empty'));
+    fireEvent.click(editor.cell('q0, cycle 0, empty'));
+    fireEvent.click(editor.cell('q1, cycle 0, empty'));
 
-    expect(editor.cell('q0, column 1, cx')).toBeInTheDocument();
+    expect(editor.cell('q0, cycle 0, cx')).toBeInTheDocument();
   });
 
   it('abandons a placement when a different gate is armed', () => {
     const editor = open();
 
     editor.arm('cx');
-    fireEvent.click(editor.cell('q0, column 1, empty'));
+    fireEvent.click(editor.cell('q0, cycle 0, empty'));
     editor.arm('h');
-    fireEvent.click(editor.cell('q1, column 1, empty'));
+    fireEvent.click(editor.cell('q1, cycle 0, empty'));
 
-    expect(editor.cell('q1, column 1, h')).toBeInTheDocument();
+    expect(editor.cell('q1, cycle 0, h')).toBeInTheDocument();
     expect(editor.status()).toHaveTextContent('1 operations');
   });
 
@@ -288,8 +288,8 @@ describe('placing a multi-qubit gate', () => {
     editor.press('ArrowDown');
     editor.press('Enter');
 
-    expect(editor.cell('q0, column 1, cx')).toBeInTheDocument();
-    expect(editor.cell('q1, column 1, cx control')).toBeInTheDocument();
+    expect(editor.cell('q0, cycle 0, cx')).toBeInTheDocument();
+    expect(editor.cell('q1, cycle 0, cx control')).toBeInTheDocument();
   });
 
   /** One undo step: nothing entered the circuit until the gate committed. */
@@ -297,8 +297,8 @@ describe('placing a multi-qubit gate', () => {
     const editor = open();
 
     editor.arm('cx');
-    fireEvent.click(editor.cell('q0, column 1, empty'));
-    fireEvent.click(editor.cell('q1, column 1, empty'));
+    fireEvent.click(editor.cell('q0, cycle 0, empty'));
+    fireEvent.click(editor.cell('q1, cycle 0, empty'));
     editor.undo();
 
     expect(editor.status()).toHaveTextContent('0 operations');
@@ -315,15 +315,15 @@ describe('placing a multi-qubit gate', () => {
 
     // Two gates on q0, to give the canvas a third column to drop into.
     editor.arm('h');
-    fireEvent.click(editor.cell('q0, column 1, empty'));
-    fireEvent.click(editor.cell('q0, column 2, empty'));
+    fireEvent.click(editor.cell('q0, cycle 0, empty'));
+    fireEvent.click(editor.cell('q0, cycle 1, empty'));
 
     editor.arm('cx');
-    fireEvent.click(editor.cell('q1, column 3, empty'));
-    fireEvent.click(editor.cell('q2, column 3, empty'));
+    fireEvent.click(editor.cell('q1, cycle 2, empty'));
+    fireEvent.click(editor.cell('q2, cycle 2, empty'));
 
-    expect(editor.cell('q1, column 1, cx')).toBeInTheDocument();
-    expect(editor.cell('q2, column 1, cx control')).toBeInTheDocument();
+    expect(editor.cell('q1, cycle 0, cx')).toBeInTheDocument();
+    expect(editor.cell('q2, cycle 0, cx control')).toBeInTheDocument();
     expect(editor.status()).toHaveTextContent('Depth 2');
   });
 
@@ -336,14 +336,14 @@ describe('placing a multi-qubit gate', () => {
     const editor = open();
 
     editor.arm('h');
-    fireEvent.click(editor.cell('q1, column 1, empty'));
+    fireEvent.click(editor.cell('q1, cycle 0, empty'));
 
     editor.arm('cx');
-    fireEvent.click(editor.cell('q0, column 2, empty'));
-    fireEvent.click(editor.cell('q1, column 2, empty'));
+    fireEvent.click(editor.cell('q0, cycle 1, empty'));
+    fireEvent.click(editor.cell('q1, cycle 1, empty'));
 
-    expect(editor.cell('q0, column 2, cx')).toBeInTheDocument();
-    expect(editor.cell('q1, column 2, cx control')).toBeInTheDocument();
+    expect(editor.cell('q0, cycle 1, cx')).toBeInTheDocument();
+    expect(editor.cell('q1, cycle 1, cx control')).toBeInTheDocument();
     expect(editor.status()).toHaveTextContent('Depth 2');
   });
 });
@@ -353,13 +353,13 @@ describe('selection and removal', () => {
     const editor = open();
 
     editor.arm('h');
-    fireEvent.click(editor.cell('q0, column 1, empty'));
+    fireEvent.click(editor.cell('q0, cycle 0, empty'));
     editor.arm('h');
 
     fireEvent.keyDown(editor.grid(), { key: 'Escape' });
-    fireEvent.click(editor.cell('q0, column 1, h'));
+    fireEvent.click(editor.cell('q0, cycle 0, h'));
 
-    expect(editor.cell('q0, column 1, h')).toHaveAttribute(
+    expect(editor.cell('q0, cycle 0, h')).toHaveAttribute(
       'aria-selected',
       'true',
     );
@@ -369,7 +369,7 @@ describe('selection and removal', () => {
     const editor = open();
 
     editor.arm('h');
-    fireEvent.click(editor.cell('q0, column 1, empty'));
+    fireEvent.click(editor.cell('q0, cycle 0, empty'));
     editor.press('Delete');
 
     expect(editor.status()).toHaveTextContent('0 operations');
@@ -402,7 +402,7 @@ describe('keyboard placement', () => {
     editor.press('ArrowDown');
     editor.press('Enter');
 
-    expect(editor.cell('q1, column 1, h')).toBeInTheDocument();
+    expect(editor.cell('q1, cycle 0, h')).toBeInTheDocument();
   });
 
   it('moves along a wire with the arrow keys', () => {
@@ -414,7 +414,7 @@ describe('keyboard placement', () => {
     editor.press('ArrowRight');
     editor.press('Enter');
 
-    expect(editor.cell('q0, column 2, x')).toBeInTheDocument();
+    expect(editor.cell('q0, cycle 1, x')).toBeInTheDocument();
   });
 });
 
@@ -422,9 +422,9 @@ describe('moving a gate', () => {
   function withTwoGates() {
     const editor = open();
     editor.arm('h');
-    fireEvent.click(editor.cell('q0, column 1, empty'));
+    fireEvent.click(editor.cell('q0, cycle 0, empty'));
     editor.arm('x');
-    fireEvent.click(editor.cell('q0, column 2, empty'));
+    fireEvent.click(editor.cell('q0, cycle 1, empty'));
     fireEvent.keyDown(editor.grid(), { key: 'Escape' });
     return editor;
   }
@@ -432,26 +432,26 @@ describe('moving a gate', () => {
   it('drags a gate to another wire', () => {
     const editor = open();
     editor.arm('h');
-    fireEvent.click(editor.cell('q0, column 1, empty'));
+    fireEvent.click(editor.cell('q0, cycle 0, empty'));
     fireEvent.keyDown(editor.grid(), { key: 'Escape' });
 
-    editor.pickUp('q0, column 1, h');
-    fireEvent.pointerEnter(editor.cell('q2, column 1, empty'));
+    editor.pickUp('q0, cycle 0, h');
+    fireEvent.pointerEnter(editor.cell('q2, cycle 0, empty'));
     fireEvent.pointerUp(editor.grid());
 
-    expect(editor.cell('q2, column 1, h')).toBeInTheDocument();
-    expect(editor.cell('q0, column 1, empty')).toBeInTheDocument();
+    expect(editor.cell('q2, cycle 0, h')).toBeInTheDocument();
+    expect(editor.cell('q0, cycle 0, empty')).toBeInTheDocument();
   });
 
   it('drags a gate later along its own wire', () => {
     const editor = withTwoGates();
 
-    editor.pickUp('q0, column 1, h');
-    fireEvent.pointerEnter(editor.cell('q0, column 3, empty'));
+    editor.pickUp('q0, cycle 0, h');
+    fireEvent.pointerEnter(editor.cell('q0, cycle 2, empty'));
     fireEvent.pointerUp(editor.grid());
 
-    expect(editor.cell('q0, column 1, x')).toBeInTheDocument();
-    expect(editor.cell('q0, column 2, h')).toBeInTheDocument();
+    expect(editor.cell('q0, cycle 0, x')).toBeInTheDocument();
+    expect(editor.cell('q0, cycle 1, h')).toBeInTheDocument();
   });
 
   /**
@@ -462,31 +462,31 @@ describe('moving a gate', () => {
   it('collapses a whole drag into one undo step', () => {
     const editor = open();
     editor.arm('h');
-    fireEvent.click(editor.cell('q0, column 1, empty'));
+    fireEvent.click(editor.cell('q0, cycle 0, empty'));
     fireEvent.keyDown(editor.grid(), { key: 'Escape' });
 
-    editor.pickUp('q0, column 1, h');
+    editor.pickUp('q0, cycle 0, h');
     for (const row of ['q1', 'q2', 'q1']) {
-      fireEvent.pointerEnter(editor.cell(`${row}, column 1, empty`));
+      fireEvent.pointerEnter(editor.cell(`${row}, cycle 0, empty`));
     }
     fireEvent.pointerUp(editor.grid());
-    expect(editor.cell('q1, column 1, h')).toBeInTheDocument();
+    expect(editor.cell('q1, cycle 0, h')).toBeInTheDocument();
 
     editor.undo();
 
-    expect(editor.cell('q0, column 1, h')).toBeInTheDocument();
+    expect(editor.cell('q0, cycle 0, h')).toBeInTheDocument();
   });
 
   it('preserves the identifier across a move', () => {
     const editor = open();
     editor.arm('h');
-    fireEvent.click(editor.cell('q0, column 1, empty'));
+    fireEvent.click(editor.cell('q0, cycle 0, empty'));
     // Placing leaves the gate armed, so the preview would be a second "h".
     fireEvent.keyDown(editor.grid(), { key: 'Escape' });
     const before = editor.operationId('h');
 
-    editor.pickUp('q0, column 1, h');
-    fireEvent.pointerEnter(editor.cell('q1, column 1, empty'));
+    editor.pickUp('q0, cycle 0, h');
+    fireEvent.pointerEnter(editor.cell('q1, cycle 0, empty'));
     fireEvent.pointerUp(editor.grid());
 
     expect(editor.operationId('h')).toBe(before);
@@ -509,11 +509,11 @@ describe('moving a gate', () => {
     );
     const editor = open(controlled);
 
-    editor.pickUp('q1, column 2, cx');
-    fireEvent.pointerEnter(editor.cell('q1, column 3, empty'));
+    editor.pickUp('q1, cycle 1, cx');
+    fireEvent.pointerEnter(editor.cell('q1, cycle 2, empty'));
     fireEvent.pointerUp(editor.grid());
 
-    expect(editor.cell('q1, column 3, cx')).toBeInTheDocument();
+    expect(editor.cell('q1, cycle 2, cx')).toBeInTheDocument();
   });
 
   /** Which qubit of a cx a drag meant to move is ambiguous, so it only reorders. */
@@ -525,13 +525,13 @@ describe('moving a gate', () => {
     );
     const editor = open(controlled);
 
-    editor.pickUp('q1, column 1, cy');
-    fireEvent.pointerEnter(editor.cell('q2, column 2, empty'));
+    editor.pickUp('q1, cycle 0, cy');
+    fireEvent.pointerEnter(editor.cell('q2, cycle 1, empty'));
     fireEvent.pointerUp(editor.grid());
 
     // Still on q1: a drag cannot say which of its qubits to move.
     expect(
-      screen.getByRole('gridcell', { name: /^q1, column \d+, cy$/ }),
+      screen.getByRole('gridcell', { name: /^q1, cycle \d+, cy$/ }),
     ).toBeInTheDocument();
   });
 
@@ -558,11 +558,11 @@ describe('moving a gate', () => {
 
     // Park the cursor away from the destination first: a drag applies only when
     // the destination cell changes, and the cursor starts on the first cell.
-    fireEvent.pointerEnter(editor.cell('q1, column 2, empty'));
+    fireEvent.pointerEnter(editor.cell('q1, cycle 1, empty'));
 
     const rule = document.querySelector('[data-barrier-hit="op_1"] line');
     if (rule != null) fireEvent.pointerDown(rule);
-    fireEvent.pointerEnter(editor.cell('q0, column 1, h'));
+    fireEvent.pointerEnter(editor.cell('q0, cycle 0, h'));
     fireEvent.pointerUp(editor.grid());
 
     // Dragged ahead of the h, so its boundary moves to the leading edge.
@@ -664,25 +664,25 @@ describe('moving a gate', () => {
     it('moves the selection with Ctrl and an arrow', () => {
       const editor = open();
       editor.arm('h');
-      fireEvent.click(editor.cell('q0, column 1, empty'));
+      fireEvent.click(editor.cell('q0, cycle 0, empty'));
       fireEvent.keyDown(editor.grid(), { key: 'Escape' });
-      fireEvent.click(editor.cell('q0, column 1, h'));
+      fireEvent.click(editor.cell('q0, cycle 0, h'));
 
       fireEvent.keyDown(editor.grid(), { key: 'ArrowDown', ctrlKey: true });
 
-      expect(editor.cell('q1, column 1, h')).toBeInTheDocument();
+      expect(editor.cell('q1, cycle 0, h')).toBeInTheDocument();
     });
 
     it('leaves a bare arrow moving the cursor rather than the gate', () => {
       const editor = open();
       editor.arm('h');
-      fireEvent.click(editor.cell('q0, column 1, empty'));
+      fireEvent.click(editor.cell('q0, cycle 0, empty'));
       fireEvent.keyDown(editor.grid(), { key: 'Escape' });
-      fireEvent.click(editor.cell('q0, column 1, h'));
+      fireEvent.click(editor.cell('q0, cycle 0, h'));
 
       fireEvent.keyDown(editor.grid(), { key: 'ArrowDown' });
 
-      expect(editor.cell('q0, column 1, h')).toBeInTheDocument();
+      expect(editor.cell('q0, cycle 0, h')).toBeInTheDocument();
     });
 
     /**
@@ -692,17 +692,17 @@ describe('moving a gate', () => {
     it('makes each press its own undo step', () => {
       const editor = open();
       editor.arm('h');
-      fireEvent.click(editor.cell('q0, column 1, empty'));
+      fireEvent.click(editor.cell('q0, cycle 0, empty'));
       fireEvent.keyDown(editor.grid(), { key: 'Escape' });
-      fireEvent.click(editor.cell('q0, column 1, h'));
+      fireEvent.click(editor.cell('q0, cycle 0, h'));
 
       fireEvent.keyDown(editor.grid(), { key: 'ArrowDown', ctrlKey: true });
       fireEvent.keyDown(editor.grid(), { key: 'ArrowDown', ctrlKey: true });
-      expect(editor.cell('q2, column 1, h')).toBeInTheDocument();
+      expect(editor.cell('q2, cycle 0, h')).toBeInTheDocument();
 
       editor.undo();
 
-      expect(editor.cell('q1, column 1, h')).toBeInTheDocument();
+      expect(editor.cell('q1, cycle 0, h')).toBeInTheDocument();
     });
 
     it('does nothing with no selection', () => {
@@ -726,9 +726,9 @@ describe('placing measurements', () => {
     const editor = open(circuitWith(2));
 
     editor.arm('measurement');
-    fireEvent.click(editor.cell('q0, column 1, empty'));
+    fireEvent.click(editor.cell('q0, cycle 0, empty'));
 
-    expect(editor.cell('q0, column 1, measurement')).toBeInTheDocument();
+    expect(editor.cell('q0, cycle 0, measurement')).toBeInTheDocument();
     expect(screen.getByText('No problems.')).toBeInTheDocument();
   });
 
@@ -736,8 +736,8 @@ describe('placing measurements', () => {
     const editor = open(circuitWith(2));
 
     editor.arm('measurement');
-    fireEvent.click(editor.cell('q0, column 1, empty'));
-    fireEvent.click(editor.cell('q1, column 1, empty'));
+    fireEvent.click(editor.cell('q0, cycle 0, empty'));
+    fireEvent.click(editor.cell('q1, cycle 0, empty'));
 
     // Bits 0 and 1 of a two-bit register, so both fit and nothing contends.
     expect(editor.status()).toHaveTextContent('2 operations');
@@ -754,8 +754,8 @@ describe('placing measurements', () => {
     const editor = open(circuitWith(2, 1));
 
     editor.arm('measurement');
-    fireEvent.click(editor.cell('q0, column 1, empty'));
-    fireEvent.click(editor.cell('q1, column 1, empty'));
+    fireEvent.click(editor.cell('q0, cycle 0, empty'));
+    fireEvent.click(editor.cell('q1, cycle 0, empty'));
 
     expect(editor.status()).toHaveTextContent('2 operations');
     expect(screen.queryByText('No problems.')).toBeNull();
@@ -778,9 +778,9 @@ describe('placing measurements', () => {
     expect(measurement()).not.toHaveAttribute('aria-disabled');
 
     editor.arm('measurement');
-    fireEvent.click(editor.cell('q0, column 1, empty'));
+    fireEvent.click(editor.cell('q0, cycle 0, empty'));
 
-    expect(editor.cell('q0, column 1, measurement')).toBeInTheDocument();
+    expect(editor.cell('q0, cycle 0, measurement')).toBeInTheDocument();
   });
 
   it('places from the keyboard', () => {
@@ -790,7 +790,7 @@ describe('placing measurements', () => {
     editor.press('ArrowDown');
     editor.press('Enter');
 
-    expect(editor.cell('q1, column 1, measurement')).toBeInTheDocument();
+    expect(editor.cell('q1, cycle 0, measurement')).toBeInTheDocument();
   });
 });
 
@@ -812,7 +812,7 @@ describe('placing barriers', () => {
     const editor = open(circuitWith(3));
 
     editor.arm('barrier');
-    fireEvent.click(editor.cell('q0, column 1, empty'));
+    fireEvent.click(editor.cell('q0, cycle 0, empty'));
 
     // One contiguous run over all three wires, so one segment.
     expect(barrierTargets(editor)).toBe(1);
@@ -823,13 +823,13 @@ describe('placing barriers', () => {
     const editor = open(circuitWith(1));
 
     editor.arm('h');
-    fireEvent.click(editor.cell('q0, column 1, empty'));
+    fireEvent.click(editor.cell('q0, cycle 0, empty'));
     editor.arm('barrier');
-    fireEvent.click(editor.cell('q0, column 2, empty'));
+    fireEvent.click(editor.cell('q0, cycle 1, empty'));
     editor.arm('x');
-    fireEvent.click(editor.cell('q0, column 2, empty'));
+    fireEvent.click(editor.cell('q0, cycle 1, empty'));
 
-    expect(editor.cell('q0, column 2, x')).toBeInTheDocument();
+    expect(editor.cell('q0, cycle 1, x')).toBeInTheDocument();
     expect(editor.status()).toHaveTextContent('Depth 2');
   });
 
@@ -843,7 +843,7 @@ describe('placing barriers', () => {
     const editor = open(circuitWith(2));
 
     editor.arm('barrier');
-    fireEvent.click(editor.cell('q0, column 1, empty'));
+    fireEvent.click(editor.cell('q0, cycle 0, empty'));
     fireEvent.click(screen.getByRole('button', { name: 'Add qubit' }));
 
     // Still one segment, over the original two wires, not the new third.
@@ -855,7 +855,7 @@ describe('placing barriers', () => {
     const editor = open(circuitWith(3));
 
     editor.arm('barrier');
-    fireEvent.click(editor.cell('q0, column 1, empty'));
+    fireEvent.click(editor.cell('q0, cycle 0, empty'));
     fireEvent.click(screen.getByRole('button', { name: /^Remove q1/ }));
 
     expect(editor.status()).toHaveTextContent('1 operations');
@@ -865,7 +865,7 @@ describe('placing barriers', () => {
     const editor = open(circuitWith(2));
 
     editor.arm('barrier');
-    fireEvent.click(editor.cell('q0, column 1, empty'));
+    fireEvent.click(editor.cell('q0, cycle 0, empty'));
     editor.press('Escape');
     editor.press('b');
 
@@ -891,7 +891,7 @@ describe('qubits and registers', () => {
 
     fireEvent.click(control('Add qubit'));
 
-    expect(editor.cell('q1, column 1, empty')).toBeInTheDocument();
+    expect(editor.cell('q1, cycle 0, empty')).toBeInTheDocument();
   });
 
   /** The exit criterion: indices stay contiguous from 0 at every point. */
@@ -900,7 +900,7 @@ describe('qubits and registers', () => {
 
     fireEvent.click(control('Remove q1'));
 
-    expect(editor.cell('q1, column 1, empty')).toBeInTheDocument();
+    expect(editor.cell('q1, cycle 0, empty')).toBeInTheDocument();
     expect(screen.queryByRole('row', { name: 'q2' })).toBeNull();
   });
 
@@ -921,7 +921,7 @@ describe('qubits and registers', () => {
     const editor = open(circuitWith(2));
 
     editor.arm('h');
-    fireEvent.click(editor.cell('q0, column 1, empty'));
+    fireEvent.click(editor.cell('q0, cycle 0, empty'));
     fireEvent.click(control(/^Remove q0 and 1 operation$/));
 
     // Armed, not done: the wire and its gate are still there.
@@ -943,7 +943,7 @@ describe('qubits and registers', () => {
     const editor = open(circuitWith(2));
 
     editor.arm('h');
-    fireEvent.click(editor.cell('q0, column 1, empty'));
+    fireEvent.click(editor.cell('q0, cycle 0, empty'));
     fireEvent.click(control(/^Remove q0 and 1 operation$/));
     fireEvent.keyDown(screen.getByRole('button', { name: 'Add qubit' }), {
       key: 'Escape',
@@ -968,13 +968,13 @@ describe('qubits and registers', () => {
     const editor = open(circuitWith(2));
 
     editor.arm('h');
-    fireEvent.click(editor.cell('q0, column 1, empty'));
+    fireEvent.click(editor.cell('q0, cycle 0, empty'));
     fireEvent.click(control(/^Remove q0 and 1 operation$/));
     fireEvent.click(control(/^Remove q0 and 1 operation\?$/));
     editor.undo();
 
     expect(editor.status()).toHaveTextContent('1 operations');
-    expect(editor.cell('q0, column 1, h')).toBeInTheDocument();
+    expect(editor.cell('q0, cycle 0, h')).toBeInTheDocument();
   });
 
   it('adds a register, labelled by position rather than by its identifier', () => {
@@ -1029,7 +1029,7 @@ describe('qubits and registers', () => {
     fireEvent.click(control('Remove q0'));
     fireEvent.click(control('Add qubit'));
 
-    expect(editor.cell('q0, column 1, empty')).toBeInTheDocument();
+    expect(editor.cell('q0, cycle 0, empty')).toBeInTheDocument();
   });
 
   it('is one tab stop with a roving focus', () => {
@@ -1054,7 +1054,7 @@ describe('the header', () => {
     const editor = open(circuitWith(2));
 
     editor.arm('h');
-    fireEvent.click(editor.cell('q0, column 1, empty'));
+    fireEvent.click(editor.cell('q0, cycle 0, empty'));
     fireEvent.click(button(/^Undo place h on q0$/));
 
     expect(editor.status()).toHaveTextContent('0 operations');
@@ -1064,11 +1064,11 @@ describe('the header', () => {
     const editor = open(circuitWith(2));
 
     editor.arm('h');
-    fireEvent.click(editor.cell('q0, column 1, empty'));
+    fireEvent.click(editor.cell('q0, cycle 0, empty'));
     editor.undo();
     fireEvent.click(button(/^Redo place h on q0$/));
 
-    expect(editor.cell('q0, column 1, h')).toBeInTheDocument();
+    expect(editor.cell('q0, cycle 0, h')).toBeInTheDocument();
   });
 
   /** The label comes from the history entry, so it tracks the actual last edit. */
@@ -1076,11 +1076,11 @@ describe('the header', () => {
     const editor = open(circuitWith(2));
 
     editor.arm('h');
-    fireEvent.click(editor.cell('q0, column 1, empty'));
+    fireEvent.click(editor.cell('q0, cycle 0, empty'));
     expect(button(/^Undo place h on q0$/)).toBeInTheDocument();
 
     editor.arm('x');
-    fireEvent.click(editor.cell('q1, column 1, empty'));
+    fireEvent.click(editor.cell('q1, cycle 0, empty'));
     expect(button(/^Undo place x on q1$/)).toBeInTheDocument();
   });
 
@@ -1100,9 +1100,9 @@ describe('the header', () => {
     const editor = open(circuitWith(3));
 
     editor.arm('h');
-    fireEvent.click(editor.cell('q0, column 1, empty'));
+    fireEvent.click(editor.cell('q0, cycle 0, empty'));
     editor.arm('x');
-    fireEvent.click(editor.cell('q1, column 1, empty'));
+    fireEvent.click(editor.cell('q1, cycle 0, empty'));
 
     fireEvent.click(button('Clear 2 operations'));
     fireEvent.click(button(/^Clear 2 operations\?$/));
@@ -1118,9 +1118,9 @@ describe('the header', () => {
     const editor = open(circuitWith(2));
 
     editor.arm('h');
-    fireEvent.click(editor.cell('q0, column 1, empty'));
+    fireEvent.click(editor.cell('q0, cycle 0, empty'));
     editor.arm('x');
-    fireEvent.click(editor.cell('q1, column 1, empty'));
+    fireEvent.click(editor.cell('q1, cycle 0, empty'));
 
     fireEvent.click(button('Clear 2 operations'));
     fireEvent.click(button(/^Clear 2 operations\?$/));
@@ -1152,7 +1152,7 @@ describe('saving the circuit', () => {
     const editor = open(circuitWith(2));
 
     editor.arm('h');
-    fireEvent.click(editor.cell('q0, column 1, empty'));
+    fireEvent.click(editor.cell('q0, cycle 0, empty'));
     fireEvent.click(screen.getByRole('button', { name: 'Save circuit' }));
 
     expect(screen.getByText(/^Saved at /)).toBeInTheDocument();
@@ -1172,8 +1172,8 @@ describe('saving the circuit', () => {
     const editor = open(circuitWith(2));
 
     editor.arm('cx');
-    fireEvent.click(editor.cell('q0, column 1, empty'));
-    fireEvent.click(editor.cell('q1, column 1, empty'));
+    fireEvent.click(editor.cell('q0, cycle 0, empty'));
+    fireEvent.click(editor.cell('q1, cycle 0, empty'));
     fireEvent.click(screen.getByRole('button', { name: 'Save circuit' }));
 
     const restored = loadStoredCircuit();
@@ -1236,9 +1236,9 @@ describe('saving the circuit', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save circuit' }));
 
     editor.arm('h');
-    fireEvent.click(editor.cell('q0, column 1, empty'));
+    fireEvent.click(editor.cell('q0, cycle 0, empty'));
 
-    expect(editor.cell('q0, column 1, h')).toBeInTheDocument();
+    expect(editor.cell('q0, cycle 0, h')).toBeInTheDocument();
     setItem.mockRestore();
   });
 });
@@ -1342,8 +1342,8 @@ describe('the inspector', () => {
     const editor = open();
 
     editor.arm('rx');
-    fireEvent.click(editor.cell('q0, column 1, empty'));
-    selectPlaced(editor, 'q0, column 1, rx');
+    fireEvent.click(editor.cell('q0, cycle 0, empty'));
+    selectPlaced(editor, 'q0, cycle 0, rx');
 
     expect(editor.status()).toHaveTextContent('1 operations');
     expect(angle()).toHaveValue(Math.PI / 2);
@@ -1362,8 +1362,8 @@ describe('the inspector', () => {
     const editor = open();
 
     editor.arm('rx');
-    fireEvent.click(editor.cell('q0, column 1, empty'));
-    selectPlaced(editor, 'q0, column 1, rx');
+    fireEvent.click(editor.cell('q0, cycle 0, empty'));
+    selectPlaced(editor, 'q0, cycle 0, rx');
 
     fireEvent.change(angle(), { target: { value: '1' } });
     fireEvent.change(angle(), { target: { value: '1.2' } });
@@ -1379,8 +1379,8 @@ describe('the inspector', () => {
     const editor = open();
 
     editor.arm('rz');
-    fireEvent.click(editor.cell('q0, column 1, empty'));
-    selectPlaced(editor, 'q0, column 1, rz');
+    fireEvent.click(editor.cell('q0, cycle 0, empty'));
+    selectPlaced(editor, 'q0, cycle 0, rz');
 
     fireEvent.change(angle(), { target: { value: '1' } });
     fireEvent.blur(angle());
@@ -1400,8 +1400,8 @@ describe('the inspector', () => {
     const editor = open();
 
     editor.arm('rx');
-    fireEvent.click(editor.cell('q0, column 1, empty'));
-    selectPlaced(editor, 'q0, column 1, rx');
+    fireEvent.click(editor.cell('q0, cycle 0, empty'));
+    selectPlaced(editor, 'q0, cycle 0, rx');
 
     fireEvent.change(angle(), { target: { value: '' } });
 
@@ -1424,8 +1424,8 @@ describe('the inspector', () => {
     const editor = open(twoRegisters);
 
     editor.arm('measurement');
-    fireEvent.click(editor.cell('q0, column 1, empty'));
-    selectPlaced(editor, 'q0, column 1, measurement');
+    fireEvent.click(editor.cell('q0, cycle 0, empty'));
+    selectPlaced(editor, 'q0, cycle 0, measurement');
 
     fireEvent.change(screen.getByRole('combobox', { name: /register/i }), {
       target: { value: 'c_1' },
@@ -1446,12 +1446,98 @@ describe('the inspector', () => {
     const editor = open();
 
     editor.arm('h');
-    fireEvent.click(editor.cell('q0, column 1, empty'));
+    fireEvent.click(editor.cell('q0, cycle 0, empty'));
     expect(screen.getByText(/no editable properties/i)).toBeInTheDocument();
 
     editor.press('Escape');
     editor.press('Escape');
 
     expect(screen.getByText(/select an operation/i)).toBeInTheDocument();
+  });
+});
+
+describe('cycle labels', () => {
+  const toggle = () => screen.getByRole('checkbox', { name: /cycle labels/i });
+  const labels = () =>
+    [...document.querySelectorAll('g[aria-hidden="true"] text')].map(
+      (node) => node.textContent,
+    );
+
+  it('is unavailable until there is a cycle to label', () => {
+    const editor = open();
+
+    expect(toggle()).toHaveAttribute('aria-disabled', 'true');
+
+    editor.arm('h');
+    fireEvent.click(editor.cell('q0, cycle 0, empty'));
+
+    expect(toggle()).not.toHaveAttribute('aria-disabled', 'true');
+  });
+
+  it('numbers the cycles once turned on', () => {
+    const editor = open();
+
+    editor.arm('h');
+    fireEvent.click(editor.cell('q0, cycle 0, empty'));
+    editor.arm('x');
+    fireEvent.click(editor.cell('q0, cycle 1, empty'));
+
+    expect(labels()).toEqual([]);
+
+    fireEvent.click(toggle());
+
+    expect(labels()).toEqual(['0', '1']);
+  });
+
+  /**
+   * ADR-0007 section 4: history holds circuit values, and undo restores the
+   * document rather than what you were looking at. A view toggle that pushed a
+   * snapshot would make the previous edit take two undos to reverse.
+   */
+  it('costs no undo step', () => {
+    const editor = open();
+
+    editor.arm('h');
+    fireEvent.click(editor.cell('q0, cycle 0, empty'));
+    fireEvent.click(toggle());
+
+    editor.undo();
+
+    expect(editor.status()).toHaveTextContent('0 operations');
+  });
+
+  /** And the labels survive the undo, because they were never part of it. */
+  it('stays on across an edit', () => {
+    const editor = open();
+
+    editor.arm('h');
+    fireEvent.click(editor.cell('q0, cycle 0, empty'));
+    fireEvent.click(toggle());
+    editor.arm('x');
+    fireEvent.click(editor.cell('q1, cycle 0, empty'));
+
+    expect(toggle()).toBeChecked();
+    expect(labels()).toEqual(['0']);
+  });
+
+  /**
+   * Removing the last operation takes the cycles with it. The toggle must go
+   * back to unavailable rather than reading as on over an empty canvas.
+   */
+  it('returns to unavailable when the last operation goes', () => {
+    const editor = open();
+
+    editor.arm('h');
+    fireEvent.click(editor.cell('q0, cycle 0, empty'));
+    fireEvent.click(toggle());
+    expect(labels()).toEqual(['0']);
+
+    editor.press('Escape');
+    fireEvent.click(editor.cell('q0, cycle 0, h'));
+    editor.press('Delete');
+
+    expect(toggle()).toHaveAttribute('aria-disabled', 'true');
+    expect(toggle()).not.toBeChecked();
+    expect(labels()).toEqual([]);
   });
 });

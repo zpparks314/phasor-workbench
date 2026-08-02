@@ -77,6 +77,8 @@ export interface CircuitCanvasProps {
   readonly pending: PendingPreview | null;
   readonly dragging: string | null;
   readonly settle: Settle | null;
+  /** View state, never circuit state -- see ADR-0007 section 4. */
+  readonly showCycleLabels: boolean;
   readonly onCursorChange: (cell: CellPosition) => void;
   readonly onActivate: (cell: CellPosition) => void;
   readonly onSelectOperation: (operationId: string) => void;
@@ -100,6 +102,7 @@ export function CircuitCanvas({
   pending,
   dragging,
   settle,
+  showCycleLabels,
   onCursorChange,
   onActivate,
   onSelectOperation,
@@ -224,6 +227,8 @@ export function CircuitCanvas({
         viewBox={`0 0 ${String(layout.width)} ${String(layout.height)}`}
         className="text-ink"
       >
+        {showCycleLabels && <CycleLabels layout={layout} />}
+
         <g role="none">
           {layout.wires.map((wire) => (
             <Wire
@@ -341,7 +346,19 @@ export function CircuitCanvas({
                 key={column}
                 role="gridcell"
                 id={cellId({ row, column })}
-                aria-label={`${wire.label}, column ${String(column + 1)}, ${content.description}`}
+                /*
+                  "cycle N", zero-based, matching `deriveCycles`, `depth`, and
+                  the analysis panel. This read "column N" one-based until
+                  2026-08-02, which was defensible while nothing on screen
+                  disagreed with it, and stopped being so when the cycle labels
+                  made the number visible: two numbers for one position, off by
+                  one, one audible and one visible, is a contradiction nobody
+                  notices until it has been read aloud.
+
+                  "cycle" is also the project's word -- ADR-0001 and ADR-0003
+                  fix it, and "column" is the rendering term for the same thing.
+                */
+                aria-label={`${wire.label}, cycle ${String(column)}, ${content.description}`}
                 aria-selected={
                   content.operationId !== undefined &&
                   content.operationId === selection
@@ -1150,6 +1167,92 @@ function PendingPlacement({
     </g>
   );
 }
+
+/**
+ * The cycle index above each column, when the view toggle asks for it.
+ *
+ * **Only cycles 0 to depth - 1.** `columnCount` is `depth + 1`, and that extra
+ * column is the empty one you append into -- labelling it would name a cycle
+ * the decomposition does not have. A circuit with no operations therefore shows
+ * no labels at all, which is why the toggle is unavailable in that state rather
+ * than silently doing nothing.
+ *
+ * **Drawn inside the existing top padding, changing no geometry.** Adding a
+ * header band would mean `layout.ts` knowing whether labels are on, and it is a
+ * pure `(circuit, decomposition) -> geometry` function that must not learn
+ * about view state. Keeping the labels inside the margin also means toggling
+ * them does not reflow the circuit, so nothing jumps under the pointer.
+ *
+ * **`aria-hidden`, deliberately.** Each cell already announces its own cycle,
+ * so exposing these too would make a screen reader read every index twice --
+ * once as a label and once per cell in the column. They are a visual aid to a
+ * number that is already available non-visually.
+ */
+function CycleLabels({
+  layout,
+}: {
+  readonly layout: CircuitLayout;
+}): React.JSX.Element {
+  const { metrics } = layout;
+
+  return (
+    <g role="none" aria-hidden="true">
+      {/*
+        A faint band behind alternate cycles, which is what attaches each label
+        to the column it names -- a number floating above bare wires belongs to
+        nothing in particular.
+
+        **A tint rather than an outline, and the reason is the barrier.** A
+        barrier is a dashed vertical rule on a column boundary, and boxing every
+        cycle would put a rule on every boundary: the one mark whose
+        vertical-line-ness carries meaning would become one dashed line among a
+        picket fence of solid ones. A tint has no edges to confuse it with, and
+        it stays legible at depth 20 where twenty adjacent boxes would read as a
+        ladder.
+
+        `surface-raised` rather than a new colour. The palette is achromatic --
+        every light-mode token is chroma 0 -- and UI.md budgets colour for gate
+        families, selection, and violations, none of which this is. Reusing the
+        token also means dark mode is already handled, where it lands slightly
+        lighter than the surface instead of slightly darker.
+      */}
+      {Array.from({ length: layout.depth }, (_, cycle) => cycle)
+        .filter((cycle) => cycle % 2 === 0)
+        .map((cycle) => (
+          <rect
+            key={cycle}
+            x={columnCenter(cycle, metrics) - metrics.column / 2}
+            y={BAND_TOP}
+            width={metrics.column}
+            height={Math.max(0, layout.height - metrics.padding - BAND_TOP)}
+            className="fill-surface-raised"
+          />
+        ))}
+
+      {Array.from({ length: layout.depth }, (_, cycle) => (
+        <text
+          key={cycle}
+          x={columnCenter(cycle, metrics)}
+          y={16}
+          textAnchor="middle"
+          className="fill-ink-muted font-mono text-[11px] tabular-nums"
+        >
+          {cycle}
+        </text>
+      ))}
+    </g>
+  );
+}
+
+/**
+ * Where a cycle band starts, just under the label baseline.
+ *
+ * A constant here rather than a layout metric, because it is a property of this
+ * decoration and not of the circuit's geometry -- `layout.ts` is a pure
+ * `(circuit, decomposition) -> geometry` function and must not learn that bands
+ * exist. Everything the band needs is already in the metrics it is given.
+ */
+const BAND_TOP = 24;
 
 function dial(x: number, y: number, glyph: number): string {
   const radius = glyph * 0.28;

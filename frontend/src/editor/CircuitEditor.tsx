@@ -60,6 +60,7 @@ import { Inspector } from './Inspector';
 import { useAnalysis } from './useAnalysis';
 import { ProblemsStrip } from './ProblemsStrip';
 import { StructureControls } from './StructureControls';
+import { ViewControls } from './ViewControls';
 import { columnCenter, layoutCircuit, pendingConnector } from './layout';
 import { isGateName, type PaletteItem } from './palette';
 import {
@@ -97,6 +98,19 @@ export function CircuitEditor({
   const [cursor, setCursor] = useState<CellPosition>({ row: 0, column: 0 });
   const [dragging, setDragging] = useState<string | null>(null);
   const [settle, setSettle] = useState<Settle | null>(null);
+
+  /**
+   * Whether the canvas numbers its cycles.
+   *
+   * Component state, beside `armed` and `cursor` and for the same reason:
+   * ADR-0007 section 4 keeps the history stack to circuit values, and undo
+   * restores the document rather than what you were looking at. Turning labels
+   * on must not be undoable, and must not make the previous edit un-undoable.
+   *
+   * Off by default -- the labels are opt-in, and the numbering itself is
+   * derived from `deriveCycles` with nothing hand-authored.
+   */
+  const [showCycleLabels, setShowCycleLabels] = useState(false);
 
   /**
    * A multi-qubit gate part-way through having its wires assigned.
@@ -210,6 +224,16 @@ export function CircuitEditor({
           null),
     [circuit, selection],
   );
+
+  /**
+   * The backend's own analysis, debounced and abortable.
+   *
+   * The only network call the editor makes. It is deliberately not what the
+   * status line reads -- that stays local, because a render must never wait on
+   * the network -- so the editor keeps working exactly as before when the
+   * backend is down.
+   */
+  const analysis = useAnalysis(circuit);
 
   /**
    * The pending placement resolved to geometry, so the canvas keeps having
@@ -640,16 +664,6 @@ export function CircuitEditor({
   }
 
   /**
-   * The backend's own analysis, debounced and abortable.
-   *
-   * The only network call the editor makes. It is deliberately not what the
-   * status line reads -- that stays local, because a render must never wait on
-   * the network -- so the editor keeps working exactly as before when the
-   * backend is down.
-   */
-  const analysis = useAnalysis(circuit);
-
-  /**
    * Write one parameter, coalescing until the interaction ends.
    *
    * Every call merges into the same history entry, so dragging the angle slider
@@ -782,6 +796,22 @@ export function CircuitEditor({
             }}
           />
 
+          {/*
+            Unavailable when the decomposition has no cycles, which covers both
+            the empty circuit and a circuit of wires with nothing on them. One
+            rule rather than two, and it is the honest one: the question is
+            whether there is anything to label, not whether there are qubits.
+          */}
+          <ViewControls
+            showCycleLabels={showCycleLabels}
+            onShowCycleLabelsChange={setShowCycleLabels}
+            cycleLabelsUnavailable={
+              decomposition.depth === 0
+                ? 'No cycles to label yet: place an operation.'
+                : undefined
+            }
+          />
+
           <CircuitCanvas
             layout={layout}
             cells={cells}
@@ -791,6 +821,7 @@ export function CircuitEditor({
             pending={pendingPreview}
             dragging={dragging}
             settle={settle}
+            showCycleLabels={showCycleLabels}
             onCursorChange={(cell) => {
               const changed =
                 cell.row !== cursor.row || cell.column !== cursor.column;
@@ -860,11 +891,10 @@ export function CircuitEditor({
         </div>
 
         {/*
-          The inspector takes the column Milestone 3 reserved, and the analysis
-          panel sits beneath it rather than replacing it: one is what the
-          selected operation *is*, the other what the whole circuit *amounts
-          to*, and they are read at different moments. Simulation results join
-          them below.
+          The inspector takes the reserved column, and Milestone 4's results
+          panel will sit beneath it rather than replace it: one is what the
+          selected operation *is*, the other what the whole circuit *does*, and
+          they are read at different moments.
         */}
         <aside className="flex flex-col gap-6">
           <Inspector

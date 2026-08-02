@@ -30,8 +30,12 @@ interpreter question that was its one open entry was resolved on 2026-08-02 by
 discovering it no longer existed — Qiskit runs on native 3.14. See *Decisions
 Awaiting the Owner*.
 
-The backend is no longer idle: it serves `POST /api/v1/circuits/analyze`, the
-first endpoint to take a circuit, and the frontend calls it.
+Four of its eight tasks are done, all on 2026-08-02: parameter editing, the
+backend API, gate count, and circuit depth. The backend is no longer idle — it
+serves `POST /api/v1/circuits/analyze`, the first endpoint to take a circuit, and
+the frontend calls it. 281 backend tests and 693 frontend. **Qiskit is next**, and
+it is the first task in this milestone that needs anything the project does not
+already have.
 
 [ADR-0007](decisions/ADR0007_EditingModel.md) is Accepted and settles the editing
 model — edits as pure functions, a bounded stack of labeled snapshots, and
@@ -625,6 +629,10 @@ Execute circuits and display results.
 * [ ] Probability display
 * [x] Gate count
 * [x] Circuit depth
+* [x] Cycle labels — added to this milestone on 2026-08-02, at the owner's
+  request, and not in the original list. It belongs here rather than in
+  *Educational Visualizations*: depth had just become a number the app reports,
+  and this is what makes that number checkable against the circuit
 
 ### Exit Criteria
 
@@ -637,14 +645,18 @@ Users can build a circuit and receive valid simulation results.
 written before anything existed and both end with open questions that are still
 open. Expect to revise them as this is built.
 
-**Parameter editing is done**, and it closed both of Milestone 3's deferred items
-at once — which was the argument for one general panel rather than an angle box.
+**Parameter editing, the analysis endpoint, gate count and depth are done**, all
+on 2026-08-02. What follows is what they left behind; Qiskit is next and nothing
+blocks it.
+
+**The inspector is built** and closed both of Milestone 3's deferred items at
+once, which was the argument for one general panel rather than an angle box.
 Rotations still place at π/2 and are edited afterwards; `setParameters` needed no
 change, and `setClassicalTarget` was added beside it for the measurement half.
-Every decision inside it is in [UI.md](UI.md) under *The Inspector*: the two
-accessible names over one value, why an out-of-range bit is reported while a
-fractional one is refused, and why the π caption is a rendering rather than a unit
-conversion.
+The design and every decision inside it are in [UI.md](UI.md) under *The
+Inspector* — the two accessible names over one value, why an out-of-range bit is
+reported while a fractional one is refused, and why the π caption is a rendering
+rather than a unit conversion.
 
 **`POST /api/v1/circuits/analyze` is the first circuit endpoint**, and it proved
 the round trip exactly as intended: nothing new had to be computed. Depth comes
@@ -665,6 +677,22 @@ endpoint:
   answered every circuit with one circuit's numbers. See
   [Frontend.md](Frontend.md) under *Mocking*.
 
+**Cycle labels landed the same day**, added to this milestone rather than
+deferred to *Educational Visualizations*, and they forced a rename worth knowing
+about: a cell's accessible name said **"column 1" for cycle 0**. That was
+harmless while the number was audible only, and became a contradiction the moment
+a visible label put a second number on the same position. Everything now says
+**cycle**, zero-based — `deriveCycles`, `depth`, the analysis panel, the drop
+column, and the accessible names alike. 158 test expectations moved with it.
+"Column" survives only in the code that computes pixels, which is what it was
+always for.
+
+**Qiskit is next, and the environment is ready** — `pip install -e
+".[dev,simulation]"` works on 3.11 through 3.14, natively and in the container,
+and both CI legs install it. It is the first task in this milestone that needs
+something the project does not already have, and the last four tasks are all
+simulation: integration, statevector, measurement, and the probability display.
+
 **The interpreter is settled and needs no further thought.** `pip install -e
 ".[dev,simulation]"` works on 3.11 through 3.14, natively and in the container,
 and both CI legs install it. Install it into your venv when you start on Qiskit;
@@ -680,10 +708,10 @@ that cost one `pip install` in a throwaway venv.
 
 **The frontend needed no new architecture, and the reservation paid off.**
 Filling UI.md's reserved right column cost one grid template and one `aside`;
-nothing else moved. The inspector is in it and the analysis panel sits beneath,
-with simulation results to join them below. `api/` remains the only module
-permitted to call `fetch` — `editor/useAnalysis.ts` is the React side of that
-boundary and holds no `fetch` of its own.
+nothing else moved. The inspector and the analysis panel are in it, and the
+simulation results panel joins them below rather than displacing either. `api/`
+remains the only module permitted to call `fetch` — `editor/useAnalysis.ts` is
+the React side of that boundary and holds no `fetch` of its own.
 
 ---
 
