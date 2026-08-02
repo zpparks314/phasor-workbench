@@ -623,7 +623,7 @@ Execute circuits and display results.
 * [x] Parameter editing — an inspector, which closed the measurement-target
   deferral at the same time
 * [x] Backend API — `POST /api/v1/circuits/analyze`, the first circuit endpoint
-* [ ] Qiskit integration
+* [x] Qiskit integration — the backend seam, and the adapter behind it
 * [ ] Statevector simulation
 * [ ] Measurement simulation
 * [ ] Probability display
@@ -687,11 +687,30 @@ column, and the accessible names alike. 158 test expectations moved with it.
 "Column" survives only in the code that computes pixels, which is what it was
 always for.
 
-**Qiskit is next, and the environment is ready** — `pip install -e
-".[dev,simulation]"` works on 3.11 through 3.14, natively and in the container,
-and both CI legs install it. It is the first task in this milestone that needs
-something the project does not already have, and the last four tasks are all
-simulation: integration, statevector, measurement, and the probability display.
+**Qiskit is integrated**, behind the seam rather than in front of it. The port
+is `simulation/backend.py`; `simulation/backends/qiskit_backend.py` is the only
+module in the project that imports Qiskit, and a test enforces that by scanning
+for import statements. `simulation/registry.py` is the one file a second backend
+touches outside its own module.
+
+One departure from [Simulation.md](Simulation.md) worth knowing, and recorded
+there: **there is no separate internal representation.** The document called for
+a thin simulator-agnostic structure between validation and the backend, and when
+it came to building one there was nothing for it to do — the Circuit Model is
+already simulator-agnostic, so the intermediate structure would have been a
+second description of the same circuit to keep in step with the schema. The
+seam's real job, keeping Qiskit out of the API layer, is done by typing the port
+on `Circuit`.
+
+**Absence of the extra is an ordinary state, not a failure.** Without
+`[simulation]` the package still imports, the registry reports no backends,
+`get_backend()` raises a typed error naming the install command, and the
+simulation tests skip — verified in a `[dev]`-only venv: 281 passed, 21 skipped.
+
+**Three tasks left, all of them simulation**: statevector, measurement, and the
+probability display. The adapter already computes both statevector and sample
+results; what remains is the endpoints, the result formatting API.md specifies,
+and the frontend that displays them.
 
 **The interpreter is settled and needs no further thought.** `pip install -e
 ".[dev,simulation]"` works on 3.11 through 3.14, natively and in the container,
