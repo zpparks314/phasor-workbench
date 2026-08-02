@@ -27,9 +27,10 @@ jobs:
       fail-fast: false
       matrix:
         # 3.11 is the floor pyproject.toml claims; 3.14 is what we develop on.
-        # An untested claim rots. The `simulation` extra is deliberately not
-        # installed -- nothing before Milestone 4 needs Qiskit, and it has no
-        # 3.14 wheels. Milestone 4 will need its own 3.11-3.13 job.
+        # An untested claim rots -- which is the whole reason both legs now
+        # install the `simulation` extra as well. Qiskit 2.x ships stable-ABI
+        # wheels and installs on both, so the 3.11-3.13 job this comment used
+        # to promise is not needed and no third leg was added.
         python-version: ['3.11', '3.14']
     defaults:
       run:
@@ -43,8 +44,15 @@ jobs:
           cache: pip
           cache-dependency-path: backend/pyproject.toml
 
+      # --only-binary=:all: for the simulation extra's sake: Qiskit, NumPy and
+      # SciPy all build from source given the chance, turning a 30-second step
+      # into a toolchain-dependent one that can fail for reasons unrelated to
+      # this repository. Failing outright is the better signal -- a missing
+      # wheel is exactly the condition that made the interpreter a question in
+      # the first place, and it should be loud if it ever returns.
       - name: Install
-        run: pip install -e ".[dev]"
+        # Single-quoted: `:all:` followed by a space is a YAML mapping otherwise.
+        run: 'pip install --only-binary=:all: -e ".[dev,simulation]"'
 
       - name: Lint
         run: ruff check .

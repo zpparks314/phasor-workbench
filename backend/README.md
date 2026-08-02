@@ -23,7 +23,7 @@ uvicorn phasor_workbench.main:app --reload --port 8000
 
 Interactive API docs: `http://localhost:8000/api/v1/docs`
 
-## Qiskit and Python 3.14
+## The simulation extra
 
 Qiskit and NumPy are **not** core dependencies. They live in an optional
 `simulation` extra because nothing before Milestone 4 uses them:
@@ -32,20 +32,15 @@ Qiskit and NumPy are **not** core dependencies. They live in an optional
 pip install -e ".[dev,simulation]"
 ```
 
-Qiskit does not yet publish wheels for Python 3.14, so that extra needs
-Python 3.11–3.13. Keeping it optional means the foundation installs and runs
-on 3.14 today.
+It installs on every interpreter this project supports, 3.11 through 3.14, and
+both CI legs cover it.
 
-**The Docker development environment pins Python 3.13 for exactly this
-reason**, so the container is where the `simulation` extra will install when
-Milestone 4 arrives. From the repository root:
-
-```bash
-docker compose up --build
-```
-
-That does not force containers on anyone — native development on 3.14 stays
-supported for everything except the `simulation` extra.
+This section previously warned that Qiskit published no Python 3.14 wheels and
+that the extra needed 3.11–3.13. That stopped being true without any 3.14 wheel
+appearing: Qiskit 2.x ships `cp310-abi3` wheels, and the stable ABI means one
+wheel serves every CPython from 3.10 upward, including releases that did not
+exist when it was built. The extra now floors at `qiskit>=2.1` for that reason —
+1.x predates the change.
 
 ## Commands
 

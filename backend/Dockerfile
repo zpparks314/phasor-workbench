@@ -1,10 +1,11 @@
 # syntax=docker/dockerfile:1
 
-# Python 3.13 rather than the 3.14 used natively. Qiskit publishes no 3.14
-# wheels, so the container is where the Milestone 4 `simulation` extra will
-# install. Both versions satisfy requires-python, and CI covers 3.11 and 3.14.
-# See docs/Roadmap.md.
-FROM python:3.13-slim AS base
+# 3.14, matching the interpreter used natively and the upper CI leg. This was
+# pinned to 3.13 until 2026-08-02 because Qiskit published no 3.14 wheels and
+# the container was to be the only place the `simulation` extra could install.
+# Qiskit 2.x ships stable-ABI wheels, so that is no longer true and the pin has
+# no reason left to exist. See docs/Roadmap.md.
+FROM python:3.14-slim AS base
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -25,7 +26,9 @@ FROM base AS development
 COPY pyproject.toml README.md ./
 COPY src/ ./src/
 
-RUN pip install -e ".[dev]"
+# Wheels only, for the same reason CI does it: Qiskit, NumPy and SciPy will
+# each build from source if no wheel matches, and a slim image has no compiler.
+RUN pip install --only-binary=:all: -e ".[dev,simulation]"
 
 # Bind-mounted Windows filesystems do not propagate inotify events, so the
 # reloader sees nothing without polling. watchfiles ships with

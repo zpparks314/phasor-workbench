@@ -25,10 +25,11 @@ remove qubits and registers, place every gate in the spec plus measurements and
 barriers, move and remove them, undo and redo, see violations as they appear, and
 save work that survives a refresh. 609 frontend tests and 256 backend.
 
-**Milestone 4 (Simulation MVP) may begin.** It is the first milestone to need the
-backend since Milestone 2, and the first to need Qiskit — which publishes no
-Python 3.14 wheels, so read *Decisions Awaiting the Owner* first: its one
-remaining entry is exactly that.
+**Milestone 4 (Simulation MVP) may begin, and owes no decisions.** It is the
+first milestone to need the backend since Milestone 2, and the first to need
+Qiskit. The interpreter question that was its one open entry was resolved on
+2026-08-02 by discovering it no longer existed — Qiskit runs on native 3.14. See
+*Decisions Awaiting the Owner*.
 
 [ADR-0007](decisions/ADR0007_EditingModel.md) is Accepted and settles the editing
 model — edits as pure functions, a bounded stack of labeled snapshots, and
@@ -42,7 +43,8 @@ compiled from the schema during `generate_bindings.py`, and an edited circuit
 declares this build's version with preserved fields dropped and the loss surfaced
 before the first edit rather than at save time.
 
-**Decisions Awaiting the Owner** holds one entry, scoped to Milestone 4.
+**Decisions Awaiting the Owner** is now empty. Every entry it ever held is
+resolved, and it is kept for the reasoning rather than as a queue.
 
 ---
 
@@ -104,8 +106,9 @@ history, no force pushes. Only the aggregate `CI` check is required, because
 matrix job names carry their version and would leave a new leg unprotected.
 
 `docker compose up --build` runs both services with hot reload. The backend
-container pins Python 3.13 because Qiskit publishes no 3.14 wheels, making it
-where the Milestone 4 `simulation` extra will install. Production images are
+container ran Python 3.13 rather than the native 3.14 until 2026-08-02, solely
+because Qiskit was believed to need it; it now matches native at 3.14 and
+installs the `simulation` extra like every other environment. Production images are
 deferred to Milestone 5; both Dockerfiles are multi-stage so adding a target is
 additive. Docker supplements native development — CI runs natively.
 
@@ -133,7 +136,7 @@ they affect begins.
 | Shared model strategy: JSON Schema generation vs. hand-written types with contract tests | Milestone 2 | **Resolved 2026-07-29** — JSON Schema as source of truth, bindings generated into each project. See [ADR-0004](decisions/ADR0004_SharedModelStrategy.md) |
 | Mid-circuit measurement: permitted at MVP or deferred? | Milestone 2 | **Resolved 2026-07-29** — deferred. Measurement terminates a qubit; barriers are exempt. See [CircuitModel.md](CircuitModel.md) |
 | Are identifiers client-generated or backend-assigned? | Milestone 2 | **Resolved 2026-07-29** — client-generated, backend-validated. Forced by offline operation and local save |
-| Interpreter for the `simulation` extra (Qiskit lacks 3.14 wheels) | Milestone 4 | **Open, and now due.** The Docker environment pins 3.13, so simulation work can happen there. Whether native 3.14 must also be supported is unanswered, and the answer decides whether CI grows a leg or the `simulation` extra is container-only. Settle it before adding the extra — retrofitting a second interpreter after Qiskit is wired in is the expensive order |
+| Interpreter for the `simulation` extra (Qiskit lacks 3.14 wheels) | Milestone 4 | **Resolved 2026-08-02 — the question dissolved rather than being decided.** Qiskit runs on native 3.14: verified by a clean wheel-only install in a throwaway venv, correct Bell statevector and sampler counts. Neither branch of the choice was needed — CI grew no leg and nothing became container-only. Qiskit 2.x ships `cp310-abi3` wheels, the stable ABI, so one wheel serves every CPython from 3.10 up including versions released after it was built; rustworkx does the same, and NumPy and SciPy now publish real cp314 wheels. The premise expired **without any 3.14 wheel being published**, which is why watching for a cp314 tag would never have shown it. Both CI legs now install `[dev,simulation]`, the extra floors at `qiskit>=2.1` (1.x predates abi3 and cannot install on 3.14), and the container's 3.13 pin — which existed only for this — is now 3.14 |
 | Does the frontend gain a runtime shape validator, and at what dependency cost? | Milestone 3 | **Resolved 2026-08-01** — a validator compiled from the schema during `generate_bindings.py`, with Ajv as a devDependency that is never shipped. Measured before deciding, as this entry asked: zero runtime imports and no `new Function`, against a ~1 MB package shipping ~30 KB+ gzipped and compiling the schema on every load. The implemented cost is **+5.1 KB gzipped** to the bundle for the validator, loader and persistence together. See [ADR-0008](decisions/ADR0008_LocalPersistence.md) |
 | Do `invalid/` fixtures assert `path` as well as `code`? | Milestone 2 fixtures | **Resolved 2026-07-30** — codes only. Fixtures compare sorted code lists; paths are asserted in each project's own unit tests, where a format difference is a local bug rather than a contract break |
 | What `schemaVersion` does an *edited* newer-minor circuit declare on save? | Milestone 3 | **Resolved 2026-08-01** — this build's own, with preserved fields dropped and the loss surfaced before it happens. The question turned out to be larger than the version string: preserved fields are keyed by *positional* path, and editing reorders operations, so re-grafting after an edit attaches a newer build's field to the wrong operation. Keeping our version *with* preserved fields is also impossible — strict mode at our own version refuses unknown fields, so we would write a document we cannot re-read. See [ADR-0008](decisions/ADR0008_LocalPersistence.md) section 3 |
@@ -155,9 +158,8 @@ signatures, and the current model version live; where the hand-written validatio
 and cycle derivation live in each project; and that frontend runtime *shape*
 validation is deferred to Milestone 3.
 
-**Nothing blocks starting Milestone 3.** Of the entries above still open, one is
-scoped to Milestone 4 and two land during Milestone 3 itself — see *Starting
-Points* under that milestone.
+**Nothing blocks starting Milestone 3**, and as of 2026-08-02 nothing blocks
+Milestone 4 either — every entry above is resolved.
 
 Remaining open questions live at the end of [API.md](API.md) and
 [Simulation.md](Simulation.md). `CircuitModel.md` no longer has any.
@@ -655,11 +657,18 @@ and derives cycles, so gate count and circuit depth are close to free —
 Those two tasks are the cheapest way to prove the API round trip before Qiskit is
 involved at all.
 
-**The one open decision is the interpreter**, and it is the last entry in
-*Decisions Awaiting the Owner*: Qiskit publishes no Python 3.14 wheels, the
-container pins 3.13, and whether native 3.14 must also be supported is unanswered.
-Settle it before adding the `simulation` extra, because the answer decides whether
-CI grows a leg or the work is container-only.
+**The interpreter is settled and needs no further thought.** `pip install -e
+".[dev,simulation]"` works on 3.11 through 3.14, natively and in the container,
+and both CI legs install it. Install it into your venv when you start on Qiskit;
+nothing else about the environment changes.
+
+The lesson worth carrying, since this milestone will make more of these calls:
+the decision was retired by **testing the premise rather than answering the
+question**. Both prepared answers — a CI leg, or container-only — would have
+built real structure to route around a constraint that had already lapsed, and
+neither would have looked wrong afterwards. A dependency claim in a document is
+evidence about the day it was written. Re-run it before designing around it; here
+that cost one `pip install` in a throwaway venv.
 
 **The frontend needs no new architecture for results.** UI.md reserves the right
 column and the three-column grid already exists, so adding the panel is not a
