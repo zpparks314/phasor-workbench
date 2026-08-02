@@ -33,7 +33,7 @@ this document says what the user sees and ADR-0007 says what the code does.
 │           │  Structure · View                    │ Inspector │
 │  Palette  │        Circuit Canvas                │           │
 │           │                                      │ Analysis  │
-│           │                                      │           │
+│           │                                      │ Results   │
 ├───────────┴──────────────────────────────────────┴───────────┤
 │  Problems     violations from validateCircuit                 │
 └──────────────────────────────────────────────────────────────┘
@@ -716,6 +716,60 @@ them does not reflow the circuit, so nothing jumps under the pointer. The band's
 top edge is a constant in the canvas for the same reason — where a decoration
 starts is a property of the decoration, not of the circuit's geometry.
 
+## The Results Panel
+
+What the circuit *does*, under the inspector and the analysis panel. Built
+2026-08-02, and deliberately not designed before then.
+
+**The two halves are triggered differently, because they differ in kind.** A
+statevector is a property the circuit *has* — like depth — so it follows edits,
+debounced, the way analysis does. Sampling is an experiment you *run*, with a
+shot count and a seed, so it takes a button. Running 1024 shots on every
+keystroke would also mean an unseeded run whose numbers changed for reasons the
+user did not cause.
+
+**Exact and sampled probabilities share one row**, which is the whole reason the
+panel has this shape. Shot noise is hard to convey any other way: 1024 shots of
+a Bell state give 51.6% where the state says 50.0%, and seeing both numbers side
+by side — then watching them converge as shots rise — is the explanation. Two
+panels would make the reader hold both lists in their head and do the comparison
+themselves.
+
+**A sample is discarded the moment the circuit changes.** Counts from the
+previous circuit displayed beside a state from the current one is a comparison
+of two different circuits presented as theory against experiment.
+Stale-but-plausible is worse than absent, because nothing about it looks wrong.
+
+**Bars are never the only carrier of meaning**, per this document's own rule.
+Every row states both percentages as text; the bars are a second reading of the
+same numbers and are `aria-hidden`, since a reader announcing them too would
+repeat each value twice. The two bars are **stacked rather than overlaid** — an
+overlay needs colour or opacity to separate them and the palette is achromatic;
+stacked, position carries it, and the difference between the lengths *is* the
+shot noise.
+
+**Sixteen rows, then a count.** A 12-qubit circuit can have 4,096 non-negligible
+outcomes, and a list that long conveys nothing a person can read. "and 4,080
+more, each below 0.4%" is what stops the top of the list being mistaken for the
+whole of it. Rows are ranked by whichever of the two probabilities is larger, so
+a sampled outlier survives truncation — ranking by the exact value alone would
+drop the row most worth seeing.
+
+**Outcomes are a union of the two sources, not an intersection.** A state may
+give weight to an outcome a finite number of shots never produced, and a sample
+may produce one the exact probabilities dropped as negligible. Showing only what
+both agree on would hide exactly the disagreements the comparison exists to
+reveal.
+
+**Too many qubits is not an error.** Above the endpoint's response limit the
+panel says so plainly; the circuit is fine and the user did nothing wrong.
+Calling it invalid would be false, and it is a different message from the
+problems strip's.
+
+Shot count and seed controls are the natural next addition — watching noise
+shrink as shots rise is the demonstration this panel is built for — and are
+deliberately not here yet.
+
 ## Placing a Barrier
 
 **A barrier is expanded to every wire in the circuit at placement time**, and
@@ -852,10 +906,10 @@ state is identical; nothing is only communicated through movement.
 
 # Deliberately Deferred
 
-**To Milestone 4.** The results panel, probability display, state visualization,
-and where they sit. The right column is reserved for them and nothing else about
-them is designed here — designing a results panel before results exist is the
-speculation that kept this document empty through two milestones.
+**~~To Milestone 4.~~ Built**, and designed only once results existed — which
+was the point of deferring it. See *The Results Panel*. State visualization
+proper (Bloch spheres, amplitude phase, evolution over time) stays deferred to
+*Educational Visualizations*.
 
 **To Milestone 5.** Responsive and small-screen layout, the full shortcut map
 beyond the editor, and import/export affordances. `Roadmap.md` places responsive

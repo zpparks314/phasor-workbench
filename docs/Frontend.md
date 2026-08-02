@@ -290,6 +290,15 @@ from the same `deriveCycles` the canvas calls, and only the counting — a filte
 and a length — lives in the mock. When the backend is reachable it is the sole
 source of these numbers.
 
+**The simulation endpoints take the recorded branch**, which is that rule
+working rather than an exception to it. The frontend cannot derive a statevector
+without shipping a simulator, so `api/simulation.ts` returns a recorded Bell
+state. It is deliberately recognisable rather than plausible-looking: a
+developer running against the mock should be able to tell at a glance that the
+panel shows a fixture and not their circuit. Its sampled numbers are off 50/50
+on purpose, since a mock returning exactly 512/512 would hide the shot noise the
+results panel exists to make visible.
+
 ---
 
 # Development

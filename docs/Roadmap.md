@@ -2,12 +2,13 @@
 
 ## Project Status
 
-**Current Phase:** Simulation
+**Current Phase:** Release preparation
 
-**Current Milestone:** Milestone 4 — execute circuits and display results.
+**Current Milestone:** Milestone 5 — prepare the project for public deployment.
 
 Milestone 1 (Foundation) closed on 2026-07-28, Milestone 2 (Circuit Model) on
-2026-07-30, and Milestone 3 (Circuit Editor MVP) on 2026-08-01.
+2026-07-30, Milestone 3 (Circuit Editor MVP) on 2026-08-01, and Milestone 4
+(Simulation MVP) on 2026-08-02.
 
 **The Circuit Model is complete and enforced.** Its design is settled by ADRs
 0001–0006. Both languages validate circuits and derive cycles, agreeing on every
@@ -25,17 +26,18 @@ remove qubits and registers, place every gate in the spec plus measurements and
 barriers, move and remove them, undo and redo, see violations as they appear, and
 save work that survives a refresh. 609 frontend tests and 256 backend.
 
-**Milestone 4 (Simulation MVP) is under way and owes no decisions.** The
-interpreter question that was its one open entry was resolved on 2026-08-02 by
-discovering it no longer existed — Qiskit runs on native 3.14. See *Decisions
-Awaiting the Owner*.
+**Milestone 4 (Simulation MVP) is complete**, closed on 2026-08-02. Every task
+and its exit criterion are met: a user builds a circuit, watches its final state
+follow every edit, and runs it for measurement counts — without leaving the
+editor. 728 frontend tests and 327 backend.
 
-Four of its eight tasks are done, all on 2026-08-02: parameter editing, the
-backend API, gate count, and circuit depth. The backend is no longer idle — it
-serves `POST /api/v1/circuits/analyze`, the first endpoint to take a circuit, and
-the frontend calls it. 281 backend tests and 693 frontend. **Qiskit is next**, and
-it is the first task in this milestone that needs anything the project does not
-already have.
+The backend is no longer idle. It serves circuit analysis, statevector
+simulation and sampling, with Qiskit behind a seam that exactly one module
+imports. The interpreter question that was this milestone's one open entry was
+resolved by discovering it no longer existed — Qiskit runs on native 3.14.
+
+**Milestone 5 (First Public Release) may begin.** It inherits no decisions from
+this milestone; the questions still open are its own.
 
 [ADR-0007](decisions/ADR0007_EditingModel.md) is Accepted and settles the editing
 model — edits as pure functions, a bounded stack of labeled snapshots, and
@@ -65,7 +67,8 @@ The highest priorities are:
 4. ~~Core data model~~ — done, Milestone 2
 5. ~~Testing infrastructure~~ — done; enforced by CI
 6. ~~Circuit editor~~ — done, Milestone 3
-7. **Simulation** — active, Milestone 4
+7. ~~Simulation~~ — done, Milestone 4
+8. **Public release** — active, Milestone 5
 
 The rule that gated Milestone 3 — do not build on a provisional data model — held.
 The model was settled first, and the editor never had to renegotiate it. Milestone
@@ -626,7 +629,7 @@ Execute circuits and display results.
 * [x] Qiskit integration — the backend seam, and the adapter behind it
 * [x] Statevector simulation — `POST /api/v1/simulations/statevector`
 * [x] Measurement simulation — `POST /api/v1/simulations/sample`
-* [ ] Probability display
+* [x] Probability display — exact and sampled, in one list
 * [x] Gate count
 * [x] Circuit depth
 * [x] Cycle labels — added to this milestone on 2026-08-02, at the owner's
@@ -738,12 +741,20 @@ Simulation.md, `config.py` the second per API.md, and the effective limit is
 whichever is lower. The statevector endpoint's 12 is a third thing again — a
 response-size limit, not a simulation one.
 
-**One task left: the probability display**, and it is the milestone's exit
-criterion — *users can build a circuit and receive valid simulation results*.
-Nothing user-facing has changed since the analysis panel, so this is what makes
-the whole milestone visible. Both result kinds now exist to display, which is
-why it was worth doing sampling first rather than shipping a display and
-immediately revising it.
+**The results panel closes the milestone.** Every task is done and the exit
+criterion is met: a user can build a circuit and receive valid simulation
+results, in the browser, without leaving the editor.
+
+Its design was deferred through two milestones on purpose — UI.md refused to
+specify a results panel before results existed — and the deferral paid: the
+shape it took (one row per outcome, exact and sampled side by side) is one
+nobody would have proposed without both result kinds in hand. Doing sampling
+before the display was the same bet, and it also paid.
+
+The decisions inside it are in [UI.md](UI.md) under *The Results Panel*: why the
+statevector is live and sampling is a button, why a stale sample is discarded
+rather than shown, why the bars are stacked rather than overlaid, and why the
+outcome list is a union of the two sources rather than an intersection.
 
 **The interpreter is settled and needs no further thought.** `pip install -e
 ".[dev,simulation]"` works on 3.11 through 3.14, natively and in the container,
