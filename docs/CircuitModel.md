@@ -1,6 +1,6 @@
 # Circuit Model
 
-**Status:** Accepted, partially implemented. The design is settled by
+**Status:** Accepted and implemented in both languages. The design is settled by
 [ADR-0001](decisions/ADR0001_CircuitRepresentation.md),
 [ADR-0002](decisions/ADR0002_IdentityModel.md),
 [ADR-0003](decisions/ADR0003_ExecutionSemantics.md),

@@ -1,10 +1,10 @@
 # Simulation
 
-**Status:** Draft — proposed design, pending review.
+**Status:** Implemented in Milestone 4.
 
-**Target milestone:** Milestone 4 (Simulation MVP).
+The seam, the Qiskit adapter, statevector simulation and sampling all exist. Deferred modes (density matrix, noise, unitary extraction, stabilizer) do not, and the *Open Questions* at the end are still open.
 
-Nothing described here is implemented yet.
+One departure from what this document originally proposed is recorded under *Why an Internal Representation*, and it is the most important thing here to read before adding a second backend.
 
 ---
 
@@ -26,7 +26,7 @@ The backend is **Python + FastAPI + Pydantic**, with Qiskit as the first simulat
 
 Qiskit and NumPy are **not** core backend dependencies. They are isolated in an optional `simulation` extra in `backend/pyproject.toml`, because nothing before Milestone 4 uses them and `CLAUDE.md` directs the project to minimize dependencies.
 
-That is the whole reason, and it is worth stating because it briefly had a second one. This section used to record a live constraint — Qiskit published no Python 3.14 wheels — and asked that the target interpreter be confirmed before Milestone 4 began. It was, on 2026-08-02, and the constraint had lapsed: Qiskit 2.x ships `cp310-abi3` wheels, which serve every CPython from 3.10 up, so the extra installs on 3.11 through 3.14 and no interpreter is special. See `docs/Roadmap.md` under *Decisions Awaiting the Owner*.
+That is the whole reason, and it is worth stating because it briefly had a second one. This section used to record a live constraint — Qiskit published no Python 3.14 wheels — and asked that the target interpreter be confirmed before Milestone 4 began. It was, on 2026-08-02, and the constraint had lapsed: Qiskit 2.x ships `cp310-abi3` wheels, which serve every CPython from 3.10 up, so the extra installs on 3.11 through 3.14 and no interpreter is special. See `docs/Roadmap.md` under *Decisions Made*.
 
 The extra therefore stays optional on dependency-minimisation grounds alone. Nothing about packaging forces it.
 
