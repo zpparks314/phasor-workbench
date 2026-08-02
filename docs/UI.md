@@ -493,10 +493,32 @@ makes it appear. The *grouping* is editorial and lives in the palette — it is 
 one place a gate's name is not sufficient.
 
 Each entry shows its symbol and name, and a tooltip carrying a one-line
-description and its signature ("cx — controlled-X. 1 target, 1 control"). Rotation
-and phase gates prompt for their parameter on placement, defaulting to π/2 in
-radians, since `CircuitModel.md` stores parameters in radians and a hidden unit
-conversion is a bug waiting to happen.
+description and its signature ("cx — controlled-X. 1 target, 1 control").
+
+**Rotation and phase gates place at π/2 and are edited afterwards, not prompted
+for on placement.** This document originally said the opposite, and the reversal
+is deliberate: placement is one click, the multi-qubit sequence already makes some
+gates take several, and a modal on every `rx` would interrupt exactly the flow
+click-to-arm exists to keep fast. The pending-placement state also already owns
+the meaning "this placement is not finished", and a prompt would have to share it.
+
+Parameters are in **radians**, as `CircuitModel.md` stores them. No unit
+conversion happens anywhere; a hidden one is a bug waiting to happen.
+
+## The Inspector
+
+A panel showing the selected operation's editable properties, and nothing when
+nothing is selected. It is where a rotation's angle is changed, and it is
+deliberately general rather than a rotation-angle box: **a measurement's register
+and bit belong here too**, and so does any future per-operation property. Both of
+those are on the deferred list already, which is the argument for one panel rather
+than a control per property.
+
+Editing a parameter goes through `setParameters` like every other change — one
+edit, one undo step, labelled with what it did. An invalid or non-finite value is
+reported by `validateCircuit` in the problems strip rather than refused at the
+input, on the same principle as everything else the editor accepts: the user can
+fix it, so it is a state to report rather than a state to prevent.
 
 The gate list is read from `model/spec.ts` and is never hand-written. The
 **grouping** above and the descriptions are editorial and live in the palette,
