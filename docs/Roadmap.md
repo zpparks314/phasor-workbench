@@ -23,7 +23,7 @@ will have to renegotiate.
 criterion is met. A user can build a circuit from empty in the browser — add and
 remove qubits and registers, place every gate in the spec plus measurements and
 barriers, move and remove them, undo and redo, see violations as they appear, and
-save work that survives a refresh. 600 frontend tests and 256 backend.
+save work that survives a refresh. 609 frontend tests and 256 backend.
 
 **Milestone 4 (Simulation MVP) may begin.** It is the first milestone to need the
 backend since Milestone 2, and the first to need Qiskit — which publishes no
@@ -133,7 +133,7 @@ they affect begins.
 | Shared model strategy: JSON Schema generation vs. hand-written types with contract tests | Milestone 2 | **Resolved 2026-07-29** — JSON Schema as source of truth, bindings generated into each project. See [ADR-0004](decisions/ADR0004_SharedModelStrategy.md) |
 | Mid-circuit measurement: permitted at MVP or deferred? | Milestone 2 | **Resolved 2026-07-29** — deferred. Measurement terminates a qubit; barriers are exempt. See [CircuitModel.md](CircuitModel.md) |
 | Are identifiers client-generated or backend-assigned? | Milestone 2 | **Resolved 2026-07-29** — client-generated, backend-validated. Forced by offline operation and local save |
-| Interpreter for the `simulation` extra (Qiskit lacks 3.14 wheels) | Milestone 4 | **Partly answered.** The Docker environment pins 3.13, so simulation work happens there. Whether native 3.14 must also be supported is still open |
+| Interpreter for the `simulation` extra (Qiskit lacks 3.14 wheels) | Milestone 4 | **Open, and now due.** The Docker environment pins 3.13, so simulation work can happen there. Whether native 3.14 must also be supported is unanswered, and the answer decides whether CI grows a leg or the `simulation` extra is container-only. Settle it before adding the extra — retrofitting a second interpreter after Qiskit is wired in is the expensive order |
 | Does the frontend gain a runtime shape validator, and at what dependency cost? | Milestone 3 | **Resolved 2026-08-01** — a validator compiled from the schema during `generate_bindings.py`, with Ajv as a devDependency that is never shipped. Measured before deciding, as this entry asked: zero runtime imports and no `new Function`, against a ~1 MB package shipping ~30 KB+ gzipped and compiling the schema on every load. The implemented cost is **+5.1 KB gzipped** to the bundle for the validator, loader and persistence together. See [ADR-0008](decisions/ADR0008_LocalPersistence.md) |
 | Do `invalid/` fixtures assert `path` as well as `code`? | Milestone 2 fixtures | **Resolved 2026-07-30** — codes only. Fixtures compare sorted code lists; paths are asserted in each project's own unit tests, where a format difference is a local bug rather than a contract break |
 | What `schemaVersion` does an *edited* newer-minor circuit declare on save? | Milestone 3 | **Resolved 2026-08-01** — this build's own, with preserved fields dropped and the loss surfaced before it happens. The question turned out to be larger than the version string: preserved fields are keyed by *positional* path, and editing reorders operations, so re-grafting after an edit attaches a newer build's field to the wrong operation. Keeping our version *with* preserved fields is also impossible — strict mode at our own version refuses unknown fields, so we would write a document we cannot re-read. See [ADR-0008](decisions/ADR0008_LocalPersistence.md) section 3 |
@@ -356,12 +356,13 @@ touch rather than what is next. Milestone 4 begins below.
 **Deferred deliberately, and each recorded where it bites:**
 
 * **Parameter editing** — rotation gates place at a fixed π/2 and `setParameters`
-  sits unused in the edit vocabulary. What it needs is a decision about where the
-  control lives: UI.md says the palette prompts on placement, which is not what
-  the editor does.
+  sits unused. **Decided 2026-08-02** and moved into Milestone 4, where it is a
+  prerequisite rather than polish: an inspector on the selection, not a prompt on
+  placement. See [UI.md](UI.md) under *The Inspector*.
 * **Choosing a measurement's register and bit** — it always writes to the first
   register's lowest free bit, so a second register is unreachable. The circuit
-  produced is valid, so this is a missing feature rather than a wrong result.
+  produced is valid, so this is a missing feature rather than a wrong result. It
+  belongs in the same inspector, and should land with it.
 * **"New circuit"** — the document-level reset `clearOperations` stops short of.
   Now unblocked, since unsaved changes are finally knowable.
 * **`invalid/shape/` fixtures** — the directory is an empty placeholder and the
@@ -403,7 +404,7 @@ version claim is unverifiable evidence applies to it unchanged.
 from the palette, place it by pointer or keyboard, select it, move it by drag or
 `Ctrl/Cmd` + arrow, and remove it. Undo and redo work from the keyboard. Barriers
 are selectable with `b`. Violations appear in the problems strip and clear when
-fixed, and saved work survives a refresh. 600 frontend tests.
+fixed, and saved work survives a refresh. 609 frontend tests.
 
 **`frontend/src/persistence/` is the working-set store**, and the only module that
 touches browser storage — asserted by a test that no other source file names
@@ -615,6 +616,7 @@ Execute circuits and display results.
 
 ### Tasks
 
+* [ ] Parameter editing — an inspector, and the prerequisite below
 * [ ] Backend API
 * [ ] Qiskit integration
 * [ ] Statevector simulation
@@ -626,6 +628,44 @@ Execute circuits and display results.
 ### Exit Criteria
 
 Users can build a circuit and receive valid simulation results.
+
+### Where to Pick Up
+
+**Read first:** [API.md](API.md) and [Simulation.md](Simulation.md) — but as
+*drafts describing unbuilt design*, not as specifications to implement. Both were
+written before anything existed and both end with open questions that are still
+open. Expect to revise them as this is built.
+
+**Start with parameter editing, before any Qiskit code.** It is listed first
+because it is a prerequisite rather than a leftover: `rx`, `ry`, `rz` and `p`
+place at a fixed π/2 and nothing can change them, so a statevector simulator would
+be demonstrating a circuit whose every rotation is a quarter turn. The exit
+criterion above is not reachable while that is true.
+
+The design is settled — [UI.md](UI.md) under *The Inspector*, decided 2026-08-02.
+Place at π/2 and edit the selection afterwards, rather than prompting on placement
+as UI.md originally said. `setParameters` is already in the edit vocabulary,
+unused, and needs no change. Build the panel general rather than
+rotation-specific: **a measurement's register and bit belong in it too**, which
+closes the other deferred item on the list below at the same time.
+
+**Then the backend, which has been idle since Milestone 2.** It already validates
+and derives cycles, so gate count and circuit depth are close to free —
+`deriveCycles` returns depth today, in both languages, agreeing on every fixture.
+Those two tasks are the cheapest way to prove the API round trip before Qiskit is
+involved at all.
+
+**The one open decision is the interpreter**, and it is the last entry in
+*Decisions Awaiting the Owner*: Qiskit publishes no Python 3.14 wheels, the
+container pins 3.13, and whether native 3.14 must also be supported is unanswered.
+Settle it before adding the `simulation` extra, because the answer decides whether
+CI grows a leg or the work is container-only.
+
+**The frontend needs no new architecture for results.** UI.md reserves the right
+column and the three-column grid already exists, so adding the panel is not a
+re-layout. `api/` is still the only module permitted to call `fetch`, and
+`VITE_USE_MOCK_API` is specified but unimplemented — it lands with the first real
+endpoint, which is this milestone.
 
 ---
 
@@ -744,11 +784,23 @@ A feature is considered complete only when:
 
 * Functionality works correctly.
 * Automated tests pass.
+* **The application loads in a browser.**
 * Documentation is updated.
 * Linting passes.
 * Type checking passes.
 * Code has been reviewed.
 * The application remains deployable.
+
+**The browser check was added on 2026-08-02, and it was added because everything
+else on this list passed while the page rendered nothing.** The compiled validator
+carried a CommonJS `require` that a browser cannot resolve; the suite runs in Node,
+where `require` exists, so 600 tests, the type checker, the linter and the
+production build were all satisfied by a module that could not load. Tests, types
+and lint are evidence about the code. None of them is evidence that the thing
+starts, and the gap between those is exactly where that bug lived.
+
+`npm run dev` and looking at the page is enough. It takes a few seconds, and it is
+the only item here that would have caught it.
 
 ---
 
