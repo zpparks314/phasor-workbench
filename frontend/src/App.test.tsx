@@ -42,7 +42,7 @@ describe('what the editor opens on', () => {
     render(<App />);
 
     expect(
-      screen.getByRole('gridcell', { name: 'q0, column 1, h' }),
+      screen.getByRole('gridcell', { name: 'q0, cycle 0, h' }),
     ).toBeInTheDocument();
   });
 

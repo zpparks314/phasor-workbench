@@ -28,6 +28,7 @@ function draw(circuit: Circuit, overrides: Partial<CircuitCanvasProps> = {}) {
     pending: null,
     dragging: null,
     settle: null,
+    showCycleLabels: false,
     onCursorChange: vi.fn(),
     onActivate: vi.fn(),
     onSelectOperation: vi.fn(),
@@ -559,7 +560,7 @@ describe('drag and nudge', () => {
     const { props } = draw(circuit);
 
     fireEvent.pointerDown(
-      screen.getByRole('gridcell', { name: 'q0, column 1, h' }),
+      screen.getByRole('gridcell', { name: 'q0, cycle 0, h' }),
     );
 
     expect(props.onPickUp).toHaveBeenCalledWith('op_0');
@@ -569,7 +570,7 @@ describe('drag and nudge', () => {
     const { props } = draw(circuit);
 
     fireEvent.pointerDown(
-      screen.getByRole('gridcell', { name: 'q1, column 1, empty' }),
+      screen.getByRole('gridcell', { name: 'q1, cycle 0, empty' }),
     );
 
     expect(props.onPickUp).not.toHaveBeenCalled();
@@ -662,10 +663,10 @@ describe('grid semantics', () => {
     draw(insertOperation(circuitWith(1), gate('op_0', 'h', ['q_0']), 0));
 
     expect(
-      screen.getByRole('gridcell', { name: 'q0, column 1, h' }),
+      screen.getByRole('gridcell', { name: 'q0, cycle 0, h' }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('gridcell', { name: 'q0, column 2, empty' }),
+      screen.getByRole('gridcell', { name: 'q0, cycle 1, empty' }),
     ).toBeInTheDocument();
   });
 
@@ -675,7 +676,7 @@ describe('grid semantics', () => {
     );
 
     expect(
-      screen.getByRole('gridcell', { name: 'q0, column 1, cx control' }),
+      screen.getByRole('gridcell', { name: 'q0, cycle 0, cx control' }),
     ).toBeInTheDocument();
   });
 
@@ -695,7 +696,7 @@ describe('grid semantics', () => {
     expect(grid).toHaveAttribute('tabindex', '0');
     expect(grid).toHaveAttribute('aria-activedescendant', 'cell-2-1');
     expect(
-      screen.getByRole('gridcell', { name: 'q2, column 2, empty' }),
+      screen.getByRole('gridcell', { name: 'q2, cycle 1, empty' }),
     ).toHaveAttribute('id', 'cell-2-1');
   });
 
@@ -712,7 +713,7 @@ describe('grid semantics', () => {
       'cell-1-0',
     );
     expect(
-      screen.getByRole('gridcell', { name: 'q1, column 1, empty' }),
+      screen.getByRole('gridcell', { name: 'q1, cycle 0, empty' }),
     ).toHaveAttribute('id', 'cell-1-0');
   });
 
@@ -806,7 +807,7 @@ describe('pointer', () => {
     const { props } = draw(circuitWith(2));
 
     fireEvent.click(
-      screen.getByRole('gridcell', { name: 'q1, column 1, empty' }),
+      screen.getByRole('gridcell', { name: 'q1, cycle 0, empty' }),
     );
 
     expect(props.onCursorChange).toHaveBeenCalledWith({ row: 1, column: 0 });
@@ -836,7 +837,7 @@ describe('pointer', () => {
     const { props } = draw(circuitWith(2), { armed: 'h' });
 
     fireEvent.pointerEnter(
-      screen.getByRole('gridcell', { name: 'q1, column 1, empty' }),
+      screen.getByRole('gridcell', { name: 'q1, cycle 0, empty' }),
     );
 
     expect(props.onCursorChange).toHaveBeenCalledWith({ row: 1, column: 0 });
@@ -884,7 +885,7 @@ describe('removing by mouse', () => {
   /** A drag is an accelerator over the same armed state, not a second path. */
   it('places on drop, through the same activation as a click', () => {
     const { props } = draw(circuitWith(2), { armed: 'h' });
-    const cell = screen.getByRole('gridcell', { name: 'q1, column 1, empty' });
+    const cell = screen.getByRole('gridcell', { name: 'q1, cycle 0, empty' });
 
     fireEvent.dragOver(cell);
     fireEvent.drop(cell);
@@ -943,5 +944,190 @@ describe('a circuit using every glyph', () => {
     ).operations.find((operation) => operation.operationId === 'op_3');
 
     expect(spanning?.connector).toHaveLength(2);
+  });
+});
+
+/**
+ * The labels are `aria-hidden`, so they are unreachable by role or name and
+ * these read the SVG text nodes directly -- which is the honest way to assert
+ * something whose entire contract is "visible, and invisible to a reader".
+ */
+describe('cycle labels', () => {
+  function labels(container: HTMLElement): string[] {
+    return [...container.querySelectorAll('g[aria-hidden="true"] text')].map(
+      (node) => node.textContent,
+    );
+  }
+
+  function twoCycles(): Circuit {
+    return insertOperation(
+      insertOperation(circuitWith(2), gate('op_0', 'h', ['q_0']), 0),
+      gate('op_1', 'x', ['q_0']),
+      1,
+    );
+  }
+
+  it('draws nothing when the toggle is off', () => {
+    const { container } = draw(twoCycles(), { showCycleLabels: false });
+
+    expect(labels(container)).toEqual([]);
+  });
+
+  it('numbers the cycles from zero', () => {
+    const { container } = draw(twoCycles(), { showCycleLabels: true });
+
+    expect(labels(container)).toEqual(['0', '1']);
+  });
+
+  /**
+   * The constraint that matters. `columnCount` is `depth + 1` because the
+   * canvas offers an empty column past the end to append into -- labelling it
+   * would name a cycle the decomposition does not have.
+   */
+  it('stops at the last real cycle, not the append column', () => {
+    const circuit = twoCycles();
+    const layout = layoutCircuit(circuit, deriveCycles(circuit));
+    const { container } = draw(circuit, { showCycleLabels: true });
+
+    expect(layout.columnCount).toBe(3);
+    expect(labels(container)).toHaveLength(2);
+  });
+
+  it('draws none for a circuit of bare wires', () => {
+    const { container } = draw(circuitWith(2), { showCycleLabels: true });
+
+    expect(labels(container)).toEqual([]);
+  });
+
+  /**
+   * A barrier occupies no cycle of its own, so it gets no label -- but it can
+   * raise depth by levelling an unequal frontier, and the labels must follow
+   * the depth that results rather than the operation count.
+   */
+  it('follows the depth a barrier produces', () => {
+    const levelled = insertOperation(
+      insertOperation(
+        insertOperation(circuitWith(2), gate('op_0', 'h', ['q_0']), 0),
+        gate('op_1', 'x', ['q_0']),
+        1,
+      ),
+      barrier('op_b', ['q_0', 'q_1']),
+      2,
+    );
+    const withTrailing = insertOperation(
+      levelled,
+      gate('op_2', 'y', ['q_1']),
+      3,
+    );
+    const { container } = draw(withTrailing, { showCycleLabels: true });
+
+    expect(deriveCycles(withTrailing).depth).toBe(3);
+    expect(labels(container)).toEqual(['0', '1', '2']);
+  });
+
+  it('centres each label on its column', () => {
+    const circuit = twoCycles();
+    const metrics = layoutCircuit(circuit, deriveCycles(circuit)).metrics;
+    const { container } = draw(circuit, { showCycleLabels: true });
+
+    const xs = [
+      ...container.querySelectorAll('g[aria-hidden="true"] text'),
+    ].map((node) => Number(node.getAttribute('x')));
+
+    expect(xs).toEqual([columnCenter(0, metrics), columnCenter(1, metrics)]);
+  });
+});
+
+/**
+ * The band is what attaches a label to its column. A tint rather than an
+ * outline, deliberately: a barrier is a dashed vertical rule on a column
+ * boundary, and boxing every cycle would put a rule on every boundary.
+ */
+describe('cycle bands', () => {
+  function bands(container: HTMLElement): Element[] {
+    return [...container.querySelectorAll('g[aria-hidden="true"] rect')];
+  }
+
+  function threeCycles(): Circuit {
+    return insertOperation(
+      insertOperation(
+        insertOperation(circuitWith(2), gate('op_0', 'h', ['q_0']), 0),
+        gate('op_1', 'x', ['q_0']),
+        1,
+      ),
+      gate('op_2', 'y', ['q_0']),
+      2,
+    );
+  }
+
+  it('draws none when the toggle is off', () => {
+    const { container } = draw(threeCycles(), { showCycleLabels: false });
+
+    expect(bands(container)).toHaveLength(0);
+  });
+
+  /** Alternating, so adjacent cycles are told apart by contrast, not by a rule. */
+  it('bands every other cycle', () => {
+    const { container } = draw(threeCycles(), { showCycleLabels: true });
+
+    expect(bands(container)).toHaveLength(2);
+  });
+
+  it('aligns each band with its column', () => {
+    const circuit = threeCycles();
+    const { metrics } = layoutCircuit(circuit, deriveCycles(circuit));
+    const { container } = draw(circuit, { showCycleLabels: true });
+
+    const xs = bands(container).map((node) => Number(node.getAttribute('x')));
+
+    expect(xs).toEqual([
+      columnCenter(0, metrics) - metrics.column / 2,
+      columnCenter(2, metrics) - metrics.column / 2,
+    ]);
+    expect(bands(container)[0]?.getAttribute('width')).toBe(
+      String(metrics.column),
+    );
+  });
+
+  /**
+   * Behind the circuit, not over it. An SVG paints in document order, so a band
+   * emitted after the wires would cover them.
+   */
+  it('paints behind the wires', () => {
+    const { container } = draw(threeCycles(), { showCycleLabels: true });
+
+    // By node identity, not by class: a gate's box carries the same fill token,
+    // so matching on the class found gates and called them bands.
+    const svg = container.querySelector('svg');
+    const all = [...(svg?.querySelectorAll('*') ?? [])];
+    const lastBand = Math.max(
+      ...bands(container).map((node) => all.indexOf(node)),
+    );
+    const firstLine = all.findIndex((node) => node.tagName === 'line');
+
+    expect(lastBand).toBeGreaterThanOrEqual(0);
+    expect(firstLine).toBeGreaterThanOrEqual(0);
+    expect(lastBand).toBeLessThan(firstLine);
+  });
+
+  it('uses a surface token rather than a hardcoded colour', () => {
+    const { container } = draw(threeCycles(), { showCycleLabels: true });
+
+    for (const band of bands(container)) {
+      expect(band.getAttribute('class')).toContain('fill-surface-raised');
+      expect(band.getAttribute('fill')).toBeNull();
+    }
+  });
+
+  it('stops at the last real cycle, like the labels', () => {
+    const circuit = insertOperation(
+      circuitWith(2),
+      gate('op_0', 'h', ['q_0']),
+      0,
+    );
+    const { container } = draw(circuit, { showCycleLabels: true });
+
+    expect(layoutCircuit(circuit, deriveCycles(circuit)).columnCount).toBe(2);
+    expect(bands(container)).toHaveLength(1);
   });
 });
