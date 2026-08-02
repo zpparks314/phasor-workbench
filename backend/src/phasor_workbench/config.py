@@ -25,5 +25,13 @@ class Settings(BaseSettings):
     max_shots: int = 100_000
     simulation_timeout_seconds: int = 30
 
+    # A *response-size* limit, distinct from `max_qubits` above, which is a
+    # simulation limit. A statevector crosses the wire as 2^n objects: 12
+    # qubits is 4,096 and a few hundred KB, 20 would be a million and tens of
+    # MB, which hangs a browser tab and reads as a frontend bug rather than a
+    # limit. Sampling is unaffected -- its response is bounded by the number of
+    # distinct outcomes observed, not by 2^n.
+    max_statevector_qubits: int = 12
+
 
 settings = Settings()

@@ -240,7 +240,7 @@ The last would hang a browser tab, and would look like a frontend bug rather tha
 
 ## `POST /api/v1/simulations/sample`
 
-Executes the circuit repeatedly and returns measurement counts.
+Executes the circuit repeatedly and returns measurement counts. **Implemented in Milestone 4.**
 
 **Request**
 
@@ -264,7 +264,15 @@ Executes the circuit repeatedly and returns measurement counts.
 }
 ```
 
-Keys are classical register values, not qubit states. A circuit with no measurements is invalid here.
+Keys are classical register values, not qubit states — asserted with an asymmetric circuit, since a symmetric one reads the same under either interpretation. A circuit with no measurements is invalid here, and returns `422`.
+
+`counts` and `probabilities` are objects keyed by outcome rather than lists of pairs, which is what the data is: a mapping with no ordering to preserve and no room for a second field per entry. The statevector response uses a list of objects because each amplitude carries two numbers. The shapes differ because the data differs.
+
+**`seed` is echoed as `null` when none was supplied**, rather than omitted. `null` says the run was not seeded and so is not reproducible, which is information; an absent field would be indistinguishable from a build that does not support seeding.
+
+**Sampling a circuit with more than one classical register is refused**, with `422`. Qiskit reports a separate count dictionary per register and does not correlate them, so joining the two would fabricate a correlation it never measured. Every circuit the editor currently produces has one register. This is a missing feature rather than a wrong result, and it is refused rather than approximated because a caller cannot repair an answer it was never told was wrong. See [Simulation.md](Simulation.md).
+
+`shots` above the deployment limit returns `413`; `shots` below 1 is a malformed request rather than a circuit problem, and returns `422`.
 
 ---
 
