@@ -66,12 +66,6 @@ reports a separate count dictionary per register and does not correlate them, so
 joining would fabricate a measurement it never made. Every circuit the editor
 currently produces has one register. A missing feature, not a wrong result.
 
-**`npm audit` reports 5 high-severity findings**, all one root cause
-(`brace-expansion` DoS) reached through ESLint's dependency chain. Dev-only,
-never bundled, and the only offered fix is a breaking `eslint@10` upgrade.
-Deferred until the plugin ecosystem supports ESLint 10. **Worth revisiting
-before a public release**, if only to be able to say why it is deferred.
-
 **`register` generates as `register_` in Python**, aliased back to `register` on
 the wire. Cosmetic, and confined to the Python API.
 
@@ -98,6 +92,7 @@ settled question being reopened; the full argument is in the ADR each names.
 | Do `invalid/` fixtures assert `path`? | Codes only. Paths are asserted in each project's unit tests, where a format difference is a local bug rather than a contract break |
 | Which CI job runs `tests/contract/`? | None. Each fixture declares its own expectation, so parity follows transitively. `tests/contract/` awaits API conformance tests |
 | Interpreter for the `simulation` extra | **The question expired.** Qiskit 2.x ships `cp310-abi3` wheels, so it runs on 3.11–3.14 and neither a CI leg nor a container-only extra was needed. The premise lapsed *without any 3.14 wheel being published*, which is why watching for a cp314 tag would never have shown it |
+| The `npm audit` findings, deferred behind an ESLint 10 upgrade | **The premise expired**, and rechecking cost one command. Cleared on 2026-08-02 by `npm audit fix` — a lockfile-only `brace-expansion` 1.1.16 → 1.1.18 patch bump on a dev-only transitive dependency. The count had already fallen 5 → 1 and the breaking upgrade was no longer the offered fix, so nothing was traded away. `npm audit` now reports zero. **`--force` is still the thing not to run** |
 
 Also resolved during Milestone 4, and recorded in the documents they affect:
 measurements are ignored rather than rejected by the statevector endpoint
@@ -445,12 +440,81 @@ Prepare the project for public deployment.
 
 ### Exit Criteria
 
-The application is suitable for public use and portfolio demonstration.
+Written on 2026-08-02, replacing the single sentence "the application is suitable
+for public use and portfolio demonstration." That sentence is the goal and
+remains it; what follows is what would make it true. Milestone 3's criteria were
+replaced mid-milestone for exactly this reason, which is why the instruction to
+do it *before* starting was left here.
 
-That is a goal rather than a checkable criterion, and Milestone 3 showed what
-happens when one is left that way — it was replaced mid-milestone because the
-Definition of Done leans on it. **Replace it with checkable criteria before
-starting**, not after.
+* [ ] A circuit exports to a JSON file and re-imports deep-equal, and import
+  routes through the existing versioned loader in `frontend/src/serialization/`
+  rather than a second one — asserted by driving the import path over all 14
+  fixtures in `shared/fixtures/version/` and getting each fixture's declared
+  `outcome`.
+* [ ] Every circuit in `shared/fixtures/valid/` exports to OpenQASM and
+  re-imports with the same operation sequence and the same `deriveCycles`
+  output. Identifiers may differ — ADR-0002 makes them arbitrary — so equality
+  is asserted structurally, not on the document.
+* [ ] The three questions OpenQASM import asks of the model are answered in
+  `docs/`, with reasoning: what a bare `barrier;` expands to, what becomes of a
+  gate `circuit.spec.json` does not have, and how a QASM register maps onto
+  `classicalRegisters`. Two have recorded answers already, so the criterion is
+  that the implementation either confirms them or the document records what
+  changed and why.
+* [ ] Example circuits load, validate without violations, and simulate. Each is
+  authored through the import path rather than hand-written JSON — that is what
+  makes them evidence the path works rather than decoration.
+* [ ] At 1280px, 768px and 375px every region is reachable and the body never
+  scrolls horizontally. The canvas keeps its own horizontal scroll; that is not
+  the same thing.
+* [ ] **An import that fails to parse reaches the user with its cause**, matching
+  the treatment the rest of the set already gets: local storage unavailable or
+  full, an unreadable stored document and a newer-build document from Milestone
+  3, the backend unreachable from Milestone 4. Import is the only member of that
+  set with nothing behind it, so this task is narrower than its name suggests.
+* [ ] An unhandled render error shows something other than a blank page. This is
+  the failure the Definition of Done's browser check was added for, and nothing
+  currently catches it.
+* [ ] The `?` shortcut reference exists and is derived from the same source the
+  editor binds its keys from, so it cannot drift from behaviour. It is currently
+  the one row in `UI.md`'s shortcut table with nothing behind it.
+* [ ] `README.md` describes the application that exists. It currently announces
+  "**Project status: building the circuit model**", says there is no editor, no
+  validation and no simulation, reports 256 backend tests and `/health` as the
+  only endpoint, calls `UI.md` deferred and `API.md` and `Simulation.md` drafts,
+  and repeats the expired Qiskit-3.14-wheels claim. All of that was true two
+  milestones ago. It is the repository's front page, so it is the one document
+  whose staleness is publicly visible, and a newcomer must be able to install,
+  run and test both projects from it alone — `.claude/CLAUDE.md` is an agent's
+  file, not a contributor's. The *Current Status* table is also structurally
+  broken: four rows sit below the prose that closes it.
+* [ ] Both Dockerfiles gain a `production` target, additively as they were built
+  for, and the deployed application loads in a browser.
+* [ ] **The canvas grid has been driven with a real screen reader**, and what it
+  actually announced is recorded in `UI.md` beside the markup that section
+  describes. Pass or fail, the recorded result is the criterion.
+* [ ] Both `editor/layout.ts` connector defects are fixed, or deferred with the
+  reasoning written down and a test pinning current behaviour. Defect 2 is a
+  design decision and may legitimately end deferred — *silently* is what it may
+  not end.
+
+Three of these deserve their reasoning stated, because in each case the cheap
+version is the one that proves nothing.
+
+**The JSON criterion is about the loader, not the file.** Reading a circuit off
+disk is a dozen lines. The risk is that it grows a second, laxer path beside
+`serialization/`, and then a document rejected on refresh is accepted on import.
+The fixtures to prevent that already exist and cost nothing to point at.
+
+**The QASM criterion asserts structural equality deliberately.** The round trip
+is the first real test of ADR-0001, and asserting *document* equality would fail
+on identifier regeneration alone — noise, not a finding. What has to survive the
+trip is the circuit.
+
+**The accessibility criterion cannot be met by a test.** The suite already
+asserts roles and names, and that is precisely the evidence *Open Issues* calls
+insufficient. This one is met by a person and real assistive technology, and its
+output is a paragraph in `UI.md` rather than a green check.
 
 ### Where to Pick Up
 
@@ -482,6 +546,14 @@ to build on. Then OpenQASM import, then export, then example circuits, which
 need an import path to be written in anything but hand-authored JSON. Deployment
 last, since it consumes the Dockerfiles and should not be built against a moving
 target.
+
+**One exception, found on 2026-08-02: `README.md` should be fixed early rather
+than with the rest of *Documentation*.** Every other stale document is read by
+someone who has already cloned the repository; this one is the front page, and
+it currently tells a visitor the project has no editor and no simulation. It is
+also the only Milestone 5 task that costs nothing to do now — it depends on
+none of the others, and leaving it until the end means the milestone's most
+visible artifact is wrong for the whole of it.
 
 **Two things already prepared for this milestone.** Both Dockerfiles are
 multi-stage, so adding a `production` target is additive rather than a rewrite.

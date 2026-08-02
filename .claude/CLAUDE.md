@@ -307,9 +307,11 @@ merge or rebase is in progress. Check the checkout is actually inside the synced
 tree first — `C:\Users\<you>\Documents` and `C:\Users\<you>\OneDrive\Documents`
 are different directories.
 
-**Do not run `npm audit fix --force`.** It installs a breaking ESLint major. The
-five dev-only findings are deliberately deferred; see `docs/Roadmap.md` under
-*Open Issues*.
+**Do not run `npm audit fix --force`.** It installs a breaking ESLint major.
+Plain `npm audit fix` is fine and is what cleared the findings on 2026-08-02 —
+`npm audit` now reports zero. The deferral note that used to sit here outlived
+its premise by some margin, which is the *Rules That Outlive Any Milestone*
+lesson about dependency claims, arriving on schedule.
 
 ---
 
