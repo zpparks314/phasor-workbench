@@ -185,7 +185,7 @@ The request body is loaded through the versioned loader before it is validated, 
 
 ## `POST /api/v1/simulations/statevector`
 
-Executes the circuit and returns the final state vector.
+Executes the circuit and returns the final state vector. **Implemented in Milestone 4**; the rest of this section is description rather than plan.
 
 **Request**
 
@@ -218,7 +218,23 @@ Amplitudes are returned as explicit `real`/`imaginary` pairs rather than tuples,
 
 `basisState` is a bit string. Bit ordering is fixed and documented in [Simulation.md](Simulation.md) — it is the single most common source of confusion in quantum tooling and must not be left implicit.
 
-Circuits containing measurements are rejected by this endpoint unless mid-circuit measurement support is settled; use the sampling endpoint instead.
+**Circuits containing measurements are accepted, and the measurements ignored.** This section previously said they were rejected "unless mid-circuit measurement support is settled" — and it *is* settled. Mid-circuit measurement is deferred and measurement terminates a qubit, so every measurement in a valid document is terminal, and the state with them omitted is exactly the state just before the first one. That is what a statevector is: the deterministic state a measurement samples *from*.
+
+Rejecting would also have made the editor's ordinary output unusable here — a Bell circuit with its two measurements is the canonical thing a user builds, and being told to delete them before the state could be shown is poor behaviour in a tool whose purpose is showing the state. The response carries no flag saying measurements were ignored: a client posting a circuit already has that circuit, and can say so itself.
+
+**`qubitCount` is capped at 12 for this endpoint**, returning `413` / `LIMIT_EXCEEDED` above it. This is a *response-size* limit rather than a simulation one, and the two are deliberately different numbers — the simulator will do 20, and `/circuits/analyze` is unaffected. A statevector is 2^n amplitudes, each an object with a basis string and two floats:
+
+| Qubits | Amplitudes | Response |
+|---|---|---|
+| 12 | 4,096 | a few hundred KB |
+| 15 | 32,768 | a few MB |
+| 20 | 1,048,576 | tens of MB |
+
+The last would hang a browser tab, and would look like a frontend bug rather than a limit. The error message names which limit refused, because a caller that hits one will otherwise go looking at the other.
+
+**`probabilities` is sparse; `amplitudes` is not.** Every amplitude is returned because the amplitudes *are* the state. Probabilities are a summary, and a floating-point simulation reports a mathematically empty state as `1e-17` rather than `0.0` — listing those would bury the two entries a Bell state actually has under a thousand indistinguishable from noise. Entries below `1e-12` are omitted.
+
+`includeProbabilities` defaults to `true`. An unknown option is a `422` rather than a silent no-op.
 
 ---
 

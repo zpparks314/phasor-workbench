@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 
 from phasor_workbench import __version__
 from phasor_workbench.api.errors import ApiError
-from phasor_workbench.api.routes import circuits, health
+from phasor_workbench.api.routes import circuits, health, simulations
 from phasor_workbench.config import settings
 
 API_PREFIX = "/api/v1"
@@ -42,6 +42,7 @@ def create_app() -> FastAPI:
 
     app.include_router(health.router, prefix=API_PREFIX)
     app.include_router(circuits.router, prefix=API_PREFIX)
+    app.include_router(simulations.router, prefix=API_PREFIX)
 
     return app
 
