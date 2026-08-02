@@ -17,7 +17,7 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
-from phasor_workbench.api.routes.simulations import MAX_STATEVECTOR_QUBITS
+from phasor_workbench.config import settings
 from phasor_workbench.simulation import available_backends
 
 STATEVECTOR = "/api/v1/simulations/statevector"
@@ -200,7 +200,9 @@ class TestLimits:
     ) -> None:
         response = client.post(
             STATEVECTOR,
-            json={"circuit": document(MAX_STATEVECTOR_QUBITS + 1, registers=0)},
+            json={
+                "circuit": document(settings.max_statevector_qubits + 1, registers=0)
+            },
         )
 
         assert response.status_code == 413
@@ -212,7 +214,11 @@ class TestLimits:
         message = (
             client.post(
                 STATEVECTOR,
-                json={"circuit": document(MAX_STATEVECTOR_QUBITS + 1, registers=0)},
+                json={
+                    "circuit": document(
+                        settings.max_statevector_qubits + 1, registers=0
+                    )
+                },
             )
             .json()["error"]["message"]
             .lower()
@@ -222,11 +228,12 @@ class TestLimits:
 
     def test_allows_a_circuit_at_the_limit(self, client: TestClient) -> None:
         response = client.post(
-            STATEVECTOR, json={"circuit": document(MAX_STATEVECTOR_QUBITS, registers=0)}
+            STATEVECTOR,
+            json={"circuit": document(settings.max_statevector_qubits, registers=0)},
         )
 
         assert response.status_code == 200
-        assert len(response.json()["amplitudes"]) == 2**MAX_STATEVECTOR_QUBITS
+        assert len(response.json()["amplitudes"]) == 2**settings.max_statevector_qubits
 
 
 class TestRejection:
@@ -255,3 +262,188 @@ class TestRejection:
 
         assert body["qubitCount"] == 0
         assert body["amplitudes"] == [{"basisState": "", "real": 1.0, "imaginary": 0.0}]
+
+
+SAMPLE = "/api/v1/simulations/sample"
+
+MEASURED_BELL = [
+    *BELL_OPERATIONS,
+    {
+        "id": "op_2",
+        "kind": "measurement",
+        "targets": ["q_0"],
+        "classicalTarget": {"register": "c_0", "bit": 0},
+    },
+    {
+        "id": "op_3",
+        "kind": "measurement",
+        "targets": ["q_1"],
+        "classicalTarget": {"register": "c_0", "bit": 1},
+    },
+]
+
+
+class TestSampling:
+    def test_returns_the_documented_body(self, client: TestClient) -> None:
+        response = client.post(
+            SAMPLE,
+            json={
+                "circuit": document(operations=MEASURED_BELL),
+                "options": {"shots": 1024, "seed": 42},
+            },
+        )
+
+        assert response.status_code == 200
+        body = response.json()
+
+        assert body["shots"] == 1024
+        assert body["seed"] == 42
+        # Entangled: only the correlated outcomes occur at all.
+        assert set(body["counts"]) == {"00", "11"}
+        assert sum(body["counts"].values()) == 1024
+
+    def test_probabilities_are_counts_over_shots(self, client: TestClient) -> None:
+        body = client.post(
+            SAMPLE,
+            json={
+                "circuit": document(operations=MEASURED_BELL),
+                "options": {"shots": 1024, "seed": 42},
+            },
+        ).json()
+
+        for outcome, count in body["counts"].items():
+            assert body["probabilities"][outcome] == pytest.approx(count / 1024)
+        assert sum(body["probabilities"].values()) == pytest.approx(1.0)
+
+    def test_defaults_to_1024_shots(self, client: TestClient) -> None:
+        body = client.post(
+            SAMPLE, json={"circuit": document(operations=MEASURED_BELL)}
+        ).json()
+
+        assert body["shots"] == 1024
+        assert sum(body["counts"].values()) == 1024
+
+    def test_reports_a_null_seed_rather_than_omitting_it(
+        self, client: TestClient
+    ) -> None:
+        """`null` says "this run was not seeded, so it is not reproducible",
+        which is information. Omitting the field would be indistinguishable
+        from a build that does not support seeding."""
+        body = client.post(
+            SAMPLE, json={"circuit": document(operations=MEASURED_BELL)}
+        ).json()
+
+        assert "seed" in body
+        assert body["seed"] is None
+
+    def test_a_seeded_run_is_reproducible(self, client: TestClient) -> None:
+        payload = {
+            "circuit": document(operations=MEASURED_BELL),
+            "options": {"shots": 256, "seed": 7},
+        }
+
+        assert (
+            client.post(SAMPLE, json=payload).json()["counts"]
+            == client.post(SAMPLE, json=payload).json()["counts"]
+        )
+
+    def test_keys_are_classical_register_values(self, client: TestClient) -> None:
+        """API.md: keys are register values, not qubit states.
+
+        Asserted with an asymmetric circuit -- q0 measured into bit 0 and left
+        set, q1 into bit 1 and left clear -- because a symmetric one reads the
+        same under either interpretation.
+        """
+        asymmetric = document(
+            operations=[
+                gate("op_0", "x", ["q_0"]),
+                {
+                    "id": "op_1",
+                    "kind": "measurement",
+                    "targets": ["q_0"],
+                    "classicalTarget": {"register": "c_0", "bit": 0},
+                },
+                {
+                    "id": "op_2",
+                    "kind": "measurement",
+                    "targets": ["q_1"],
+                    "classicalTarget": {"register": "c_0", "bit": 1},
+                },
+            ]
+        )
+
+        body = client.post(
+            SAMPLE, json={"circuit": asymmetric, "options": {"shots": 32, "seed": 1}}
+        ).json()
+
+        assert body["counts"] == {"01": 32}
+
+
+class TestSamplingRejection:
+    def test_refuses_a_circuit_with_nothing_measured(self, client: TestClient) -> None:
+        response = client.post(
+            SAMPLE, json={"circuit": document(operations=BELL_OPERATIONS)}
+        )
+
+        assert response.status_code == 422
+        assert response.json()["error"]["code"] == "CIRCUIT_INVALID"
+        assert "measurement" in response.json()["error"]["message"]
+
+    def test_refuses_more_shots_than_the_deployment_allows(
+        self, client: TestClient
+    ) -> None:
+        response = client.post(
+            SAMPLE,
+            json={
+                "circuit": document(operations=MEASURED_BELL),
+                "options": {"shots": settings.max_shots + 1},
+            },
+        )
+
+        assert response.status_code == 413
+        assert response.json()["error"]["code"] == "LIMIT_EXCEEDED"
+
+    def test_refuses_zero_shots_as_a_malformed_request(
+        self, client: TestClient
+    ) -> None:
+        """A circuit problem and a nonsensical option are different failures."""
+        response = client.post(
+            SAMPLE,
+            json={
+                "circuit": document(operations=MEASURED_BELL),
+                "options": {"shots": 0},
+            },
+        )
+
+        assert response.status_code == 422
+
+    def test_refuses_two_classical_registers(self, client: TestClient) -> None:
+        """The known limitation, surfaced rather than approximated.
+
+        Qiskit reports a separate count dict per register and does not
+        correlate them, so joining would fabricate a measurement it never made.
+        """
+        two = document(
+            2,
+            registers=2,
+            operations=[
+                gate("op_0", "h", ["q_0"]),
+                {
+                    "id": "op_1",
+                    "kind": "measurement",
+                    "targets": ["q_0"],
+                    "classicalTarget": {"register": "c_0", "bit": 0},
+                },
+                {
+                    "id": "op_2",
+                    "kind": "measurement",
+                    "targets": ["q_1"],
+                    "classicalTarget": {"register": "c_1", "bit": 0},
+                },
+            ],
+        )
+
+        response = client.post(SAMPLE, json={"circuit": two, "options": {"shots": 8}})
+
+        assert response.status_code == 422
+        assert "one classical register" in response.json()["error"]["message"]

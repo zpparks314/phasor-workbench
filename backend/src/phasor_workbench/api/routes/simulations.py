@@ -16,6 +16,7 @@ from typing import Any
 from fastapi import APIRouter
 from pydantic import BaseModel, ConfigDict, Field
 
+from ...config import settings
 from ...models.circuit import Circuit
 from ...simulation import (
     BackendUnavailableError,
@@ -29,24 +30,6 @@ from ..documents import read_circuit
 from ..errors import ApiError, ErrorCode
 
 router = APIRouter(tags=["simulations"])
-
-"""
-The largest circuit whose full state this endpoint will serialize.
-
-**A response-size limit, not a simulation limit.** The adapter simulates up to
-20 qubits and `/circuits/analyze` is unaffected; what stops here is JSON. A
-statevector is 2^n amplitudes and each crosses the wire as an object with a
-basis string and two floats:
-
-    12 qubits ->      4,096 amplitudes, a few hundred KB
-    15 qubits ->     32,768 amplitudes, a few MB
-    20 qubits ->  1,048,576 amplitudes, tens of MB
-
-The last would hang a browser tab, and would look like a frontend bug rather
-than a limit. Refusing at 12 keeps the failure legible and says which limit was
-hit -- which is the whole reason this is separate from the adapter's.
-"""
-MAX_STATEVECTOR_QUBITS = 12
 
 """
 Below this, a probability is reported as absent rather than as a tiny number.
@@ -139,14 +122,14 @@ def _check_response_size(circuit: Circuit) -> None:
     wastes the expensive half and reports the limit too late.
     """
     qubits = len(circuit.qubits)
-    if qubits > MAX_STATEVECTOR_QUBITS:
+    if qubits > settings.max_statevector_qubits:
         raise ApiError(
             code=ErrorCode.LIMIT_EXCEEDED,
             message=(
                 f"A {qubits}-qubit state has {2**qubits} amplitudes, more than "
-                f"this endpoint returns. The limit is {MAX_STATEVECTOR_QUBITS} "
-                "qubits, and it is a response-size limit rather than a "
-                "simulation one."
+                f"this endpoint returns. The limit is "
+                f"{settings.max_statevector_qubits} qubits, and it is a "
+                "response-size limit rather than a simulation one."
             ),
             status_code=413,
         )
@@ -231,3 +214,93 @@ def _from_simulation(error: SimulationError) -> ApiError:
         message="The simulation failed.",
         status_code=500,
     )
+
+
+class SampleOptions(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    shots: int = Field(default=1024, ge=1)
+    """
+    API.md's default. `ge=1` rather than a hand-checked bound: zero shots is a
+    malformed request rather than a circuit problem, and FastAPI reports it as
+    one without the route having to.
+    """
+
+    seed: int | None = None
+    """Optional. Supplying it makes the run reproducible; omitting it does not."""
+
+
+class SampleRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    circuit: dict[str, Any]
+    options: SampleOptions = Field(default_factory=SampleOptions)
+
+
+class SampleResponse(BaseModel):
+    """docs/API.md's sampling body.
+
+    `counts` and `probabilities` are objects keyed by classical bit string
+    rather than lists of pairs, which is what API.md specifies and what the
+    shape genuinely is -- a mapping from outcome to number, with no ordering to
+    preserve and no room for a second field per entry.
+
+    That differs from the statevector response, where each amplitude carries
+    two numbers and so has to be an object. The two shapes differ because the
+    data differs, not by oversight.
+    """
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    shots: int
+    seed: int | None
+    counts: dict[str, int]
+    probabilities: dict[str, float]
+
+
+@router.post(
+    "/simulations/sample",
+    response_model=SampleResponse,
+    response_model_by_alias=True,
+    summary="Measurement counts over repeated shots",
+)
+def post_sample(request: SampleRequest) -> SampleResponse:
+    circuit = read_circuit(request.circuit)
+    _check_shots(request.options.shots)
+
+    try:
+        result = get_backend().sample(
+            circuit, shots=request.options.shots, seed=request.options.seed
+        )
+    except SimulationError as error:
+        raise _from_simulation(error) from error
+
+    return SampleResponse(
+        shots=result.shots,
+        # Echoed rather than omitted when absent. `null` says "this run was not
+        # seeded, so it is not reproducible", which is information; leaving the
+        # field out would be indistinguishable from a build that does not
+        # support seeding.
+        seed=request.options.seed,
+        counts=result.counts,
+        probabilities={
+            outcome: count / result.shots for outcome, count in result.counts.items()
+        },
+    )
+
+
+def _check_shots(shots: int) -> None:
+    """The deployment's shot ceiling, per docs/API.md's limits table.
+
+    Configuration rather than a constant, so it can be tuned per deployment --
+    which is also why it is read here rather than captured at import time.
+    """
+    if shots > settings.max_shots:
+        raise ApiError(
+            code=ErrorCode.LIMIT_EXCEEDED,
+            message=(
+                f"{shots} shots exceeds this deployment's limit of "
+                f"{settings.max_shots}."
+            ),
+            status_code=413,
+        )

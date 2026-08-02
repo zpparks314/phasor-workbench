@@ -625,7 +625,7 @@ Execute circuits and display results.
 * [x] Backend API — `POST /api/v1/circuits/analyze`, the first circuit endpoint
 * [x] Qiskit integration — the backend seam, and the adapter behind it
 * [x] Statevector simulation — `POST /api/v1/simulations/statevector`
-* [ ] Measurement simulation
+* [x] Measurement simulation — `POST /api/v1/simulations/sample`
 * [ ] Probability display
 * [x] Gate count
 * [x] Circuit depth
@@ -725,10 +725,25 @@ Two places it departs from [API.md](API.md), both recorded there:
   of megabytes, which would hang a tab and look like a frontend bug. The error
   says which limit refused.
 
-**Two tasks left**: measurement simulation, and the probability display. The
-adapter already computes sample results, so the first is an endpoint and a
-formatter; the second is the first frontend work in this milestone since the
-inspector.
+**Sampling is live too**, and it completed the backend half of this milestone.
+It also corrected something the statevector endpoint got wrong: that endpoint
+had hard-coded its qubit cap, while `config.py` says in its own docstring that
+limits are configuration so they can be tuned per deployment and advertised
+through `/capabilities`. Both caps now come from settings.
+
+Worth keeping straight, because two limits share a number and have different
+owners: **a backend declares what it *can* do, and configuration declares what
+this deployment *permits*.** `simulation/backends/` owns the first per
+Simulation.md, `config.py` the second per API.md, and the effective limit is
+whichever is lower. The statevector endpoint's 12 is a third thing again — a
+response-size limit, not a simulation one.
+
+**One task left: the probability display**, and it is the milestone's exit
+criterion — *users can build a circuit and receive valid simulation results*.
+Nothing user-facing has changed since the analysis panel, so this is what makes
+the whole milestone visible. Both result kinds now exist to display, which is
+why it was worth doing sampling first rather than shipping a display and
+immediately revising it.
 
 **The interpreter is settled and needs no further thought.** `pip install -e
 ".[dev,simulation]"` works on 3.11 through 3.14, natively and in the container,
