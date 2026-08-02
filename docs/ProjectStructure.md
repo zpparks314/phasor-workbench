@@ -132,8 +132,8 @@ backend/
 │   ├── validation/      Circuit validation       (Milestone 2)
 │   ├── cycles/          Cycle derivation         (Milestone 2)
 │   ├── serialization/   Versioned load and dump  (Milestone 2)
-│   ├── simulation/
-│   │   └── backends/    Simulator adapters       (Milestone 4)
+│   ├── simulation/      The backend seam         (Milestone 4)
+│   │   └── backends/    Simulator adapters; only these import a simulator
 │   ├── analysis/        Gate counts, depth       (Milestone 4)
 │   ├── importers/       OpenQASM, JSON in        (Milestone 5)
 │   └── exporters/       OpenQASM, JSON out       (Milestone 5)
@@ -219,6 +219,13 @@ at all.
 **Only `CircuitEditor` touches the store.** Everything else takes values and
 callbacks, which is what keeps the single-source-of-truth rule checkable — the
 store's state is asserted to be a bare `Circuit` in `state/store.test.ts`.
+
+**Inside `simulation/`** the split is one file per job: `backend.py` is the
+port every adapter satisfies, `errors.py` the typed failures an adapter may
+raise, `registry.py` the one place a new backend touches outside its own
+module, and `backends/` the implementations. Only `backends/qiskit_backend.py`
+imports Qiskit, and a test enforces it — that isolation is what makes the
+backend swappable, and it is invisible until something breaks it.
 
 The reverse asymmetry also stands: `simulation/`, `analysis/`, `importers/`, and
 `exporters/` are backend-only because `Architecture.md` forbids the frontend from

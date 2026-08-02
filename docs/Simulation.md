@@ -68,9 +68,15 @@ This mirrors the pipeline in Architecture.md. The two must not diverge.
 
 Translating the Circuit Model directly into Qiskit calls inside the request handler would couple the API layer to Qiskit permanently.
 
-The internal representation is a thin, simulator-agnostic structure that each backend adapter consumes.
+The seam that prevents this is `simulation/backend.py`: a `SimulatorBackend` protocol that every adapter satisfies, and typed results that no simulator's shape leaks through.
 
-It is the seam that makes a second backend possible.
+**Built in Milestone 4, and with one deliberate departure: there is no separate internal representation.** The seam is typed in terms of `Circuit` itself.
+
+This paragraph originally called for "a thin, simulator-agnostic structure that each backend adapter consumes", and when it came to building one there was nothing for it to do. The Circuit Model is *already* simulator-agnostic — that is what ADR-0001 made it — so the intermediate structure would have been a second description of the same circuit, carrying the same information, needing to be kept in step with the schema, and justified only by a layer in a diagram.
+
+What the seam is actually for is keeping Qiskit out of the API layer, and a protocol typed on `Circuit` does that completely. The test that proves it is the one asserting **no module outside `simulation/backends/qiskit_backend.py` imports Qiskit**.
+
+Reintroduce an internal representation if a backend ever needs a form the Circuit Model cannot express — transpilation targets and pulse-level control are the plausible cases. Until then it would be structure without a job.
 
 ## Why a Result Formatter
 
@@ -105,9 +111,33 @@ Adding a simulator means adding one adapter and registering it. It must not requ
 
 | Backend | Status |
 |---|---|
-| Qiskit | First implementation, Milestone 4 |
+| Qiskit | **Built**, Milestone 4 — `simulation/backends/qiskit_backend.py` |
 | Custom reference simulator | Useful for verification and for removing the Qiskit dependency from tests |
 | Cirq | Future |
+
+## The Qiskit Adapter
+
+Built 2026-08-02. Notes that are not obvious from the code:
+
+**It is the only module in the project that imports Qiskit**, and a test asserts it by scanning for import statements rather than the word — an earlier version of that test failed on a docstring saying "nothing here imports Qiskit". This isolation is the property that makes a backend swap real rather than aspirational, and it is invisible until the day it is broken.
+
+**Absence is an ordinary state, not a failure.** Qiskit lives in an optional extra, so `registry.available_backends()` asks each candidate whether its dependency is importable rather than returning a list written when the file was saved. Without the extra the package still imports, the registry reports nothing, `get_backend()` raises `BackendUnavailableError` naming the install command, and the simulation tests skip. Verified in a venv with `[dev]` only: 281 passed, 21 skipped.
+
+**The gate table is checked against the generated spec**, not hand-maintained. A gate added to `circuit.spec.json` fails a test here instead of failing at runtime with an `AttributeError` — the same guarantee `editor/glyphs.ts` gets from typing its table as a total `Record`. Only `i` needs translating, Qiskit spelling the identity `id`.
+
+**Measurements are omitted from the statevector translation.** Qiskit's `Statevector` refuses a circuit containing one, and that refusal is right: a statevector is the deterministic state a measurement samples *from*. Because the model defers mid-circuit measurement, every measurement is terminal, so omitting them yields exactly the state just before the first.
+
+**Barriers are translated faithfully** even though they cannot affect the result. A translated circuit that dropped them would no longer say what the document says, and this circuit is worth inspecting.
+
+**Controls precede targets** in every Qiskit call. The model stores the two separately precisely so this does not depend on document order.
+
+**`max_qubits` is 20, declared by the adapter**, and checked before anything is allocated. A statevector is 2^n amplitudes: 20 qubits is about 16 MB, 30 would be 16 GB. The limit is what turns an unresponsive machine into an error message.
+
+### Known limitation: sampling with two classical registers
+
+Refused, with `UnsupportedOperationError`. Qiskit's sampler reports a separate count dictionary per classical register and does not correlate them, so joining the two would fabricate a correlation it never measured. A circuit with one register — which is every circuit the editor currently produces — samples normally.
+
+This is a missing feature rather than a wrong result, and it is refused rather than approximated for the same reason the editor refuses to assign one wire twice: there is no repair a caller could apply to a wrong answer it was not told about.
 
 A small custom simulator is worth building eventually even though Qiskit is available — it gives the test suite something to cross-check against, which is how the correctness guarantee in [Vision.md](Vision.md) is actually enforced.
 
