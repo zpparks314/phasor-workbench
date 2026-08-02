@@ -1,11 +1,15 @@
 # User Interface
 
-**Status:** Written for Milestone 3. Results and visualization placement remain
-deferred to Milestone 4 — see *Deliberately Deferred* at the end.
+**Status:** Implemented. Specifies the editor as built through Milestone 4.
 
-This document covers the Circuit Editor MVP: what is on screen, how a circuit is
-built, what the keyboard does, and what things look like. It is written before the
-components, per the instruction this document carried while it was empty.
+What is on screen, how a circuit is built, what the keyboard does, and what
+things look like. **Where this document and any other disagree about editor
+behaviour, this one is the specification.**
+
+Written before the components in Milestone 3, and amended as each feature landed
+— which is why some sections record a reversal. Those are kept: a decision that
+changed is the one most likely to be changed back by someone who does not know
+why it moved.
 
 Two constraints from Milestone 2 are not negotiable here, and most of the design
 below is a consequence of the first:

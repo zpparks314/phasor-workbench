@@ -1,8 +1,8 @@
 # Frontend
 
-**Status:** Stack chosen, scaffolded, and verified. Editor and component design are
-specified in [UI.md](UI.md) and [ADR-0007](decisions/ADR0007_EditingModel.md), and
-are being built in Milestone 3.
+**Status:** Implemented through Milestone 4. Editor and component design are
+specified in [UI.md](UI.md) and [ADR-0007](decisions/ADR0007_EditingModel.md);
+this document covers structure, boundaries and the rules that keep them.
 
 ---
 

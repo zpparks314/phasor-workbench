@@ -1,10 +1,10 @@
 # API
 
-**Status:** Draft — proposed contract, pending review.
+**Status:** Implemented, except where a section says otherwise.
 
-**Target milestone:** Milestone 4 (Simulation MVP), with the health and validation endpoints landing earlier as part of Milestone 1.
+Live: `/health`, `/circuits/analyze`, `/simulations/statevector`, `/simulations/sample`. Still proposed: `/capabilities`, `/circuits/validate`, and the deferred Milestone 5 endpoints listed near the end.
 
-No endpoints are implemented yet.
+Sections describing built endpoints record where the implementation departed from what this document originally proposed, and why. Those notes are the point — each marks a place the first design was wrong.
 
 ---
 
