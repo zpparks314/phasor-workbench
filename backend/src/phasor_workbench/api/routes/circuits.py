@@ -20,11 +20,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel, ConfigDict, Field
 
 from ...analysis import analyze_circuit
-from ...models.circuit import Circuit
-from ...serialization import LoadFailure, load_circuit
-from ...validation import validate_circuit
-from ...validation.violations import Violation
-from ..errors import ApiError, ErrorCode, ErrorDetail
+from ..documents import read_circuit
 
 router = APIRouter(tags=["circuits"])
 
@@ -65,7 +61,7 @@ class AnalysisResponse(BaseModel):
     summary="Static analysis: counts and depth",
 )
 def post_analyze(request: CircuitRequest) -> AnalysisResponse:
-    analysis = analyze_circuit(_read(request.circuit))
+    analysis = analyze_circuit(read_circuit(request.circuit))
 
     return AnalysisResponse(
         qubit_count=analysis.qubit_count,
@@ -75,51 +71,4 @@ def post_analyze(request: CircuitRequest) -> AnalysisResponse:
         gate_breakdown={
             name.value: count for name, count in analysis.gate_breakdown.items()
         },
-    )
-
-
-def _read(document: dict[str, Any]) -> Circuit:
-    """Load and semantically validate, or raise the documented envelope.
-
-    Two checks rather than one, because they answer different questions and
-    ADR-0006 keeps them apart: `load_circuit` decides whether this build can
-    read the document at all, and `validate_circuit` decides whether what it
-    read is a legal circuit. A document can pass the first and fail the second
-    -- a measurement naming a register that was never declared is perfectly
-    well-shaped.
-
-    Warnings are not errors and do not stop the analysis. A newer-minor document
-    arrives as a warning precisely so it can still be used.
-    """
-    outcome = load_circuit(document)
-    if isinstance(outcome, LoadFailure):
-        raise _invalid(outcome.violations)
-
-    errors = validate_circuit(outcome.circuit).errors
-    if errors:
-        raise _invalid(errors)
-
-    return outcome.circuit
-
-
-def _invalid(violations: tuple[Violation, ...]) -> ApiError:
-    """Map violations into the single error envelope docs/API.md defines.
-
-    Every violation, not the first: a user fixing a circuit should not have to
-    do it one round trip at a time. The codes cross the wire unchanged, because
-    they come from the shared spec and the frontend already knows them --
-    rephrasing them here would be a second vocabulary to keep in step.
-    """
-    return ApiError(
-        code=ErrorCode.CIRCUIT_INVALID,
-        message="The circuit is not valid.",
-        status_code=422,
-        details=[
-            ErrorDetail(
-                code=violation.code.value,
-                message=violation.message,
-                path=violation.path,
-            )
-            for violation in violations
-        ],
     )

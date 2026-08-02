@@ -624,7 +624,7 @@ Execute circuits and display results.
   deferral at the same time
 * [x] Backend API — `POST /api/v1/circuits/analyze`, the first circuit endpoint
 * [x] Qiskit integration — the backend seam, and the adapter behind it
-* [ ] Statevector simulation
+* [x] Statevector simulation — `POST /api/v1/simulations/statevector`
 * [ ] Measurement simulation
 * [ ] Probability display
 * [x] Gate count
@@ -707,10 +707,28 @@ on `Circuit`.
 `get_backend()` raises a typed error naming the install command, and the
 simulation tests skip — verified in a `[dev]`-only venv: 281 passed, 21 skipped.
 
-**Three tasks left, all of them simulation**: statevector, measurement, and the
-probability display. The adapter already computes both statevector and sample
-results; what remains is the endpoints, the result formatting API.md specifies,
-and the frontend that displays them.
+**The statevector endpoint is live**, and it is the result formatter half of
+the pipeline: the adapter returns typed results and never formats a response;
+the route never learns about Qiskit. `api/documents.py` now holds the
+load-and-validate step both circuit endpoints share, so they cannot drift into
+treating the same document differently.
+
+Two places it departs from [API.md](API.md), both recorded there:
+
+* **Circuits containing measurements are accepted, not rejected.** API.md's rule
+  was conditional — "unless mid-circuit measurement support is settled" — and it
+  is settled. Every measurement is terminal, so the state with them omitted is
+  exactly the state just before the first, which is what a statevector is.
+  Rejecting would have made the editor's ordinary output unusable here.
+* **A 12-qubit response cap**, distinct from the simulator's 20. The constraint
+  is JSON size, not simulation cost: 20 qubits is a million amplitudes and tens
+  of megabytes, which would hang a tab and look like a frontend bug. The error
+  says which limit refused.
+
+**Two tasks left**: measurement simulation, and the probability display. The
+adapter already computes sample results, so the first is an endpoint and a
+formatter; the second is the first frontend work in this milestone since the
+inspector.
 
 **The interpreter is settled and needs no further thought.** `pip install -e
 ".[dev,simulation]"` works on 3.11 through 3.14, natively and in the container,
