@@ -663,10 +663,9 @@ neither would have looked wrong afterwards. A dependency claim in a document is
 evidence about the day it was written. Re-run it before designing around it; here
 that cost one `pip install` in a throwaway venv.
 
-**The frontend needed no new architecture, and the reservation paid off.**
-Filling UI.md's reserved right column cost one grid template and one `aside`;
-nothing else moved. The inspector is in it, and the results panel joins it below.
-`api/` is still the only module permitted to call `fetch`, and
+**The frontend needs no new architecture for results.** UI.md reserves the right
+column and the three-column grid already exists, so adding the panel is not a
+re-layout. `api/` is still the only module permitted to call `fetch`, and
 `VITE_USE_MOCK_API` is specified but unimplemented — it lands with the first real
 endpoint, which is this milestone.
 
