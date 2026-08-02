@@ -20,11 +20,22 @@ services:
       # Windows-built .venv/ never appears inside the container.
       - ./backend/src:/app/src
       - ./backend/tests:/app/tests
+      # The shared fixtures, which the test suite reads from
+      # `Path(__file__).parents[2] / "shared" / "fixtures"` -- from
+      # /app/tests that resolves to /shared. Without this the container can
+      # serve the app but cannot run its own tests: 20 failures and 14 skips
+      # against 281 passing natively, all of them fixture-driven. Added
+      # 2026-08-02, when running the suite in the container was first tried.
+      #
+      # The frontend needs the identical mount at the identical path, by a
+      # different route: its tests join `process.cwd()` with '..', and cwd is
+      # /app there too.
+      - ./shared:/shared:ro
     environment:
       WATCHFILES_FORCE_POLLING: 'true'
     healthcheck:
       # Uses the endpoint that exists for exactly this purpose. urllib rather
-      # than curl, which python:3.13-slim does not ship.
+      # than curl, which the slim base image does not ship.
       test:
         [
           'CMD',
@@ -48,6 +59,10 @@ services:
       # Anonymous volume preserving the image's node_modules. Without it the
       # mount above hides them behind the host's Windows-built copy.
       - /app/node_modules
+      # See the backend's copy of this mount. Same path, same reason: the
+      # cross-language fixtures live outside both build contexts, so neither
+      # image can contain them and both suites need them at /shared.
+      - ./shared:/shared:ro
     environment:
       # The Vite proxy runs inside this container, so it resolves the backend
       # by service name rather than localhost.

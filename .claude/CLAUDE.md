@@ -315,8 +315,8 @@ ESLint + Prettier
 
 **Backend** — Python 3.11+, FastAPI, Pydantic v2, pytest, Ruff, mypy (strict)
 
-**Simulation** — Qiskit + NumPy, isolated in an optional `simulation` extra
-because nothing before Milestone 4 needs them
+**Simulation** — Qiskit 2.x + NumPy, isolated in an optional `simulation` extra
+because nothing before Milestone 4 needs them. Installs on 3.11–3.14
 
 Two decisions that are easy to accidentally reverse:
 
@@ -375,7 +375,23 @@ Docker, from the repository root:
 docker compose up --build    # both services, hot-reloading
 docker compose down          # stop
 docker compose build         # rebuild after dependency changes
+
+docker compose run --rm --no-deps backend pytest       # backend suite
+docker compose run --rm --no-deps frontend npm test    # frontend suite
 ```
+
+`--no-deps` skips starting the backend for a frontend-only run; drop it when the
+test needs both. Neither suite needs a rebuild after a source edit — `src/`,
+`tests/` and `shared/` are bind-mounted — but **both need one after a dependency
+change**, and that asymmetry is the trap: source edits appear instantly for days,
+so the first `pyproject.toml` or `package.json` change silently runs against the
+old image.
+
+**`shared/` is mounted at `/shared` in both services**, and must stay that way.
+The fixtures live outside both build contexts, so neither image can contain them;
+the backend resolves them from `parents[2]` and the frontend from
+`process.cwd()/..`, and both land on `/shared`. Without the mount the containers
+serve the app perfectly and fail 20 backend tests.
 
 Run the full set before declaring work complete. The Definition of Done in
 `docs/Roadmap.md` requires tests, linting, and type checking to pass.
@@ -384,11 +400,10 @@ Run the full set before declaring work complete. The Definition of Done in
 natively, and the venv/npm workflow above remains fully supported. Do not
 rewrite the native instructions to assume containers.
 
-The container pins **Python 3.13**, not the 3.14 used natively — Qiskit
-publishes no 3.14 wheels, so the container is where the Milestone 4
-`simulation` extra will install. Dependency changes need
-`docker compose build`; source changes do not, because the working tree is
-bind-mounted.
+The container runs **Python 3.14**, matching native. It pinned 3.13 until
+2026-08-02, when the reason for that pin turned out to have lapsed. Dependency
+changes need `docker compose build`; source changes do not, because the working
+tree is bind-mounted.
 
 **The `--check` variants are the ones CI runs**, and they fail rather than
 rewrite. Run them before pushing: the rewriting variants pass silently by
@@ -433,6 +448,12 @@ inside the synced tree before blaming OneDrive — note that `C:\Users\<you>\
 Documents` and `C:\Users\<you>\OneDrive\Documents` are different directories,
 and the repo may sit in the unsynced one.
 
+**Git Bash rewrites container paths in `docker run`.** A `-v host:/container`
+mount or a `/app/script.py` argument gets expanded against the MSYS root, so the
+container is told to open something like `/c/Program Files/Git/smoke.py` and
+fails with a confusing "no such file". Set `MSYS_NO_PATHCONV=1` for the command,
+or run Docker from PowerShell. Hit and worked around on 2026-08-02.
+
 **Line endings are LF everywhere**, enforced by `.gitattributes`, which
 overrides the repo-local `core.autocrlf=true`. Do not reintroduce CRLF.
 
@@ -444,8 +465,10 @@ the rule above. This was hit and reverted on 2026-08-01. Use an editor, or pass
 `encoding='utf-8', newline='\n'` explicitly on both calls. `git diff` catches it
 — a replacement character or a whole-file rewrite means this happened.
 
-**Python 3.14 is installed locally.** The backend runs on it, but Qiskit does
-not yet publish 3.14 wheels — hence the optional `simulation` extra.
+**Python 3.14 is installed locally, and everything runs on it** including the
+`simulation` extra, verified 2026-08-02. The extra is optional to keep
+dependencies minimal, not because of any interpreter limit — an earlier version
+of this file said otherwise and was out of date rather than wrong when written.
 
 **`npm audit` reports 5 high-severity dev-only findings** in ESLint's
 dependency chain. Deliberately deferred; see `docs/Roadmap.md`. Do not run
