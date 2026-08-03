@@ -33,5 +33,12 @@ class Settings(BaseSettings):
     # distinct outcomes observed, not by 2^n.
     max_statevector_qubits: int = 12
 
+    # A bound on OpenQASM source, in characters. The parser is linear, but it
+    # is reachable before any circuit limit applies -- `max_operations` cannot
+    # refuse a file until the file has been read. 256 KB is far past any
+    # hand-written circuit and small enough that parsing one cannot occupy a
+    # worker for long.
+    max_qasm_characters: int = 256_000
+
 
 settings = Settings()

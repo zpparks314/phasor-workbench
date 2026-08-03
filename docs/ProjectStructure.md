@@ -136,8 +136,9 @@ backend/
 │   ├── simulation/      The backend seam         (Milestone 4)
 │   │   └── backends/    Simulator adapters; only these import a simulator
 │   ├── analysis/        Gate counts, depth       (Milestone 4)
-│   ├── importers/       OpenQASM, JSON in        (Milestone 5)
-│   └── exporters/       OpenQASM, JSON out       (Milestone 5)
+│   ├── importers/       Foreign formats in       (Milestone 5)
+│   │   └── qasm/        OpenQASM 2.0 reader
+│   └── exporters/       Foreign formats out      (Milestone 5)
 ├── tests/
 └── pyproject.toml
 ```
@@ -149,6 +150,18 @@ installed package rather than a copy that happens to be on the path.
 Each subpackage corresponds to a backend module named in Architecture.md.
 They exist while empty so the intended shape is visible, and each carries a
 docstring stating its responsibility and the milestone that fills it.
+
+**`importers/` and `exporters/` were relabelled on 2026-08-02**, from "OpenQASM,
+JSON in/out" to foreign formats. JSON never needed either: a Circuit Model
+document *is* JSON, so reading one is `serialization/`'s versioned loader rather
+than a format conversion — which is exactly why the frontend can do JSON alone
+and cannot do OpenQASM.
+
+That the reservation paid off is worth recording, because it nearly did not. The
+OpenQASM parser was first written as a top-level `qasm/` package before anyone
+reread this section; the placeholder's own docstring already stated the invariant
+the parser had independently arrived at — *importers produce documents and never
+bypass validation*. The empty directory was doing its job and was still missed.
 
 ---
 

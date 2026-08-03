@@ -431,7 +431,8 @@ Prepare the project for public deployment.
 * [ ] Responsive layout
 * [ ] Error handling
 * [ ] Keyboard shortcuts
-* [ ] OpenQASM import
+* [~] OpenQASM import — backend done: `importers/qasm/` and
+  `POST /api/v1/circuits/import/qasm`. Frontend wiring is the next change
 * [ ] OpenQASM export
 * [x] JSON import/export — `frontend/src/files/`, the file adapter beside
   `persistence/`'s storage one
@@ -458,12 +459,15 @@ do it *before* starting was left here.
   re-imports with the same operation sequence and the same `deriveCycles`
   output. Identifiers may differ — ADR-0002 makes them arbitrary — so equality
   is asserted structurally, not on the document.
-* [ ] The three questions OpenQASM import asks of the model are answered in
-  `docs/`, with reasoning: what a bare `barrier;` expands to, what becomes of a
-  gate `circuit.spec.json` does not have, and how a QASM register maps onto
-  `classicalRegisters`. Two have recorded answers already, so the criterion is
-  that the implementation either confirms them or the document records what
-  changed and why.
+* [x] The three questions OpenQASM import asks of the model are answered in
+  `docs/`, with reasoning. **Done 2026-08-02, and all three held.** A bare
+  `barrier;` expands to every qubit declared so far — the schema already said an
+  importer would do this. An unrepresentable gate reports `UNKNOWN_GATE_NAME`. A
+  QASM classical register maps one-for-one onto `classicalRegisters`, keeping
+  its name as a label. What the questions did *not* anticipate is recorded in
+  `API.md`: quantum register grouping does not survive at all, and parameter
+  expressions are evaluated, so `rx(pi/2)` becomes a number and the intent is
+  gone — see `CircuitModel.md`.
 * [ ] Example circuits load, validate without violations, and simulate. Each is
   authored through the import path rather than hand-written JSON — that is what
   makes them evidence the path works rather than decoration.
@@ -553,10 +557,27 @@ target.
 
 **What JSON import settled for OpenQASM.** Import replaces the whole circuit in
 one undo step and reports failure without touching the canvas; both are format
-independent, so QASM adds a parser rather than a second affordance. The one thing
-it did *not* settle is where QASM parsing runs — `API.md` has it as a backend
-endpoint, which means OpenQASM import is the first import that can fail because
-the backend is down, a state JSON import cannot reach.
+independent, so QASM adds a parser rather than a second affordance. Where the
+parsing runs is now settled too: the backend, per `Architecture.md`, which makes
+OpenQASM the first import that can fail because the backend is down — a state
+JSON import cannot reach, and the frontend change has to handle it.
+
+**What OpenQASM import found, and what is left.** The parser is hand-written and
+takes no dependency: Qiskit can read QASM but lives in the optional `simulation`
+extra, so importing through it would make a core feature unavailable on a default
+install. Two findings worth carrying forward:
+
+* **Most Qiskit-exported QASM 2 will be refused**, because `u3`, `u2`, `cu1` and
+  friends have no representation in the model and decomposing them inside an
+  importer would return a circuit the user did not hand over. This is the gap
+  the milestone was supposed to expose, and the honest fix is a wider gate set
+  rather than a cleverer importer — a Milestone 6 question, not this one's.
+* **`ProjectStructure.md`'s reserved directories nearly failed to do their job.**
+  The parser was written as a top-level `qasm/` package before anyone reread the
+  backend tree, where `importers/` had been reserved for it since Milestone 1
+  with a docstring stating the exact invariant the parser had independently
+  arrived at. It was moved. An empty directory is only as good as the habit of
+  looking at it.
 
 **`README.md` was pulled ahead of the rest of *Documentation* and is done**, for
 a reason worth keeping: every other stale document is read by someone who has
