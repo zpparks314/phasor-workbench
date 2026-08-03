@@ -36,6 +36,21 @@ and the frontend must not import from it. Anything the running app needs goes in
 `frontend/public/` — the favicon does — because only that is served and only
 that is copied into a build.
 
+**The wordmark is outlined paths, not `<text>`, and must stay that way.** It is
+set in Space Grotesk, and a `font-family` reference only resolves on a machine
+that happens to have the font installed. GitHub loads a README SVG as an `<img>`
+— an isolated document that fetches no external font — so the original
+`font-family="'Space Grotesk', Arial, sans-serif"` rendered as Arial for every
+visitor. Embedding the font as a data URI would fix that at roughly 100 KB per
+variant; outlining costs 5 KB and needs no font at runtime. The trade is that
+the letters are no longer selectable text, which is why the `<title>`/`<desc>`
+pair and the README's `alt` carry the wording instead.
+
+Editing the wordmark therefore means re-outlining it rather than retyping it:
+set the text in Space Grotesk at the sizes and letter-spacings the paths were
+generated from (62/13 for PHASOR, 25/12 for WORKBENCH, baselines 133 and 178),
+and convert to outlines. Attribution for the font is in `NOTICE`.
+
 ---
 
 # Why `shared/` Is Separate
