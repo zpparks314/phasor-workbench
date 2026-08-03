@@ -14,13 +14,42 @@ phasor-workbench/
 ├── shared/      Circuit Model, schema, cross-language fixtures
 ├── tests/       Cross-cutting integration and contract tests
 ├── docs/        Project documentation
-├── .editorconfig
+├── assets/      Brand artwork for the repository, not the application
+├── README.md, LICENSE, NOTICE
+├── compose.yaml
+├── .editorconfig, .gitattributes
 └── .gitignore
 ```
 
 The four code directories map directly onto the module organization in
 Architecture.md. Nothing lives at the top level that belongs inside one of
 them.
+
+**`assets/` was added on 2026-08-02**, and the tree above was corrected at the
+same time — it had listed only two dotfiles while the root actually held six
+tracked files, including a loose 833 KB logo the section's own rule argued
+against.
+
+It holds artwork for the **repository**: the README logo, in a light and a dark
+variant because GitHub renders READMEs on both. It is not an application asset
+and the frontend must not import from it. Anything the running app needs goes in
+`frontend/public/` — the favicon does — because only that is served and only
+that is copied into a build.
+
+**The wordmark is outlined paths, not `<text>`, and must stay that way.** It is
+set in Space Grotesk, and a `font-family` reference only resolves on a machine
+that happens to have the font installed. GitHub loads a README SVG as an `<img>`
+— an isolated document that fetches no external font — so the original
+`font-family="'Space Grotesk', Arial, sans-serif"` rendered as Arial for every
+visitor. Embedding the font as a data URI would fix that at roughly 100 KB per
+variant; outlining costs 5 KB and needs no font at runtime. The trade is that
+the letters are no longer selectable text, which is why the `<title>`/`<desc>`
+pair and the README's `alt` carry the wording instead.
+
+Editing the wordmark therefore means re-outlining it rather than retyping it:
+set the text in Space Grotesk at the sizes and letter-spacings the paths were
+generated from (62/13 for PHASOR, 25/12 for WORKBENCH, baselines 133 and 178),
+and convert to outlines. Attribution for the font is in `NOTICE`.
 
 ---
 

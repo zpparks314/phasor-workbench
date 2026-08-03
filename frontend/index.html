@@ -4,6 +4,12 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Phasor Workbench</title>
+    <!--
+      Root-absolute, not "public/favicon.ico". Vite serves publicDir *at* the
+      root and copies its contents to the top of dist/, so "public" is never
+      part of the URL in either dev or a build.
+    -->
+    <link rel="icon" href="/favicon.ico" sizes="any" />
     <meta
       name="description"
       content="Build, visualize, simulate, and understand quantum circuits."
