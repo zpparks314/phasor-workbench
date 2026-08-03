@@ -20,7 +20,10 @@ from fastapi import APIRouter
 from pydantic import BaseModel, ConfigDict, Field
 
 from ...analysis import analyze_circuit
+from ...config import settings
+from ...importers.qasm import QasmError, QasmProblem, parse_qasm
 from ..documents import read_circuit
+from ..errors import ApiError, ErrorCode, ErrorDetail
 
 router = APIRouter(tags=["circuits"])
 
@@ -71,4 +74,80 @@ def post_analyze(request: CircuitRequest) -> AnalysisResponse:
         gate_breakdown={
             name.value: count for name, count in analysis.gate_breakdown.items()
         },
+    )
+
+
+class QasmImportRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    source: str
+
+
+class CircuitDocumentResponse(BaseModel):
+    """The imported circuit, in the same wire form every other endpoint takes.
+
+    Serialized from the parsed `Circuit` rather than handed back as the parser's
+    raw document, so what a client receives is what survived loading and
+    validation -- not merely what the parser proposed.
+    """
+
+    circuit: dict[str, Any]
+
+
+@router.post(
+    "/circuits/import/qasm",
+    response_model=CircuitDocumentResponse,
+    summary="OpenQASM 2.0 to Circuit Model",
+)
+def post_import_qasm(request: QasmImportRequest) -> CircuitDocumentResponse:
+    """Read OpenQASM 2.0 into a circuit document.
+
+    Two distinct failures, and they are deliberately different codes. Source
+    this build cannot *read* is `REQUEST_MALFORMED`, because the payload is
+    what is wrong and there is no circuit yet. Source that reads cleanly but
+    describes an illegal circuit is `CIRCUIT_INVALID`, and arrives free from
+    `read_circuit` with the model's own violation codes -- a measurement
+    followed by a gate is a real circuit error, not a parse error, and saying so
+    is the difference between "your file is broken" and "your circuit is".
+    """
+    if len(request.source) > settings.max_qasm_characters:
+        raise ApiError(
+            code=ErrorCode.LIMIT_EXCEEDED,
+            message=(
+                f"OpenQASM source is limited to "
+                f"{settings.max_qasm_characters} characters."
+            ),
+            status_code=413,
+        )
+
+    try:
+        result = parse_qasm(request.source)
+    except QasmError as error:
+        raise unreadable_qasm([error.problem]) from error
+
+    if result.problems:
+        raise unreadable_qasm(result.problems)
+
+    return CircuitDocumentResponse(
+        circuit=read_circuit(result.document).model_dump(by_alias=True, mode="json")
+    )
+
+
+def unreadable_qasm(problems: list[QasmProblem]) -> ApiError:
+    """Map QASM problems into the one error envelope docs/API.md defines.
+
+    `path` carries a line and column rather than a JSON pointer, because that is
+    where the problem is: there is no document to point into. Documented in
+    API.md so a client is not left inferring the shape from examples.
+    """
+    return ApiError(
+        code=ErrorCode.REQUEST_MALFORMED,
+        message="The OpenQASM source could not be imported.",
+        status_code=400,
+        details=[
+            ErrorDetail(
+                code=problem.code, message=problem.message, path=problem.location
+            )
+            for problem in problems
+        ],
     )

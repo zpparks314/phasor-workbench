@@ -144,3 +144,97 @@ class TestRejection:
         response = client.post(ANALYZE, json={})
 
         assert response.status_code == 422
+
+
+IMPORT_QASM = "/api/v1/circuits/import/qasm"
+
+QASM_BELL = """OPENQASM 2.0;
+include "qelib1.inc";
+qreg q[2];
+creg c[2];
+h q[0];
+cx q[0],q[1];
+measure q -> c;
+"""
+
+
+class TestQasmImport:
+    """The import endpoint's transport.
+
+    What the parser understands is `test_qasm.py`'s job. What matters here is
+    that the two kinds of failure stay distinguishable from outside, because a
+    client has to tell "your file is broken" from "your circuit is".
+    """
+
+    def test_returns_a_circuit_the_other_endpoints_accept(
+        self, client: TestClient
+    ) -> None:
+        response = client.post(IMPORT_QASM, json={"source": QASM_BELL})
+        assert response.status_code == 200
+
+        # The real assertion: what came back is a circuit document, so it can
+        # go straight into another endpoint without a translation step.
+        imported = response.json()["circuit"]
+        analysis = client.post(ANALYZE, json={"circuit": imported})
+
+        assert analysis.status_code == 200
+        assert analysis.json()["qubitCount"] == 2
+        assert analysis.json()["gateCount"] == 2
+
+    def test_source_that_cannot_be_read_is_malformed_not_invalid(
+        self, client: TestClient
+    ) -> None:
+        response = client.post(IMPORT_QASM, json={"source": "qreg q[1];"})
+
+        assert response.status_code == 400
+        assert response.json()["error"]["code"] == "REQUEST_MALFORMED"
+
+    def test_a_readable_file_describing_an_illegal_circuit_is_invalid(
+        self, client: TestClient
+    ) -> None:
+        # Parses perfectly; the circuit is what is wrong. Different code,
+        # different status, and the model's own violation in the details.
+        source = (
+            'OPENQASM 2.0;\ninclude "qelib1.inc";\nqreg q[1];\ncreg c[1];\n'
+            "measure q[0] -> c[0];\nh q[0];\n"
+        )
+        response = client.post(IMPORT_QASM, json={"source": source})
+
+        assert response.status_code == 422
+        assert response.json()["error"]["code"] == "CIRCUIT_INVALID"
+        assert [detail["code"] for detail in response.json()["error"]["details"]] == [
+            "OPERATION_AFTER_MEASUREMENT"
+        ]
+
+    def test_details_carry_a_line_and_column(self, client: TestClient) -> None:
+        source = 'OPENQASM 2.0;\ninclude "qelib1.inc";\nqreg q[1];\nu3(0,0,0) q[0];\n'
+        response = client.post(IMPORT_QASM, json={"source": source})
+        detail = response.json()["error"]["details"][0]
+
+        assert detail["code"] == "UNKNOWN_GATE_NAME"
+        assert detail["path"] == "line 4, column 1"
+
+    def test_reports_every_problem_at_once(self, client: TestClient) -> None:
+        source = (
+            'OPENQASM 2.0;\ninclude "qelib1.inc";\nqreg q[1];\n'
+            "u3(0,0,0) q[0];\nh z[0];\n"
+        )
+        response = client.post(IMPORT_QASM, json={"source": source})
+
+        assert len(response.json()["error"]["details"]) == 2
+
+    def test_refuses_source_past_the_limit(self, client: TestClient) -> None:
+        from phasor_workbench.config import settings
+
+        oversized = "/" * (settings.max_qasm_characters + 1)
+        response = client.post(IMPORT_QASM, json={"source": oversized})
+
+        assert response.status_code == 413
+        assert response.json()["error"]["code"] == "LIMIT_EXCEEDED"
+
+    def test_rejects_an_unknown_field(self, client: TestClient) -> None:
+        response = client.post(
+            IMPORT_QASM, json={"source": QASM_BELL, "dialect": "qasm3"}
+        )
+
+        assert response.status_code == 422

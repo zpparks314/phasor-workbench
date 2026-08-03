@@ -87,7 +87,15 @@ Errors are never returned with a `200` status.
 | `503` | Simulation backend unavailable |
 | `504` | Simulation exceeded its time budget |
 
-The distinction between `400` and `422` matters: the first means the frontend sent garbage, the second means the user built an invalid circuit. Only the second should be rendered as user-facing feedback.
+The distinction between `400` and `422` matters: the first means the request could not be read, the second means the user built an invalid circuit.
+
+**Amended 2026-08-02, when OpenQASM import produced a third case.** This previously read "the first means the frontend sent garbage… only the second should be rendered as user-facing feedback." That held while every request body was JSON the frontend had composed. An import request carries *user* content, so a `400` from `/circuits/import/qasm` is a well-formed request whose payload the user wrote and this build cannot read — and it is exactly what should be shown to them. The rule is now about *what* could not be read, not about who is at fault:
+
+| Case | Status | Show the user? |
+|---|---|---|
+| The request itself is malformed | `400` | No — a frontend bug |
+| User-supplied source could not be read | `400` | **Yes**, with its line and column |
+| The circuit described is invalid | `422` | Yes, with its violation codes |
 
 ---
 
@@ -276,13 +284,96 @@ Keys are classical register values, not qubit states — asserted with an asymme
 
 ---
 
+## `POST /api/v1/circuits/import/qasm`
+
+OpenQASM 2.0 → Circuit Model. Built 2026-08-02.
+
+```json
+{ "source": "OPENQASM 2.0;\ninclude \"qelib1.inc\";\nqreg q[2];\nh q[0];\n" }
+```
+
+Responds with a circuit document in the same wire form every other endpoint
+accepts, so an import can be fed straight into `/circuits/analyze` with no
+translation step:
+
+```json
+{ "circuit": { "schemaVersion": "0.1.0", "id": "...", "qubits": [], "...": "..." } }
+```
+
+**Only 2.0.** A file declaring any other version is refused with
+`QASM_VERSION_UNSUPPORTED` rather than attempted. OpenQASM 3 adds classical
+control flow, typed variables and subroutines, none of which the Circuit Model
+can hold, so accepting it would mean refusing most of what it contains.
+
+**Two failures, and they are different on purpose.** Source this build cannot
+*read* is `REQUEST_MALFORMED` with `400` — the payload is what is wrong and
+there is no circuit yet. Source that reads cleanly but describes an illegal
+circuit is `CIRCUIT_INVALID` with `422`, carrying the model's own violation
+codes from the same validator every other endpoint uses. A measurement followed
+by a gate is a circuit error, not a parse error, and the difference is what lets
+a client say "your file is broken" or "your circuit is".
+
+**`path` carries a line and column, not a JSON pointer.** There is no document
+to point into, so the location is stated in the terms the source has:
+
+```json
+{
+  "error": {
+    "code": "REQUEST_MALFORMED",
+    "message": "The OpenQASM source could not be imported.",
+    "details": [
+      {
+        "code": "UNKNOWN_GATE_NAME",
+        "message": "'u3' is not a gate this build can represent.",
+        "path": "line 4, column 1"
+      }
+    ]
+  }
+}
+```
+
+Syntax errors report the first one only — a parser that has lost its place
+cannot honestly report a second. Everything semantic is collected, so one
+request reports every unknown gate and bad reference in the file.
+
+Codes beginning `QASM_` describe the source text and are defined by the backend,
+not by `circuit.spec.json`: nothing in the frontend parses QASM, so there is no
+second implementation for the shared spec to hold in step. `UNKNOWN_GATE_NAME`
+is the exception and is the model's own code, because an unsupported gate is a
+fact the model already names.
+
+| Code | Means |
+|---|---|
+| `QASM_SYNTAX_ERROR` | The source could not be parsed |
+| `QASM_VERSION_UNSUPPORTED` | Not OpenQASM 2.0 |
+| `QASM_UNSUPPORTED_STATEMENT` | `gate`, `opaque`, `if` or `reset` |
+| `QASM_UNKNOWN_REGISTER` | A register that was never declared |
+| `QASM_DUPLICATE_REGISTER` | A register declared twice |
+| `QASM_INDEX_OUT_OF_RANGE` | An index past a register's size |
+| `QASM_BROADCAST_MISMATCH` | Registers of different sizes in one statement |
+| `QASM_ARGUMENT_COUNT` | Wrong number of qubits for the gate |
+| `QASM_PARAMETER_COUNT` | Wrong number of parameters for the gate |
+| `UNKNOWN_GATE_NAME` | A gate the model cannot represent |
+
+**What does not survive the trip.** Quantum register grouping: the model has one
+flat indexed wire list, so `qreg q[2]; qreg r[3];` becomes five wires and the
+names are gone. Classical registers *do* survive one-for-one, keeping their name
+as a label. Parameter expressions are evaluated, so `rx(pi/2)` becomes a number
+and an export cannot recover the `pi/2`.
+
+`source` is limited to `QW_MAX_QASM_CHARACTERS` characters (default 256,000),
+refused with `LIMIT_EXCEEDED` and `413`. The parser is reachable before any
+circuit limit applies, since `max_operations` cannot refuse a file until the
+file has been read.
+
+---
+
 ## Deferred Endpoints
 
 Planned for Milestone 5, listed so the path structure stays coherent:
 
 | Endpoint | Purpose |
 |---|---|
-| `POST /api/v1/circuits/import/qasm` | OpenQASM → Circuit Model |
 | `POST /api/v1/circuits/export/qasm` | Circuit Model → OpenQASM |
 | `GET /api/v1/examples` | Built-in example circuits |
 

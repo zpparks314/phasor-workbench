@@ -271,6 +271,16 @@ Serialization rules:
 * floating-point parameters are stored in radians
 * the cycle decomposition never appears in the wire format
 
+**A parameter is a number, never an expression**, and OpenQASM import is where
+that first costs something. `rx(pi/2)` arrives as `1.5707963267948966`, and an
+export can only write the number back — the intent that it was *half of pi* is
+gone. Keeping it would mean the model carrying an expression type, which is a
+change to [ADR-0001](decisions/ADR0001_CircuitRepresentation.md) and not one an
+importer gets to make on its own. Recorded here rather than in the parser so it
+is visible to whoever next asks what a parameter is. It is closely related to
+**Parameterized circuits** under *Deliberately Deferred*, and a decision to
+build those should settle this at the same time.
+
 ## Derived Decomposition of the Example
 
 Not stored — shown to make the derivation concrete.
