@@ -431,8 +431,9 @@ Prepare the project for public deployment.
 * [ ] Responsive layout
 * [ ] Error handling
 * [ ] Keyboard shortcuts
-* [~] OpenQASM import — backend done: `importers/qasm/` and
-  `POST /api/v1/circuits/import/qasm`. Frontend wiring is the next change
+* [x] OpenQASM import — `importers/qasm/`,
+  `POST /api/v1/circuits/import/qasm`, and the frontend routing through the
+  same Import control JSON uses
 * [ ] OpenQASM export
 * [x] JSON import/export — `frontend/src/files/`, the file adapter beside
   `persistence/`'s storage one
@@ -571,7 +572,8 @@ install. Two findings worth carrying forward:
   friends have no representation in the model and decomposing them inside an
   importer would return a circuit the user did not hand over. This is the gap
   the milestone was supposed to expose, and the honest fix is a wider gate set
-  rather than a cleverer importer — a Milestone 6 question, not this one's.
+  rather than a cleverer importer. **Confirmed as Milestone 6 work on
+  2026-08-02** — see *Widening the Gate Set* under *Future Milestones*.
 * **`ProjectStructure.md`'s reserved directories nearly failed to do their job.**
   The parser was written as a top-level `qasm/` package before anyone reread the
   backend tree, where `importers/` had been reserved for it since Milestone 1
@@ -600,6 +602,39 @@ so the path structure stays coherent when they arrive.
 # Future Milestones
 
 These are intentionally out of scope for the MVP.
+
+## Widening the Gate Set
+
+**Added 2026-08-02, and it is the first future item that came from evidence
+rather than from a wish list.** OpenQASM import discovered that most
+Qiskit-exported QASM 2 is refused, because `qelib1.inc`'s `u3`, `u2`, `u0`,
+`ch`, `crz`, `cu1`, `cu3` and `cswap` have no representation in the model. The
+importer refuses them rather than decomposing, because a decomposition invented
+inside an importer hands back a circuit the user did not write.
+
+The candidates, in rough order of how often real files need them:
+
+* **`u3` / `u2`** — the general single-qubit unitary and its two-parameter form.
+  Qiskit emits these constantly. They are the whole reason a Bell state written
+  by hand imports and one exported from Qiskit often does not.
+* **`cswap` (Fredkin)** — three qubits, and the only common gate the model lacks
+  that is not expressible as a controlled version of one it has.
+* **`ch`, `crz`, `cu1`, `cu3`** — controlled forms. These want a decision about
+  whether control is a *property* of an operation, which the model already has
+  in `controls`, or part of a gate's name. ADR-0001 says the former, so these
+  may cost less than they look.
+
+Two things to settle before writing any of it, because both reach further than
+the gate list: whether `parameters` stays a flat map when a gate takes three of
+them, and whether a controlled gate is a name or a `controls` entry. The second
+is close to already decided — the model has carried `controls` since Milestone 2
+and `cx` is `x` with one — which suggests `ch` and `crz` are not new gates at
+all, and the real gap is `u3`, `u2` and `cswap`.
+
+Export will meet the same wall from the other side, so it is worth knowing the
+answer before writing the writer.
+
+---
 
 ## Educational Visualizations
 

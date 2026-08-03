@@ -19,10 +19,12 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { Circuit } from '../model/circuit';
 import { loadCircuit } from '../serialization';
+import { ApiError } from '../api/client';
 import {
   circuitFile,
   downloadCircuit,
   importCircuitFile,
+  looksLikeQasm,
   readCircuitFile,
 } from './index';
 
@@ -268,5 +270,104 @@ describe('handing a circuit to the browser', () => {
     createObjectURL.mockRestore();
     revokeObjectURL.mockRestore();
     vi.useRealTimers();
+  });
+});
+
+describe('telling the two formats apart', () => {
+  it.each([
+    ['OPENQASM 2.0;\nqreg q[1];', true],
+    ['// a comment\n\nOPENQASM 2.0;', true],
+    ['   \n  OPENQASM 2.0;', true],
+    ['{"schemaVersion":"0.1.0"}', false],
+    ['', false],
+    ['// only comments\n', false],
+  ])('reads %o as qasm=%o', (text, expected) => {
+    expect(looksLikeQasm(text)).toBe(expected);
+  });
+
+  it('routes on content rather than on the file name', async () => {
+    // A QASM program in a .json file is still QASM. Routing on the extension
+    // would refuse it with a JSON parse error that explains nothing.
+    const circuit = readValid('bell_state.json').circuit;
+    const importQasm = vi.fn().mockResolvedValue(circuit);
+    vi.doMock('../api/qasm', () => ({ importQasm }));
+    vi.resetModules();
+    const files = await import('./index');
+
+    const outcome = await files.importCircuitFile(
+      fileContaining('OPENQASM 2.0;\nqreg q[1];\n', 'misnamed.json'),
+    );
+
+    expect(importQasm).toHaveBeenCalledOnce();
+    expect(outcome.ok).toBe(true);
+    vi.doUnmock('../api/qasm');
+    vi.resetModules();
+  });
+});
+
+describe('importing OpenQASM', () => {
+  const withImportQasm = async (implementation: () => Promise<unknown>) => {
+    vi.doMock('../api/qasm', () => ({ importQasm: implementation }));
+    vi.resetModules();
+    const files = await import('./index');
+    const outcome = await files.importCircuitFile(
+      fileContaining('OPENQASM 2.0;\nqreg q[1];\n', 'circuit.qasm'),
+    );
+    vi.doUnmock('../api/qasm');
+    vi.resetModules();
+    return outcome;
+  };
+
+  it('returns the circuit the backend parsed', async () => {
+    const circuit = readValid('bell_state.json').circuit;
+
+    const outcome = await withImportQasm(() => Promise.resolve(circuit));
+
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    expect(outcome.circuit).toEqual(circuit);
+  });
+
+  it('keeps the line and column the parser reported', async () => {
+    const outcome = await withImportQasm(() =>
+      Promise.reject(
+        new ApiError('REQUEST_MALFORMED', 'unreadable', 400, [
+          {
+            code: 'UNKNOWN_GATE_NAME',
+            message: "'u3' is not a gate this build can represent.",
+            path: 'line 4, column 1',
+          },
+        ]),
+      ),
+    );
+
+    expect(outcome.ok).toBe(false);
+    if (outcome.ok || outcome.reason !== 'unreadable') return;
+    expect(outcome.violations[0]?.message).toContain('line 4, column 1');
+    expect(outcome.violations[0]?.code).toBe('UNKNOWN_GATE_NAME');
+  });
+
+  it('separates an unreachable backend from an unreadable file', async () => {
+    // The distinction the whole outcome type exists for: one asks the user to
+    // change their file, the other asks nothing of them at all.
+    const outcome = await withImportQasm(() =>
+      Promise.reject(
+        new ApiError('BACKEND_UNAVAILABLE', 'Could not reach the backend.', 0),
+      ),
+    );
+
+    expect(outcome.ok).toBe(false);
+    if (outcome.ok) return;
+    expect(outcome.reason).toBe('unreachable');
+  });
+
+  it('does not treat a non-ApiError as the user\u2019s fault', async () => {
+    const outcome = await withImportQasm(() =>
+      Promise.reject(new Error('boom')),
+    );
+
+    expect(outcome.ok).toBe(false);
+    if (outcome.ok) return;
+    expect(outcome.reason).toBe('unreachable');
   });
 });

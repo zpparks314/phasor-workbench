@@ -912,6 +912,22 @@ gets**, before the first edit, for the reason given under *Opening*. Import is
 where ADR-0008 expected this to become common, since a file is the one document
 likely to have been written by someone else's build.
 
+**Import accepts OpenQASM 2.0 as well as JSON, through the same control**, added
+2026-08-02. There is one Import button and one outcome, because the user's
+question is "open this circuit" and the grammar is the file's business, not
+theirs. **The content decides which it is, never the extension** — a `.txt`
+holding an OpenQASM program still imports, and routing on the name would refuse
+it with a JSON parse error that explains nothing.
+
+**A file that could not be read and a backend that could not be reached are
+different messages**, and this is the first place in the editor where that
+distinction has consequences. JSON is read in the browser and so can only be
+wrong; OpenQASM is parsed by the backend, so an import can fail for a reason the
+user has no part in and cannot fix by editing their file. Reporting both as
+"could not import" would send someone off to correct a file that is already
+correct. The unreachable message says the backend reads OpenQASM, so the failure
+is locatable.
+
 **No new keyboard accelerator.** The header is a toolbar with a roving focus, so
 both controls are already reachable by keyboard, and `Ctrl/Cmd + O` is spoken for
 by the browser in most of them. The full shortcut map — including whether file
