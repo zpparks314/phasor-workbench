@@ -12,10 +12,13 @@ function show(overrides: Partial<EditorHeaderProps> = {}) {
     operationCount: 3,
     savedAt: null,
     saveError: null,
+    importError: null,
     onUndo: vi.fn(),
     onRedo: vi.fn(),
     onClear: vi.fn(),
     onSave: vi.fn(),
+    onExport: vi.fn(),
+    onImport: vi.fn(),
     ...overrides,
   };
 

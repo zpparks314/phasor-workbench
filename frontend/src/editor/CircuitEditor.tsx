@@ -44,6 +44,7 @@ import {
   setParameters,
   setRegisterSize,
 } from '../state/edits';
+import { downloadCircuit, importCircuitFile } from '../files';
 import { saveCircuit } from '../persistence';
 import { useCircuitStore } from '../state/useCircuitStore';
 import { validateCircuit } from '../validation';
@@ -133,6 +134,7 @@ export function CircuitEditor({
    */
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
 
   /**
    * The column the last drag step asked for, so the settle animation can play
@@ -188,6 +190,43 @@ export function CircuitEditor({
         ? 'Could not save: browser storage is full.'
         : 'Could not save: browser storage is unavailable.',
     );
+  }
+
+  /**
+   * Hand the circuit to the browser as a file.
+   *
+   * Same `dumpCircuit` reasoning as `save`, and for the same reason: an edited
+   * circuit has nothing to preserve that could be restored faithfully.
+   */
+  function exportFile(): void {
+    downloadCircuit(circuit);
+  }
+
+  /**
+   * Replace the circuit with one read from a file.
+   *
+   * One `store.apply`, so it is a single undo step whose label names the file
+   * that displaced the previous circuit — which is what makes it safe to do
+   * without a confirmation, per UI.md's *Files*.
+   *
+   * A rejected file leaves the circuit alone. Every reason is reported, not the
+   * first, because a file with three problems fixed one at a time is three
+   * round trips.
+   */
+  async function importFile(file: File): Promise<void> {
+    const outcome = await importCircuitFile(file);
+
+    if (!outcome.ok) {
+      setImportError(
+        `Could not import ${file.name}: ${outcome.violations
+          .map((violation) => violation.message)
+          .join(' ')}`,
+      );
+      return;
+    }
+
+    setImportError(null);
+    store.apply(`Import ${file.name}`, () => outcome.circuit);
   }
 
   const decomposition = useMemo(() => deriveCycles(circuit), [circuit]);
@@ -733,9 +772,14 @@ export function CircuitEditor({
         operationCount={circuit.operations.length}
         savedAt={savedAt}
         saveError={saveError}
+        importError={importError}
         onUndo={undo}
         onRedo={redo}
         onSave={save}
+        onExport={exportFile}
+        onImport={(file) => {
+          void importFile(file);
+        }}
         onClear={() => {
           store.apply(
             `Clear ${String(circuit.operations.length)} operations`,

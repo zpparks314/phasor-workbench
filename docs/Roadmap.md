@@ -433,7 +433,8 @@ Prepare the project for public deployment.
 * [ ] Keyboard shortcuts
 * [ ] OpenQASM import
 * [ ] OpenQASM export
-* [ ] JSON import/export
+* [x] JSON import/export — `frontend/src/files/`, the file adapter beside
+  `persistence/`'s storage one
 * [ ] Example circuits
 * [ ] Documentation
 * [ ] Deployment
@@ -446,11 +447,13 @@ remains it; what follows is what would make it true. Milestone 3's criteria were
 replaced mid-milestone for exactly this reason, which is why the instruction to
 do it *before* starting was left here.
 
-* [ ] A circuit exports to a JSON file and re-imports deep-equal, and import
+* [x] A circuit exports to a JSON file and re-imports deep-equal, and import
   routes through the existing versioned loader in `frontend/src/serialization/`
   rather than a second one — asserted by driving the import path over all 14
   fixtures in `shared/fixtures/version/` and getting each fixture's declared
-  `outcome`.
+  `outcome`. **Done 2026-08-02** in `frontend/src/files/`, which also asserts
+  import agrees with `loadCircuit` case by case rather than only in verdict, and
+  round-trips all 5 `valid/` fixtures.
 * [ ] Every circuit in `shared/fixtures/valid/` exports to OpenQASM and
   re-imports with the same operation sequence and the same `deriveCycles`
   output. Identifiers may differ — ADR-0002 makes them arbitrary — so equality
@@ -467,11 +470,12 @@ do it *before* starting was left here.
 * [ ] At 1280px, 768px and 375px every region is reachable and the body never
   scrolls horizontally. The canvas keeps its own horizontal scroll; that is not
   the same thing.
-* [ ] **An import that fails to parse reaches the user with its cause**, matching
+* [x] **An import that fails to parse reaches the user with its cause**, matching
   the treatment the rest of the set already gets: local storage unavailable or
   full, an unreadable stored document and a newer-build document from Milestone
-  3, the backend unreachable from Milestone 4. Import is the only member of that
-  set with nothing behind it, so this task is narrower than its name suggests.
+  3, the backend unreachable from Milestone 4. **Done 2026-08-02** with JSON
+  import: a persistent header alert naming every reason, and stating that the
+  circuit on the canvas is untouched. OpenQASM import will reuse it.
 * [ ] An unhandled render error shows something other than a blank page. This is
   the failure the Definition of Done's browser check was added for, and nothing
   currently catches it.
@@ -539,12 +543,20 @@ grid's screen-reader behaviour has never been checked against real assistive
 technology, and "suitable for public use" is not honestly claimable while that
 is true.
 
-**Suggested order.** JSON import/export first — it is the smallest, it reuses
-`serialization/` unchanged, and it gives OpenQASM a working file-handling path
-to build on. Then OpenQASM import, then export, then example circuits, which
-need an import path to be written in anything but hand-authored JSON. Deployment
-last, since it consumes the Dockerfiles and should not be built against a moving
+**Suggested order.** ~~JSON import/export first~~ — **done**, and the premise
+held: `serialization/` needed no change, and the file-handling path, the two
+header controls, and the import-failure surface are all in place for OpenQASM to
+reuse. Next is OpenQASM import, then export, then example circuits, which need an
+import path to be written in anything but hand-authored JSON. Deployment last,
+since it consumes the Dockerfiles and should not be built against a moving
 target.
+
+**What JSON import settled for OpenQASM.** Import replaces the whole circuit in
+one undo step and reports failure without touching the canvas; both are format
+independent, so QASM adds a parser rather than a second affordance. The one thing
+it did *not* settle is where QASM parsing runs — `API.md` has it as a backend
+endpoint, which means OpenQASM import is the first import that can fail because
+the backend is down, a state JSON import cannot reach.
 
 **`README.md` was pulled ahead of the rest of *Documentation* and is done**, for
 a reason worth keeping: every other stale document is read by someone who has

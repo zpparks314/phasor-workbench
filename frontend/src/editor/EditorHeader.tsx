@@ -34,10 +34,15 @@ export interface EditorHeaderProps {
   readonly savedAt: Date | null;
   /** Present only when the last save failed, and stated rather than hinted. */
   readonly saveError: string | null;
+  /** Present only when the last import failed. The circuit is untouched. */
+  readonly importError: string | null;
   readonly onUndo: () => void;
   readonly onRedo: () => void;
   readonly onClear: () => void;
   readonly onSave: () => void;
+  readonly onExport: () => void;
+  /** Opens the file picker. Import itself is the editor's to apply. */
+  readonly onImport: (file: File) => void;
 }
 
 const BUTTON =
@@ -51,14 +56,18 @@ export function EditorHeader({
   operationCount,
   savedAt,
   saveError,
+  importError,
   onUndo,
   onRedo,
   onClear,
   onSave,
+  onExport,
+  onImport,
 }: EditorHeaderProps): React.JSX.Element {
   const [focused, setFocused] = useState(0);
   const [confirming, setConfirming] = useState(false);
   const buttons = useRef(new Map<string, HTMLButtonElement>());
+  const picker = useRef<HTMLInputElement>(null);
 
   const controls = [
     { key: 'undo', enabled: canUndo },
@@ -67,6 +76,10 @@ export function EditorHeader({
     // Always enabled. Saving an unchanged circuit is harmless, and a disabled
     // save invites the reading that there is nothing worth saving.
     { key: 'save', enabled: true },
+    // Export is enabled for an empty circuit too, on the same reasoning: an
+    // empty circuit is a valid document, not a missing one.
+    { key: 'export', enabled: true },
+    { key: 'import', enabled: true },
   ];
 
   /**
@@ -218,6 +231,53 @@ export function EditorHeader({
         Save
       </button>
 
+      <button
+        ref={register('export')}
+        type="button"
+        tabIndex={tabbableKey === 'export' ? 0 : -1}
+        aria-label="Export circuit as a JSON file"
+        title="Export circuit as a JSON file"
+        onFocus={focus('export')}
+        onClick={onExport}
+        className={BUTTON}
+      >
+        Export
+      </button>
+
+      {/*
+        The button opens the picker rather than the input being visible, because
+        a bare file input cannot be labelled or styled consistently across
+        browsers. The input stays in the DOM and hidden -- `display: none` on it
+        is fine, since it is never the thing focused.
+      */}
+      <button
+        ref={register('import')}
+        type="button"
+        tabIndex={tabbableKey === 'import' ? 0 : -1}
+        aria-label="Import a circuit from a JSON file, replacing this one"
+        title="Import a circuit from a JSON file, replacing this one"
+        onFocus={focus('import')}
+        onClick={() => picker.current?.click()}
+        className={BUTTON}
+      >
+        Import
+      </button>
+
+      <input
+        ref={picker}
+        type="file"
+        accept="application/json,.json"
+        hidden
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          if (file !== undefined) onImport(file);
+          // Cleared so that choosing the same file twice fires `change` twice.
+          // Without this, re-importing a file the user has just edited on disk
+          // does nothing at all, silently.
+          event.target.value = '';
+        }}
+      />
+
       {/*
         A name that changes under a focused button is not reliably re-announced,
         so the question is stated outright as well. Same treatment as the qubit
@@ -241,6 +301,21 @@ export function EditorHeader({
           className="rounded border border-ink-muted/40 px-2 py-1 text-sm"
         >
           {saveError} The circuit is still open and unsaved.
+        </p>
+      )}
+
+      {/*
+        A rejected file leaves the circuit untouched, and saying so is the point
+        -- otherwise the alert reads as "your work is gone". Not routed to the
+        problems strip: that surface is about the circuit on the canvas, and a
+        file that never loaded has nothing there to point at. See UI.md, Files.
+      */}
+      {importError !== null && (
+        <p
+          role="alert"
+          className="rounded border border-ink-muted/40 px-2 py-1 text-sm"
+        >
+          {importError} The circuit on the canvas is unchanged.
         </p>
       )}
     </header>

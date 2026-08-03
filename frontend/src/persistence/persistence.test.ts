@@ -259,6 +259,12 @@ describe('the module boundary', () => {
         } else if (/\.tsx?$/.test(entry) && !/\.test\.tsx?$/.test(entry)) {
           // Source only. Tests reach for `localStorage` to arrange and assert,
           // which is not the coupling this rule exists to prevent.
+          //
+          // A substring scan, so a *comment* naming the API trips this too --
+          // `src/files/` hit it on the way in. That is a false positive and it
+          // stays: teaching the scan to skip comments means parsing TypeScript
+          // to enforce a one-line rule, and a guard nobody can argue with is
+          // worth more than one that is precise about prose.
           if (readFileSync(path, 'utf8').includes('localStorage')) {
             offenders.push(path);
           }
