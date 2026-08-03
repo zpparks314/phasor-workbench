@@ -14,13 +14,27 @@ phasor-workbench/
 ├── shared/      Circuit Model, schema, cross-language fixtures
 ├── tests/       Cross-cutting integration and contract tests
 ├── docs/        Project documentation
-├── .editorconfig
+├── assets/      Brand artwork for the repository, not the application
+├── README.md, LICENSE, NOTICE
+├── compose.yaml
+├── .editorconfig, .gitattributes
 └── .gitignore
 ```
 
 The four code directories map directly onto the module organization in
 Architecture.md. Nothing lives at the top level that belongs inside one of
 them.
+
+**`assets/` was added on 2026-08-02**, and the tree above was corrected at the
+same time — it had listed only two dotfiles while the root actually held six
+tracked files, including a loose 833 KB logo the section's own rule argued
+against.
+
+It holds artwork for the **repository**: the README logo, in a light and a dark
+variant because GitHub renders READMEs on both. It is not an application asset
+and the frontend must not import from it. Anything the running app needs goes in
+`frontend/public/` — the favicon does — because only that is served and only
+that is copied into a build.
 
 ---
 

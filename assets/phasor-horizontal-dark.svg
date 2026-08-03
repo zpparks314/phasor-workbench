@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 256" role="img" aria-labelledby="title desc">
+  <title id="title">Phasor Workbench horizontal logo</title><desc id="desc">Phasor icon with the words Phasor Workbench.</desc>
+  <defs><linearGradient id="a" x1="0" y1="1" x2="1" y2="0"><stop stop-color="#4F8BFF"/><stop offset="1" stop-color="#8C5CFF"/></linearGradient></defs>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M48 224V53C94 14 171 24 207 80" stroke="#F5F7FA" stroke-width="12"/>
+    <path d="M82 52C126 72 159 118 160 169C161 198 149 218 132 224M107 38C74 66 68 121 83 155C101 195 162 193 204 163" stroke="url(#a)" stroke-width="4"/>
+    <path d="M198 100C219 149 197 210 143 222C111 229 83 219 68 208" stroke="url(#a)" stroke-width="8"/>
+    <path d="M69 166L207 72" stroke="url(#a)" stroke-width="10"/><path d="M187 70L224 57L213 95Z" fill="#6F79FF" stroke="none"/>
+  </g><circle cx="69" cy="166" r="12" fill="#F5F7FA"/>
+  <g fill="#F5F7FA" font-family="'Space Grotesk', Arial, sans-serif" font-size="62" font-weight="400" letter-spacing="13"><text x="275" y="133">PHASOR</text></g>
+  <g fill="#6878FF" font-family="'Space Grotesk', Arial, sans-serif" font-size="25" font-weight="700" letter-spacing="12"><text x="278" y="178">WORKBENCH</text></g>
+</svg>

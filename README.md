@@ -1,5 +1,8 @@
 <p align="center">
-  <img src="phasor_workbench_logo.png" alt="Phasor Workbench" width="180">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/phasor-horizontal-dark.svg">
+    <img src="assets/phasor-horizontal-light.svg" alt="Phasor Workbench" width="320">
+  </picture>
 </p>
 
 # Phasor Workbench
