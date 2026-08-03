@@ -478,16 +478,15 @@ do it *before* starting was left here.
 * [ ] The `?` shortcut reference exists and is derived from the same source the
   editor binds its keys from, so it cannot drift from behaviour. It is currently
   the one row in `UI.md`'s shortcut table with nothing behind it.
-* [ ] `README.md` describes the application that exists. It currently announces
-  "**Project status: building the circuit model**", says there is no editor, no
-  validation and no simulation, reports 256 backend tests and `/health` as the
-  only endpoint, calls `UI.md` deferred and `API.md` and `Simulation.md` drafts,
-  and repeats the expired Qiskit-3.14-wheels claim. All of that was true two
-  milestones ago. It is the repository's front page, so it is the one document
-  whose staleness is publicly visible, and a newcomer must be able to install,
-  run and test both projects from it alone — `.claude/CLAUDE.md` is an agent's
-  file, not a contributor's. The *Current Status* table is also structurally
-  broken: four rows sit below the prose that closes it.
+* [x] `README.md` describes the application that exists, and a newcomer can
+  install, run and test both projects from it alone — `.claude/CLAUDE.md` is an
+  agent's file, not a contributor's. **Done 2026-08-02.** It had announced
+  "building the circuit model" with no editor, no validation and no simulation,
+  reported 256 backend tests and `/health` as the only endpoint, called `UI.md`
+  deferred and `API.md` and `Simulation.md` drafts, repeated the expired
+  Qiskit-3.14-wheels claim, and carried a *Current Status* table with four rows
+  stranded below the prose that closed it. Rewritten for a human reader first:
+  what works today in concrete terms, then status, then setup.
 * [ ] Both Dockerfiles gain a `production` target, additively as they were built
   for, and the deployed application loads in a browser.
 * [ ] **The canvas grid has been driven with a real screen reader**, and what it
@@ -547,13 +546,13 @@ need an import path to be written in anything but hand-authored JSON. Deployment
 last, since it consumes the Dockerfiles and should not be built against a moving
 target.
 
-**One exception, found on 2026-08-02: `README.md` should be fixed early rather
-than with the rest of *Documentation*.** Every other stale document is read by
-someone who has already cloned the repository; this one is the front page, and
-it currently tells a visitor the project has no editor and no simulation. It is
-also the only Milestone 5 task that costs nothing to do now — it depends on
-none of the others, and leaving it until the end means the milestone's most
-visible artifact is wrong for the whole of it.
+**`README.md` was pulled ahead of the rest of *Documentation* and is done**, for
+a reason worth keeping: every other stale document is read by someone who has
+already cloned the repository, while that one is the front page. It depended on
+none of the other tasks, so leaving it until the end would have meant the
+milestone's most visible artifact was wrong for the whole of it. The rest of
+*Documentation* — chiefly whatever import/export and deployment add — still
+belongs at the end, where it can describe what actually shipped.
 
 **Two things already prepared for this milestone.** Both Dockerfiles are
 multi-stage, so adding a `production` target is additive rather than a rewrite.
