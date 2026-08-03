@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { readCircuitFile } from '../files';
 import type { Circuit } from '../model/circuit';
 import { insertOperation } from '../state/edits';
 import { barrier, circuitWith, gate, measurement } from '../state/testCircuits';
@@ -1539,5 +1540,133 @@ describe('cycle labels', () => {
     expect(toggle()).toHaveAttribute('aria-disabled', 'true');
     expect(toggle()).not.toBeChecked();
     expect(labels()).toEqual([]);
+  });
+});
+
+/**
+ * Import and export, end to end through the real files module.
+ *
+ * jsdom implements neither `Blob.text` nor `URL.createObjectURL`, so both are
+ * stood up here. Same bound as `files/files.test.ts`: this asserts the editor's
+ * wiring, not that a browser can read a file or start a download.
+ *
+ * The picker itself cannot be driven -- clicking Import opens an OS dialog that
+ * does not exist in jsdom -- so the two halves are tested separately: that the
+ * button reaches the input, and that a chosen file lands in the circuit.
+ */
+describe('importing and exporting', () => {
+  const fileContaining = (text: string, name: string): File => {
+    const file = new File([text], name);
+    Object.defineProperty(file, 'text', { value: () => Promise.resolve(text) });
+    return file;
+  };
+
+  const picker = (): HTMLInputElement => {
+    const input = document.querySelector<HTMLInputElement>('input[type=file]');
+    if (input === null) throw new Error('the editor rendered no file input');
+    return input;
+  };
+
+  /** Stand in for the user having chosen a file in the OS dialog. */
+  const choose = (file: File): void => {
+    Object.defineProperty(picker(), 'files', {
+      value: [file],
+      configurable: true,
+    });
+    fireEvent.change(picker());
+  };
+
+  const withGate = (): Circuit =>
+    insertOperation(circuitWith(2), gate('op_h', 'h', ['q_0']), 0);
+
+  it('opens the picker when Import is pressed', () => {
+    open();
+    const click = vi
+      .spyOn(picker(), 'click')
+      .mockImplementation(() => undefined);
+
+    fireEvent.click(screen.getByRole('button', { name: /^Import a circuit/ }));
+
+    expect(click).toHaveBeenCalledOnce();
+    click.mockRestore();
+  });
+
+  it('hands the circuit to the browser when Export is pressed', () => {
+    for (const name of ['createObjectURL', 'revokeObjectURL']) {
+      Object.defineProperty(URL, name, {
+        value: () => 'blob:test',
+        writable: true,
+        configurable: true,
+      });
+    }
+    const click = vi
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(() => undefined);
+
+    open(circuitWith(2));
+    fireEvent.click(screen.getByRole('button', { name: /^Export circuit/ }));
+
+    expect(click).toHaveBeenCalledOnce();
+    click.mockRestore();
+  });
+
+  it('replaces the circuit with the one in the file', async () => {
+    open(circuitWith(3));
+
+    choose(fileContaining(JSON.stringify(withGate()), 'bell.json'));
+
+    expect(
+      await screen.findByRole('gridcell', { name: 'q0, cycle 0, h' }),
+    ).toBeInTheDocument();
+    // The imported circuit has two wires; the one it replaced had three.
+    expect(screen.getAllByRole('row')).toHaveLength(2);
+  });
+
+  it('is one undo step, and names the file it came from', async () => {
+    const editor = open(circuitWith(3));
+
+    choose(fileContaining(JSON.stringify(withGate()), 'bell.json'));
+    await screen.findByRole('gridcell', { name: 'q0, cycle 0, h' });
+
+    expect(
+      screen.getByRole('button', { name: 'Undo import bell.json' }),
+    ).toBeInTheDocument();
+
+    editor.undo();
+
+    expect(
+      screen.queryByRole('gridcell', { name: 'q0, cycle 0, h' }),
+    ).toBeNull();
+    expect(screen.getAllByRole('row')).toHaveLength(3);
+  });
+
+  it('reports a file that is not JSON and leaves the circuit alone', async () => {
+    const editor = open(withGate());
+
+    choose(fileContaining('OPENQASM 3.0;', 'broken.qasm'));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent(/Could not import broken\.qasm/);
+    expect(alert).toHaveTextContent(/circuit on the canvas is unchanged/);
+    expect(editor.cell('q0, cycle 0, h')).toBeInTheDocument();
+  });
+
+  it('reports every reason a document was refused, not just the first', async () => {
+    open(circuitWith(2));
+    const document = JSON.stringify({ schemaVersion: '0.1.0' });
+
+    choose(fileContaining(document, 'bad.json'));
+
+    // Asserted against the module rather than a sentence count, and the guard
+    // above it keeps the loop from passing on a single violation.
+    const outcome = readCircuitFile(document);
+    expect(outcome.ok).toBe(false);
+    if (outcome.ok) return;
+    expect(outcome.violations.length).toBeGreaterThan(1);
+
+    const alert = await screen.findByRole('alert');
+    for (const violation of outcome.violations) {
+      expect(alert).toHaveTextContent(violation.message);
+    }
   });
 });

@@ -102,6 +102,7 @@ frontend/
 │   ├── cycles/         Cycle derivation                  (Milestone 2)
 │   ├── serialization/  Versioned load and dump           (Milestone 3)
 │   ├── persistence/    Local storage adapter             (Milestone 3)
+│   ├── files/          File import and export adapter    (Milestone 5)
 │   ├── state/          Circuit state, edits, undo/redo   (Milestone 3)
 │   ├── components/     Shared presentational components  (Milestone 3)
 │   ├── editor/         Circuit editor, SVG rendering     (Milestone 3)
@@ -184,6 +185,22 @@ recorded rather than left to look like oversights:
 * **`src/persistence/`** — the `localStorage` adapter, and the only module
   permitted to touch browser storage, on the same principle that confines `fetch`
   to `src/api/`.
+* **`src/files/`** *(Milestone 5)* — the file adapter: download and file input
+  over the same `serialization/` core. The backend has no counterpart because
+  the browser is where files meet a user; a QASM endpoint is a different
+  concern and lives in `api/routes/`.
+
+`persistence/` and `files/` are deliberately two modules rather than one. They
+share a core and nothing else: one holds the working set and answers to quota and
+private browsing, the other moves documents in and out and answers to whatever a
+stranger's build wrote. `ProjectStructure.md`'s rule against expanding a module
+beyond its scope is what kept them apart, and `persistence/`'s own docstring had
+already named files as someone else's job.
+
+**The storage-boundary test is a substring scan**, so a source file that merely
+*names* the browser storage API in a comment fails it, wherever it lives.
+`src/files/` tripped it on the way in with a docstring. The false positive is
+kept on purpose — see the note in `persistence.test.ts`.
 
 ## Inside `src/editor/`
 

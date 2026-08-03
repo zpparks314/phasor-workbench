@@ -31,7 +31,7 @@ this document says what the user sees and ADR-0007 says what the code does.
 
 ```text
 ┌──────────────────────────────────────────────────────────────┐
-│  Header      undo · redo · clear · save · save status        │
+│  Header   undo · redo · clear · save · export · import · status │
 ├───────────┬──────────────────────────────────────┬───────────┤
 │           │                                      │           │
 │           │  Structure · View                    │ Inspector │
@@ -873,8 +873,50 @@ an unavailable message carrying the backend's own code rather than a transport
 status, and a statevector refused for size says so specifically. Neither empties
 the canvas: the circuit is local and stays editable while the backend is down.
 
-That leaves **import failure** as the one entry in this list with no
-implementation, which is Milestone 5's error-handling task.
+## Files
+
+Added 2026-08-02, filling the *import/export affordances* this document deferred
+to Milestone 5. `localStorage` is the working set; a file is how a circuit leaves
+this browser and comes back — the split [ADR-0008](decisions/ADR0008_LocalPersistence.md)
+drew.
+
+**Export and Import sit in the header**, beside Save, because the region diagram
+puts circuit-wide actions there and a file action is one. Export downloads
+immediately: the circuit's name becomes the filename, lowercased and hyphenated,
+falling back to `circuit.json` when there is no usable name. There is no dialog,
+because there is no decision to collect — the browser already owns where
+downloads land.
+
+**Import replaces the entire circuit, in one undo step.** That is destructive,
+and it deliberately does *not* get Clear's two-press confirmation. The two are
+not alike: Clear is a single press that destroys work with nothing in between,
+while Import puts a file picker in the way — a deliberate act, cancellable, that
+ends with the user naming a specific file. A second confirmation after that reads
+as distrust rather than care. What makes this safe is the undo step: one
+`Ctrl/Cmd + Z` brings the previous circuit back, with the label naming the file
+that displaced it.
+
+**A file that cannot be read does not touch the circuit.** The editor keeps what
+it has and reports the failure as a persistent, non-blocking alert in the header,
+naming the reason — the same treatment a failed save gets, and for the same
+reason: silence would leave someone believing an import worked.
+
+**Import violations do not go to the problems strip.** The strip lists what is
+wrong with *the circuit on the canvas*, and selecting an entry focuses the
+operation it names. A rejected file has no operations on the canvas to focus, and
+its paths point into a document that was never loaded. Two different kinds of
+wrong should not share a surface.
+
+**A newer-minor file imports with the same warning a newer-minor stored document
+gets**, before the first edit, for the reason given under *Opening*. Import is
+where ADR-0008 expected this to become common, since a file is the one document
+likely to have been written by someone else's build.
+
+**No new keyboard accelerator.** The header is a toolbar with a roving focus, so
+both controls are already reachable by keyboard, and `Ctrl/Cmd + O` is spoken for
+by the browser in most of them. The full shortcut map — including whether file
+actions deserve accelerators at all — is its own Milestone 5 task, and this
+declines to pre-empt it.
 
 ---
 
@@ -921,10 +963,14 @@ was the point of deferring it. See *The Results Panel*. State visualization
 proper (Bloch spheres, amplitude phase, evolution over time) stays deferred to
 *Educational Visualizations*.
 
-**To Milestone 5.** Responsive and small-screen layout, the full shortcut map
-beyond the editor, and import/export affordances. `Roadmap.md` places responsive
-layout in Milestone 5; the three-column grid is built so that collapsing it is a
-change to the grid rather than to the components.
+**To Milestone 5.** Responsive and small-screen layout, and the full shortcut map
+beyond the editor. `Roadmap.md` places responsive layout in Milestone 5; the
+three-column grid is built so that collapsing it is a change to the grid rather
+than to the components.
+
+**~~Import/export affordances.~~ Built** for JSON — see *Files*. OpenQASM reuses
+the same two controls rather than adding a second pair, since the affordance is
+"a circuit goes out, a circuit comes in" and the format is a detail of the file.
 
 **Multi-select**, for the reason given under *Selection*.
 
