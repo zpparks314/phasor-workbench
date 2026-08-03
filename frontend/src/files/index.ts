@@ -38,6 +38,8 @@
  * thin enough to read.
  */
 
+import { ApiError } from '../api/client';
+import { importQasm } from '../api/qasm';
 import type { Circuit } from '../model/circuit';
 import { dumpCircuit, loadCircuit } from '../serialization';
 import type { Violation } from '../validation/violations';
@@ -49,7 +51,15 @@ export interface CircuitFile {
   readonly type: string;
 }
 
-export type ImportOutcome =
+/**
+ * What reading a circuit document can produce.
+ *
+ * Narrower than `ImportOutcome` on purpose: a document is read in this process,
+ * so "nothing answered" is not among its possible endings. Typing it that way
+ * means a caller of `readCircuitFile` never has to rule out a case that cannot
+ * happen.
+ */
+export type DocumentOutcome =
   | {
       readonly ok: true;
       readonly circuit: Circuit;
@@ -61,6 +71,20 @@ export type ImportOutcome =
       readonly reason: 'unreadable';
       /** Every reason the file could not be read, not just the first. */
       readonly violations: readonly Violation[];
+    };
+
+export type ImportOutcome =
+  | DocumentOutcome
+  /**
+   * The file may be perfectly good; nothing could read it. Only OpenQASM
+   * reaches this, since JSON is read locally -- and it is a separate outcome
+   * because telling someone their file is wrong when the backend is merely
+   * down would send them off to fix nothing.
+   */
+  | {
+      readonly ok: false;
+      readonly reason: 'unreachable';
+      readonly message: string;
     };
 
 const FALLBACK_NAME = 'circuit';
@@ -87,7 +111,7 @@ export function circuitFile(circuit: Circuit): CircuitFile {
  * a transport problem rather than a circuit problem, but it reaches the user the
  * same way, as something that could not be read.
  */
-export function readCircuitFile(text: string): ImportOutcome {
+export function readCircuitFile(text: string): DocumentOutcome {
   let document: unknown;
 
   try {
@@ -158,7 +182,90 @@ export function downloadCircuit(
   }, 0);
 }
 
-/** Read a circuit from a file the user chose. */
+/**
+ * Does this text look like OpenQASM rather than a circuit document?
+ *
+ * **The content decides, not the extension.** A file's name is whatever the
+ * user or their last tool called it, and a `.txt` full of OpenQASM is still
+ * OpenQASM; routing on the extension would refuse it with a JSON parse error
+ * that says nothing useful. The grammar requires `OPENQASM` as the first
+ * statement, so the first non-comment, non-blank line is enough to tell.
+ */
+export function looksLikeQasm(text: string): boolean {
+  for (const line of text.split('\n')) {
+    const trimmed = line.trim();
+    if (trimmed === '' || trimmed.startsWith('//')) continue;
+    return trimmed.startsWith('OPENQASM');
+  }
+
+  return false;
+}
+
+/**
+ * Read a circuit from a file the user chose, in whichever format it is.
+ *
+ * One entry point for both formats, because the caller's question is "give me
+ * the circuit in this file" and which grammar it happens to use is this
+ * module's problem. JSON is read here; OpenQASM goes to the backend, which is
+ * where `Architecture.md` puts format conversion and where the parser lives.
+ */
 export async function importCircuitFile(file: File): Promise<ImportOutcome> {
-  return readCircuitFile(await file.text());
+  const text = await file.text();
+
+  return looksLikeQasm(text) ? importQasmText(text) : readCircuitFile(text);
+}
+
+async function importQasmText(source: string): Promise<ImportOutcome> {
+  try {
+    return { ok: true, circuit: await importQasm(source), warnings: [] };
+  } catch (error) {
+    if (!(error instanceof ApiError)) {
+      return {
+        ok: false,
+        reason: 'unreachable',
+        message: 'OpenQASM import failed unexpectedly.',
+      };
+    }
+
+    /**
+     * `isUserFacing` is deliberately not consulted.
+     *
+     * It answers "is the user's *circuit* at fault", which is the right
+     * question for the analysis and simulation endpoints and the wrong one
+     * here: import returns `REQUEST_MALFORMED` when the user's *file* cannot be
+     * read, and that is as user-facing as a failure gets. docs/API.md records
+     * the same distinction for the status codes.
+     */
+    if (error.code === 'BACKEND_UNAVAILABLE') {
+      /**
+       * Worded here rather than passed through, because the client's generic
+       * "Could not reach the backend" leaves out the only part the user does
+       * not already know: that opening a *file* involved a backend at all.
+       * JSON never does, so this is genuinely surprising the first time.
+       */
+      return {
+        ok: false,
+        reason: 'unreachable',
+        message:
+          'OpenQASM is read by the backend, and it could not be reached. ' +
+          'The file itself may be fine.',
+      };
+    }
+
+    return {
+      ok: false,
+      reason: 'unreadable',
+      // The backend already reported every problem it found, each with a line
+      // and column in `path`. Re-deriving or summarising them here would be a
+      // second vocabulary for facts the parser already stated precisely.
+      violations: error.details.map((detail) => ({
+        code: detail.code as Violation['code'],
+        message:
+          detail.path === undefined
+            ? detail.message
+            : `${detail.message} (${detail.path})`,
+        path: '',
+      })),
+    };
+  }
 }

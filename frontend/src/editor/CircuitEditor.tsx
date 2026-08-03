@@ -217,10 +217,16 @@ export function CircuitEditor({
     const outcome = await importCircuitFile(file);
 
     if (!outcome.ok) {
+      // Two failures with different remedies. A file that cannot be read needs
+      // the user to change the file; a backend that cannot be reached needs
+      // nothing from them at all, and saying "could not import" for both would
+      // send them to fix something that is not broken.
       setImportError(
-        `Could not import ${file.name}: ${outcome.violations
-          .map((violation) => violation.message)
-          .join(' ')}`,
+        outcome.reason === 'unreachable'
+          ? `Could not import ${file.name}: ${outcome.message}`
+          : `Could not import ${file.name}: ${outcome.violations
+              .map((violation) => violation.message)
+              .join(' ')}`,
       );
       return;
     }

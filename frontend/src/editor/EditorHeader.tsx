@@ -254,8 +254,8 @@ export function EditorHeader({
         ref={register('import')}
         type="button"
         tabIndex={tabbableKey === 'import' ? 0 : -1}
-        aria-label="Import a circuit from a JSON file, replacing this one"
-        title="Import a circuit from a JSON file, replacing this one"
+        aria-label="Import a circuit from a JSON or OpenQASM file, replacing this one"
+        title="Import a circuit from a JSON or OpenQASM file, replacing this one"
         onFocus={focus('import')}
         onClick={() => picker.current?.click()}
         className={BUTTON}
@@ -266,7 +266,9 @@ export function EditorHeader({
       <input
         ref={picker}
         type="file"
-        accept="application/json,.json"
+        // A hint for the picker, not a gate: `files/` routes on content, so a
+        // QASM program in a differently-named file still imports.
+        accept="application/json,.json,.qasm"
         hidden
         onChange={(event) => {
           const file = event.target.files?.[0];
