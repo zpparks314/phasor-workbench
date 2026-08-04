@@ -488,7 +488,7 @@ do it *before* starting was left here.
   editor binds its keys from, so it cannot drift from behaviour. It is currently
   the one row in `UI.md`'s shortcut table with nothing behind it.
 * [x] `README.md` describes the application that exists, and a newcomer can
-  install, run and test both projects from it alone — `.claude/CLAUDE.md` is an
+  install, run and test both projects from it alone — `AGENTS.md` is an
   agent's file, not a contributor's. **Done 2026-08-02.** It had announced
   "building the circuit model" with no editor, no validation and no simulation,
   reported 256 backend tests and `/health` as the only endpoint, called `UI.md`
@@ -747,7 +747,7 @@ the only item here that would have caught it.
 
 Before making changes:
 
-1. Read `CLAUDE.md`.
+1. Read `AGENTS.md`.
 2. Read `architecture.md`.
 3. Read this roadmap.
 4. Identify the active milestone.

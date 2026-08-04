@@ -16,6 +16,7 @@ phasor-workbench/
 ├── docs/        Project documentation
 ├── assets/      Brand artwork for the repository, not the application
 ├── README.md, LICENSE, NOTICE
+├── AGENTS.md    Instructions for AI coding agents
 ├── compose.yaml
 ├── .editorconfig, .gitattributes
 └── .gitignore
@@ -24,6 +25,15 @@ phasor-workbench/
 The four code directories map directly onto the module organization in
 Architecture.md. Nothing lives at the top level that belongs inside one of
 them.
+
+**`AGENTS.md` is at the root because the convention puts it there**, and a
+convention observed anywhere else is not one — the agents that look for it look
+for that path. It holds the instructions for AI coding agents, and it is the file
+to edit. `.claude/CLAUDE.md` is a pointer that imports it, because Claude Code
+reads `CLAUDE.md` and not `AGENTS.md`; the alternative was a second copy, and the
+copy that drifted would have been the one nobody was reading. Anything true of
+every agent goes in `AGENTS.md`, and only Claude Code-specific instructions
+belong below the import.
 
 **`assets/` was added on 2026-08-02**, and the tree above was corrected at the
 same time — it had listed only two dotfiles while the root actually held six

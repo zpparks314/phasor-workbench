@@ -72,7 +72,7 @@ discriminated union.
 
 Without this, Pydantic falls back to attempting every branch and reports that
 none matched, rather than reporting that `kind: "gate"` requires `name`. That
-directly violates the informative-error-messages rule in `CLAUDE.md`. Verifying
+directly violates the informative-error-messages rule in `AGENTS.md`. Verifying
 the generated union on both sides is the first task of the milestone, before
 anything is built on top of it.
 
