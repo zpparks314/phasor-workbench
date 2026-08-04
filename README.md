@@ -62,6 +62,13 @@ operation that's wrong, in a problems strip that clears as you fix things.
 
 **Keep your work.** Circuits save to local storage and survive a refresh.
 
+**Open and save files.** One Import control takes either a JSON circuit or an
+OpenQASM 2.0 program, and the *content* decides which — a mis-named `.txt`
+holding QASM still opens, because routing on the extension would refuse it with a
+JSON parse error that explains nothing. Export writes JSON. Import is held to
+exactly the validation a refresh applies, so a document a reload would reject is
+rejected here too, with its reasons named.
+
 **Watch the state follow your edits.** The final state vector updates as you
 build, alongside gate count, circuit depth, and labelled cycles so you can check
 the depth against the circuit in front of you.
@@ -71,9 +78,16 @@ probabilities.
 
 ### Not Yet
 
-Import and export (OpenQASM and JSON), a library of example circuits, responsive
-layout for small screens, and a public deployment. All are in progress — see the
+**OpenQASM export**, a library of example circuits, responsive layout for small
+screens, and a public deployment are the rest of Milestone 5 — see the
 [Roadmap](docs/Roadmap.md).
+
+Two honest limits on QASM import today. Most Qiskit-*exported* QASM 2 is refused:
+`qelib1.inc` declares `u3`, `u2`, `u0`, `ch`, `crz`, `cu1`, `cu3` and `cswap`,
+none of which this gate set represents, and guessing at a decomposition would
+hand back a circuit you didn't write. And QASM is parsed by the backend rather
+than in the browser, so importing one is the only file operation that can fail
+because nothing answered — it says so rather than blaming the file.
 
 Educational visualizations — Bloch spheres, amplitude phase, state evolution over
 time — are deliberately deferred until after the first release.
@@ -92,18 +106,19 @@ progress.**
 | Circuit editor | Built — placement, movement, undo, validation, local save |
 | Simulation | Built — state vector and sampling, Qiskit behind a swappable seam |
 | Analysis | Built — gate counts, depth, cycle decomposition |
-| Import / export | **Not started** — Milestone 5 |
+| Import / export | Built — JSON both ways, OpenQASM 2.0 in; QASM export not started |
 | Example circuits | **Not started** — Milestone 5 |
 | Deployment | **Not started** — Milestone 5 |
-| Tests | 728 frontend, 327 backend, 51 cross-language fixtures |
+| Tests | 809 frontend, 391 backend, 51 cross-language fixtures |
 | CI | Lint, format, types, tests, build, and binding freshness on every push |
 
-The HTTP API is four endpoints:
+The HTTP API is five endpoints:
 
 | Endpoint | Does |
 |---|---|
 | `GET /api/v1/health` | Liveness |
 | `POST /api/v1/circuits/analyze` | Gate counts, depth, cycle decomposition |
+| `POST /api/v1/circuits/import/qasm` | Parses OpenQASM 2.0 into a circuit |
 | `POST /api/v1/simulations/statevector` | Final state vector |
 | `POST /api/v1/simulations/sample` | Sampled measurement outcomes |
 
