@@ -24,7 +24,7 @@ The backend is **Python + FastAPI + Pydantic**, with Qiskit as the first simulat
 
 ## Dependency Placement
 
-Qiskit and NumPy are **not** core backend dependencies. They are isolated in an optional `simulation` extra in `backend/pyproject.toml`, because nothing before Milestone 4 uses them and `CLAUDE.md` directs the project to minimize dependencies.
+Qiskit and NumPy are **not** core backend dependencies. They are isolated in an optional `simulation` extra in `backend/pyproject.toml`, because nothing before Milestone 4 uses them and `AGENTS.md` directs the project to minimize dependencies.
 
 That is the whole reason, and it is worth stating because it briefly had a second one. This section used to record a live constraint — Qiskit published no Python 3.14 wheels — and asked that the target interpreter be confirmed before Milestone 4 began. It was, on 2026-08-02, and the constraint had lapsed: Qiskit 2.x ships `cp310-abi3` wheels, which serve every CPython from 3.10 up, so the extra installs on 3.11 through 3.14 and no interpreter is special. See `docs/Roadmap.md` under *Decisions Made*.
 

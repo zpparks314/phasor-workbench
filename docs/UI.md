@@ -263,7 +263,7 @@ ASAP packing pulls it left onto whatever cycle its resources allow. Dropping an
 
 **This is correct, and it must be shown rather than hidden.** The gate animates
 from the drop position to its derived position. That animation is the one place in
-Milestone 3 where motion is doing the job `CLAUDE.md` requires of it — it teaches
+Milestone 3 where motion is doing the job `AGENTS.md` requires of it — it teaches
 that position is a consequence of dependencies, not a coordinate the user set.
 Suppressing it, or snapping instantly, would leave the user believing the editor
 moved their gate for no reason.
@@ -846,7 +846,7 @@ harmless, and a disabled control would claim there is nothing worth saving.
 Local storage can be unavailable or full, and both must surface. A failed save
 shows a persistent, non-blocking banner naming the cause and stating that the
 circuit is still in memory. Silence would let a user close the tab believing their
-work was safe, and `CLAUDE.md` forbids swallowing the error regardless.
+work was safe, and `AGENTS.md` forbids swallowing the error regardless.
 
 ## Opening
 

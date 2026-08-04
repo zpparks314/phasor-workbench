@@ -292,9 +292,11 @@ you're touching.
 disagrees with anything else, the topic document wins on behaviour and the
 Roadmap wins on status.
 
-`.claude/CLAUDE.md` is written for AI coding agents working in this repository.
-It's not required reading for humans, though it does collect a number of
-hard-won environment quirks.
+[`AGENTS.md`](AGENTS.md) is written for AI coding agents working in this
+repository, in the cross-tool convention so one file serves all of them.
+`.claude/CLAUDE.md` imports it, because Claude Code reads that name instead. It's
+not required reading for humans, though it does collect a number of hard-won
+environment quirks.
 
 ---
 

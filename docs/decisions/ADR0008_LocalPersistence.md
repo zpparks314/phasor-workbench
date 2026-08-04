@@ -142,7 +142,7 @@ an unknown field is an error, not a stashable extra —
 our version alongside fields we do not understand would produce a document *this
 build itself* rejects on the next load.
 
-The dropped data is real, so it is surfaced rather than swallowed, per `CLAUDE.md`.
+The dropped data is real, so it is surfaced rather than swallowed, per `AGENTS.md`.
 `dump_circuit` already does exactly the right thing and already documents itself as
 being for "a circuit this build authored"; the decision here is that an edited
 circuit *is* one.

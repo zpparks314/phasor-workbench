@@ -3,7 +3,7 @@
 # so adding a `production` target later is additive rather than a rewrite.
 #
 # This supplements native development, it does not replace it. The venv and
-# npm workflow in .claude/CLAUDE.md remains fully supported, and CI runs
+# npm workflow in AGENTS.md remains fully supported, and CI runs
 # natively.
 
 name: phasor-workbench

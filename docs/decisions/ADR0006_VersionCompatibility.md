@@ -53,7 +53,7 @@ useful sense.
 Separately, and in the same area: **`Metadata` is the only object in the schema
 without `additionalProperties: false`**, so Pydantic's default silently discards
 unknown metadata keys. That contradicts the round-trip rule in `CircuitModel.md`
-and the never-silently-ignore rule in `CLAUDE.md`, and it is the one place where
+and the never-silently-ignore rule in `AGENTS.md`, and it is the one place where
 data disappears without an error.
 
 ## Decision

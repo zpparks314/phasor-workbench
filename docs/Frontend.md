@@ -50,7 +50,7 @@ Letting a library own positions would create precisely the duplicated state
 
 Secondary reasons:
 
-* `CLAUDE.md` directs the project to avoid unnecessary frameworks
+* `AGENTS.md` directs the project to avoid unnecessary frameworks
 * the educational visualizations — Bloch spheres, amplitude bars, annotations
   — need direct drawing control anyway
 * SVG is accessible, styleable with Tailwind, and prints cleanly
@@ -108,7 +108,7 @@ timing.
 Its core imports nothing from React — the React binding is a thin adapter over it.
 That is what makes the undo property test in the Milestone 3 exit criteria
 possible without a DOM, and it keeps the module replaceable in the sense
-`CLAUDE.md` requires of every subsystem.
+`AGENTS.md` requires of every subsystem.
 
 **`state/` has no backend counterpart, and that is deliberate.** `validation/`,
 `cycles/`, and `serialization/` mirror backend modules because both sides need

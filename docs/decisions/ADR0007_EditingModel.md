@@ -192,7 +192,7 @@ choice where those three point the same way.
 arrays by spread, unchanged operation objects are shared by reference across
 entries; retained memory is proportional to what each edit changed, not to depth
 times circuit size. At Milestone 3 scale a hundred entries is negligible.
-`CLAUDE.md` forbids optimizing before measuring, and a command model is the
+`AGENTS.md` forbids optimizing before measuring, and a command model is the
 optimization here.
 
 **Timing-based coalescing is the tempting shortcut and it is wrong for a teaching
@@ -237,7 +237,7 @@ adopted, minus the commands. Once snapshots do the restoring, the only thing the
 command layer contributes is a description string, and a string is a string.
 
 **Immer or a similar immutability library.** It would make edits read like
-mutations and guarantee structural sharing. Declined under `CLAUDE.md`'s
+mutations and guarantee structural sharing. Declined under `AGENTS.md`'s
 instruction to minimize dependencies: spread-based updates over a model this
 shallow are already readable, and the sharing comes for free. Worth revisiting
 only if edit implementations become hard to read, which is a measurable trigger

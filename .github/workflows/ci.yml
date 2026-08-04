@@ -57,7 +57,7 @@ jobs:
       - name: Lint
         run: ruff check .
 
-      # --check, not the bare `ruff format` in CLAUDE.md, which rewrites files.
+      # --check, not the bare `ruff format` in AGENTS.md, which rewrites files.
       - name: Format
         run: ruff format --check .
 
@@ -115,7 +115,7 @@ jobs:
   # someone runs `docker compose up`.
   #
   # Plain `docker build` rather than a third-party build action: the runner
-  # already has Docker, and CLAUDE.md asks for dependencies to be minimised.
+  # already has Docker, and AGENTS.md asks for dependencies to be minimised.
   # Images are built, not run -- verifying the dev experience itself needs a
   # human at a machine.
   images:

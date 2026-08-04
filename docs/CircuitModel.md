@@ -398,7 +398,7 @@ Tolerance is gated on the version claim deliberately. A document declaring *this
 version with an unknown field is a typo or a bug, and reporting it is correct.
 
 Migrations are one-way, explicit, and individually tested. Silent coercion is not
-acceptable — see the error handling rules in `CLAUDE.md`.
+acceptable — see the error handling rules in `AGENTS.md`.
 
 The cycle derivation is not versioned by `schemaVersion`, because it is not
 stored. A change to the derivation changes every consumer's reading of every
