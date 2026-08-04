@@ -391,7 +391,7 @@ class Parser:
 
         if gate is None:
             # The spec's code, not a literal: this is the same fact the model
-            # already names, and CLAUDE.md keeps codes coming from one place.
+            # already names, and AGENTS.md keeps codes coming from one place.
             self.record(
                 ViolationCode.UNKNOWN_GATE_NAME,
                 f"{name.text!r} is not a gate this build can represent.",

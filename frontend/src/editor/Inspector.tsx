@@ -157,7 +157,7 @@ function Properties({
  * Two controls rather than one because they answer different questions. The
  * number is how you say *exactly* 0.7853981633974483; the slider is how you find
  * out what the gate does as the angle sweeps, which is the understanding-first
- * goal in CLAUDE.md rather than decoration. A slider drag coalesces into a
+ * goal in AGENTS.md rather than decoration. A slider drag coalesces into a
  * single undo step, so exploring an angle does not fill the history with a
  * hundred entries -- the mechanism is ADR-0007's and already carries gate drags.
  *

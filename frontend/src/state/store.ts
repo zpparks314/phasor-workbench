@@ -5,7 +5,7 @@
  * reads. Nothing here imports React -- `subscribe` and `getState` are shaped for
  * `useSyncExternalStore`, and the React binding is a thin adapter written
  * separately. That is what makes this module testable without a DOM, and
- * replaceable in the sense CLAUDE.md requires of every subsystem.
+ * replaceable in the sense AGENTS.md requires of every subsystem.
  *
  * `apply` takes an edit *function* rather than a named command, so adding an edit
  * to the vocabulary in `./edits` needs no change here. That is the extensibility
