@@ -428,7 +428,11 @@ Prepare the project for public deployment.
 
 ### Tasks
 
-* [ ] Responsive layout
+* [ ] Responsive layout — and with it, the header as a whole. Export landed
+  as two buttons rather than a format picker, taking the header to seven
+  controls; whether that survives a narrow screen is a question for this
+  task, which is the first place the real constraint appears. See *Files*
+  in `UI.md` for what was already weighed
 * [ ] Error handling
 * [ ] Keyboard shortcuts
 * [x] OpenQASM import — `importers/qasm/`,

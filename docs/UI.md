@@ -898,11 +898,20 @@ it is and a picker would only make the user restate it.
 
 *Export* has no such evidence. Nothing about a circuit on the canvas says which
 format the user wants out of it, so the choice is genuinely theirs, and the two
-honest ways to collect it are a second button or a menu on the first. A menu
-hides one format behind an extra press and brings the whole `role="menu"`
+honest ways to collect it are a second button or a menu on the first. A *custom
+menu* hides one format behind an extra press and brings the whole `role="menu"`
 keyboard pattern with it — focus trapping, `Escape`, arrow semantics distinct
 from the toolbar's own — to place two items. Two buttons cost one more roving
 stop and nothing else.
+
+A native `<select>`, as the inspector already uses for a classical register,
+would be cheaper than that custom menu and is the honest third option: keyboard
+and screen-reader support arrive with the element. It was weighed and **deferred
+to the responsive-layout task rather than declined**. For exactly two formats it
+wins nothing — a select plus a button is two tab stops, the same as two buttons,
+and costs an extra interaction per export — and no third export format is
+planned. What it would buy is a shorter header, and the header's width only
+becomes a constraint on a small screen, which is where that decision belongs.
 
 **Only OpenQASM export can fail.** JSON is written in this browser; OpenQASM is
 written by the backend, which `Architecture.md` makes the owner of format
