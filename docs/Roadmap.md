@@ -434,7 +434,9 @@ Prepare the project for public deployment.
 * [x] OpenQASM import — `importers/qasm/`,
   `POST /api/v1/circuits/import/qasm`, and the frontend routing through the
   same Import control JSON uses
-* [ ] OpenQASM export
+* [x] OpenQASM export — `exporters/qasm.py` and
+  `POST /api/v1/circuits/export/qasm`, with its own header control beside the
+  JSON one
 * [x] JSON import/export — `frontend/src/files/`, the file adapter beside
   `persistence/`'s storage one
 * [ ] Example circuits
@@ -456,10 +458,15 @@ do it *before* starting was left here.
   `outcome`. **Done 2026-08-02** in `frontend/src/files/`, which also asserts
   import agrees with `loadCircuit` case by case rather than only in verdict, and
   round-trips all 5 `valid/` fixtures.
-* [ ] Every circuit in `shared/fixtures/valid/` exports to OpenQASM and
+* [x] Every circuit in `shared/fixtures/valid/` exports to OpenQASM and
   re-imports with the same operation sequence and the same `deriveCycles`
   output. Identifiers may differ — ADR-0002 makes them arbitrary — so equality
-  is asserted structurally, not on the document.
+  is asserted structurally, not on the document. **Done 2026-08-04** in
+  `backend/tests/test_qasm_export.py`, which compares qubits by index and
+  operations by position. The exemption earned its place immediately: import
+  names a qubit after the register it came from, so `q_0` returns as `q_q_0`
+  and a document comparison would have failed on a difference the model says
+  carries no meaning.
 * [x] The three questions OpenQASM import asks of the model are answered in
   `docs/`, with reasoning. **Done 2026-08-02, and all three held.** A bare
   `barrier;` expands to every qubit declared so far — the schema already said an

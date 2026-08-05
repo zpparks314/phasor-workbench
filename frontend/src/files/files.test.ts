@@ -371,3 +371,98 @@ describe('importing OpenQASM', () => {
     expect(outcome.reason).toBe('unreachable');
   });
 });
+
+describe('exporting OpenQASM', () => {
+  /**
+   * The rejection is built *inside* the reset module graph.
+   *
+   * `vi.resetModules()` gives the re-imported `./index` a fresh `../api/client`,
+   * so an `ApiError` constructed from this file's top-level import is a
+   * different class and fails the `instanceof` check that decides the message.
+   */
+  const withExportQasm = async (
+    reject:
+      ((ApiError: typeof import('../api/client').ApiError) => Error) | null,
+    anchor?: HTMLAnchorElement,
+  ) => {
+    vi.resetModules();
+    const { ApiError: FreshApiError } = await import('../api/client');
+    const implementation =
+      reject === null
+        ? () => Promise.resolve('OPENQASM 2.0;\n')
+        : () => Promise.reject(reject(FreshApiError));
+
+    vi.doMock('../api/qasm', () => ({ exportQasm: implementation }));
+    const files = await import('./index');
+    const target = {
+      createElement: () => anchor ?? document.createElement('a'),
+    } as unknown as Document;
+
+    const outcome = await files.downloadQasm(
+      { ...readValid('bell_state.json').circuit, name: 'Bell State' },
+      target,
+    );
+
+    vi.doUnmock('../api/qasm');
+    vi.resetModules();
+    return outcome;
+  };
+
+  it('downloads what the backend wrote, named for the circuit', async () => {
+    const createObjectURL = vi
+      .spyOn(URL, 'createObjectURL')
+      .mockReturnValue('blob:test');
+    const revokeObjectURL = vi
+      .spyOn(URL, 'revokeObjectURL')
+      .mockImplementation(() => undefined);
+    const anchor = document.createElement('a');
+    const click = vi.spyOn(anchor, 'click').mockImplementation(() => undefined);
+
+    const outcome = await withExportQasm(null, anchor);
+
+    expect(outcome.ok).toBe(true);
+    expect(click).toHaveBeenCalledOnce();
+    // The `.qasm` extension, and the same slug the JSON export produces.
+    expect(anchor.download).toBe('bell-state.qasm');
+
+    createObjectURL.mockRestore();
+    revokeObjectURL.mockRestore();
+  });
+
+  it('says the backend is the problem, not the circuit', async () => {
+    // A circuit on the canvas is already valid, and every valid circuit has an
+    // OpenQASM form. Blaming the document here would send someone to edit a
+    // circuit that is fine.
+    const outcome = await withExportQasm(
+      (ApiErrorClass) => new ApiErrorClass('BACKEND_UNAVAILABLE', 'down', 0),
+    );
+
+    expect(outcome.ok).toBe(false);
+    if (outcome.ok) return;
+    expect(outcome.message).toMatch(/backend/i);
+  });
+
+  it('does not claim the backend is down for an unexpected failure', async () => {
+    const outcome = await withExportQasm(() => new Error('boom'));
+
+    expect(outcome.ok).toBe(false);
+    if (outcome.ok) return;
+    expect(outcome.message).toMatch(/unexpectedly/i);
+  });
+
+  it('does not download anything when the export failed', async () => {
+    const createObjectURL = vi
+      .spyOn(URL, 'createObjectURL')
+      .mockReturnValue('blob:test');
+    const anchor = document.createElement('a');
+    const click = vi.spyOn(anchor, 'click').mockImplementation(() => undefined);
+
+    await withExportQasm(
+      (ApiErrorClass) => new ApiErrorClass('BACKEND_UNAVAILABLE', 'down', 0),
+      anchor,
+    );
+
+    expect(click).not.toHaveBeenCalled();
+    createObjectURL.mockRestore();
+  });
+});

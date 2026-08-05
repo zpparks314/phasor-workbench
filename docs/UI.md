@@ -31,7 +31,7 @@ this document says what the user sees and ADR-0007 says what the code does.
 
 ```text
 ┌──────────────────────────────────────────────────────────────┐
-│  Header   undo · redo · clear · save · export · import · status │
+│  Header   undo · redo · clear · save · export ×2 · import · status │
 ├───────────┬──────────────────────────────────────┬───────────┤
 │           │                                      │           │
 │           │  Structure · View                    │ Inspector │
@@ -887,6 +887,31 @@ falling back to `circuit.json` when there is no usable name. There is no dialog,
 because there is no decision to collect — the browser already owns where
 downloads land.
 
+**Export is two controls, and Import is one. Amended 2026-08-04**, when OpenQASM
+export landed and contradicted the sentence under *Deferred* below, which had
+said OpenQASM would reuse the same two controls. It does for import and cannot
+for export, and the asymmetry is the point rather than an inconsistency:
+
+*Import* routes on the file's content, so there is nothing to ask. The grammar
+requires `OPENQASM` as the first statement, which means a file already says what
+it is and a picker would only make the user restate it.
+
+*Export* has no such evidence. Nothing about a circuit on the canvas says which
+format the user wants out of it, so the choice is genuinely theirs, and the two
+honest ways to collect it are a second button or a menu on the first. A menu
+hides one format behind an extra press and brings the whole `role="menu"`
+keyboard pattern with it — focus trapping, `Escape`, arrow semantics distinct
+from the toolbar's own — to place two items. Two buttons cost one more roving
+stop and nothing else.
+
+**Only OpenQASM export can fail.** JSON is written in this browser; OpenQASM is
+written by the backend, which `Architecture.md` makes the owner of format
+conversion. A circuit on the canvas is already valid and every valid circuit has
+an OpenQASM form, so a failure here is never the document — the alert says the
+backend could not be reached rather than implying the circuit cannot be
+written. It shares the header alert with a failed import, since both leave the
+canvas exactly as it was.
+
 **Import replaces the entire circuit, in one undo step.** That is destructive,
 and it deliberately does *not* get Clear's two-press confirmation. The two are
 not alike: Clear is a single press that destroys work with nothing in between,
@@ -984,9 +1009,12 @@ beyond the editor. `Roadmap.md` places responsive layout in Milestone 5; the
 three-column grid is built so that collapsing it is a change to the grid rather
 than to the components.
 
-**~~Import/export affordances.~~ Built** for JSON — see *Files*. OpenQASM reuses
-the same two controls rather than adding a second pair, since the affordance is
-"a circuit goes out, a circuit comes in" and the format is a detail of the file.
+**~~Import/export affordances.~~ Built** for JSON and OpenQASM — see *Files*.
+This entry once read that OpenQASM would reuse the same two controls, "since the
+affordance is 'a circuit goes out, a circuit comes in' and the format is a detail
+of the file". That held for import and did not survive export: a file coming *in*
+declares its own grammar, and a circuit going *out* declares nothing. *Files*
+records the amendment.
 
 **Multi-select**, for the reason given under *Selection*.
 

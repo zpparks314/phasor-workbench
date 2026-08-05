@@ -178,6 +178,7 @@ backend/
 │   ├── importers/       Foreign formats in       (Milestone 5)
 │   │   └── qasm/        OpenQASM 2.0 reader
 │   └── exporters/       Foreign formats out      (Milestone 5)
+│       └── qasm.py     OpenQASM 2.0 writer
 ├── tests/
 └── pyproject.toml
 ```

@@ -21,6 +21,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from ...analysis import analyze_circuit
 from ...config import settings
+from ...exporters.qasm import export_qasm
 from ...importers.qasm import QasmError, QasmProblem, parse_qasm
 from ..documents import read_circuit
 from ..errors import ApiError, ErrorCode, ErrorDetail
@@ -131,6 +132,33 @@ def post_import_qasm(request: QasmImportRequest) -> CircuitDocumentResponse:
     return CircuitDocumentResponse(
         circuit=read_circuit(result.document).model_dump(by_alias=True, mode="json")
     )
+
+
+class QasmExportResponse(BaseModel):
+    source: str
+
+
+@router.post(
+    "/circuits/export/qasm",
+    response_model=QasmExportResponse,
+    summary="Circuit Model to OpenQASM 2.0",
+    responses={422: {"description": "The circuit is not valid."}},
+)
+def post_export_qasm(request: CircuitRequest) -> QasmExportResponse:
+    """Write a circuit document as OpenQASM 2.0.
+
+    The body is a raw document for the same reason `/circuits/analyze` takes
+    one: `read_circuit` owns the version decision, and a document that fails it
+    has no business being written out. Exporting an invalid circuit would
+    produce a file describing something the model says cannot exist.
+
+    There is no export-specific failure below that. Every valid circuit has an
+    OpenQASM form -- the model's gate set is a subset of `qelib1.inc` -- so once
+    the document loads, this cannot fail. The asymmetry with import is real: a
+    QASM file can say things the model cannot hold, and the model cannot say
+    anything QASM will not take.
+    """
+    return QasmExportResponse(source=export_qasm(read_circuit(request.circuit)))
 
 
 def unreadable_qasm(problems: list[QasmProblem]) -> ApiError:

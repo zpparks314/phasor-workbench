@@ -44,7 +44,7 @@ import {
   setParameters,
   setRegisterSize,
 } from '../state/edits';
-import { downloadCircuit, importCircuitFile } from '../files';
+import { downloadCircuit, downloadQasm, importCircuitFile } from '../files';
 import { saveCircuit } from '../persistence';
 import { useCircuitStore } from '../state/useCircuitStore';
 import { validateCircuit } from '../validation';
@@ -134,7 +134,7 @@ export function CircuitEditor({
    */
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [importError, setImportError] = useState<string | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
 
   /**
    * The column the last drag step asked for, so the settle animation can play
@@ -203,6 +203,19 @@ export function CircuitEditor({
   }
 
   /**
+   * Hand the circuit to the browser as an OpenQASM file.
+   *
+   * The only export that can fail, because the writer is on the backend. It
+   * reports through the same surface as a failed import: both are file
+   * operations that leave the canvas exactly as it was.
+   */
+  async function exportQasmFile(): Promise<void> {
+    const outcome = await downloadQasm(circuit);
+
+    setFileError(outcome.ok ? null : outcome.message);
+  }
+
+  /**
    * Replace the circuit with one read from a file.
    *
    * One `store.apply`, so it is a single undo step whose label names the file
@@ -221,17 +234,18 @@ export function CircuitEditor({
       // the user to change the file; a backend that cannot be reached needs
       // nothing from them at all, and saying "could not import" for both would
       // send them to fix something that is not broken.
-      setImportError(
+      const reason =
         outcome.reason === 'unreachable'
-          ? `Could not import ${file.name}: ${outcome.message}`
-          : `Could not import ${file.name}: ${outcome.violations
-              .map((violation) => violation.message)
-              .join(' ')}`,
+          ? outcome.message
+          : outcome.violations.map((violation) => violation.message).join(' ');
+
+      setFileError(
+        `Could not import ${file.name}: ${reason} The circuit on the canvas is unchanged.`,
       );
       return;
     }
 
-    setImportError(null);
+    setFileError(null);
     store.apply(`Import ${file.name}`, () => outcome.circuit);
   }
 
@@ -778,11 +792,12 @@ export function CircuitEditor({
         operationCount={circuit.operations.length}
         savedAt={savedAt}
         saveError={saveError}
-        importError={importError}
+        fileError={fileError}
         onUndo={undo}
         onRedo={redo}
         onSave={save}
         onExport={exportFile}
+        onExportQasm={() => void exportQasmFile()}
         onImport={(file) => {
           void importFile(file);
         }}

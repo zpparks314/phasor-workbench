@@ -2,7 +2,7 @@
 
 **Status:** Implemented, except where a section says otherwise.
 
-Live: `/health`, `/circuits/analyze`, `/simulations/statevector`, `/simulations/sample`. Still proposed: `/capabilities`, `/circuits/validate`, and the deferred Milestone 5 endpoints listed near the end.
+Live: `/health`, `/circuits/analyze`, `/circuits/import/qasm`, `/circuits/export/qasm`, `/simulations/statevector`, `/simulations/sample`. Still proposed: `/capabilities`, `/circuits/validate`, and the deferred Milestone 5 endpoints listed near the end.
 
 Sections describing built endpoints record where the implementation departed from what this document originally proposed, and why. Those notes are the point — each marks a place the first design was wrong.
 
@@ -368,13 +368,57 @@ file has been read.
 
 ---
 
+## `POST /api/v1/circuits/export/qasm`
+
+Circuit Model → OpenQASM 2.0. Built 2026-08-04.
+
+```json
+{ "circuit": { "schemaVersion": "0.1.0", "id": "...", "qubits": [], "...": "..." } }
+```
+
+Responds with the program as text:
+
+```json
+{ "source": "OPENQASM 2.0;\ninclude \"qelib1.inc\";\nqreg q[2];\nh q[0];\n" }
+```
+
+**The body is a raw document, like `/circuits/analyze`.** It goes through the
+same loader, so a document this build cannot read is refused before anything is
+written. Exporting an invalid circuit would produce a file describing something
+the model says cannot exist.
+
+**There is no export-specific failure.** Once the document loads, this cannot
+fail: the model's gate set is a subset of `qelib1.inc`, so every valid circuit
+has an OpenQASM form. The asymmetry with import is real and worth stating —
+a QASM file can say things the model cannot hold, and the model cannot say
+anything QASM will not take. A client that gets an error here has sent an
+invalid circuit, not hit a gap in the writer.
+
+**One `qreg`, always.** The model has no notion of quantum register grouping, so
+there is nothing to reconstruct; import already discards it. Classical registers
+keep their label as the `creg` name where the label is a legal QASM identifier
+and unique, and fall back to `c0`, `c1`, … by position where it is not. A label
+is free text and a QASM identifier is not, so emitting one unchecked would
+produce a file this project's own importer rejects.
+
+**Angles are written at full precision**, via the shortest string that reads
+back as the same double. A rounded angle is a different rotation, and `rx(pi/2)`
+written as `1.5708` would re-import as a gate the user did not build. The `pi/2`
+itself is not recoverable — import evaluates expressions, as noted above.
+
+Round-tripping is asserted rather than assumed: every circuit in
+`shared/fixtures/valid/` exports and re-imports with the same operation sequence
+and the same cycle decomposition. Identifiers are exempt, since ADR-0002 makes
+them arbitrary and import renames qubits after the register it read them from.
+
+---
+
 ## Deferred Endpoints
 
 Planned for Milestone 5, listed so the path structure stays coherent:
 
 | Endpoint | Purpose |
 |---|---|
-| `POST /api/v1/circuits/export/qasm` | Circuit Model → OpenQASM |
 | `GET /api/v1/examples` | Built-in example circuits |
 
 ---
