@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { readCircuitFile } from '../files';
@@ -7,6 +13,20 @@ import { insertOperation } from '../state/edits';
 import { barrier, circuitWith, gate, measurement } from '../state/testCircuits';
 import { loadStoredCircuit } from '../persistence';
 import { CircuitEditor } from './CircuitEditor';
+import { fetchExample, fetchExamples } from '../api/examples';
+
+/**
+ * The example catalogue never resolves here.
+ *
+ * These tests are not about examples, and a catalogue that settles mid-test
+ * would update state outside `act` -- 97 warnings across this file before the
+ * stub. `ExamplePicker.test.tsx` drives the picker directly from props, which
+ * is what the presentational split is for.
+ */
+vi.mock('../api/examples', () => ({
+  fetchExamples: vi.fn(() => new Promise(() => undefined)),
+  fetchExample: vi.fn(() => new Promise(() => undefined)),
+}));
 
 function open(circuit: Circuit = circuitWith(3)) {
   render(<CircuitEditor initialCircuit={circuit} />);
@@ -1670,5 +1690,82 @@ describe('importing and exporting', () => {
     for (const violation of outcome.violations) {
       expect(alert).toHaveTextContent(violation.message);
     }
+  });
+});
+
+describe('loading an example', () => {
+  const catalogue = [
+    {
+      id: 'bell-state',
+      name: 'Bell State',
+      summary: 'The simplest entangled pair.',
+      qubitCount: 2,
+      operationCount: 2,
+    },
+  ];
+
+  const bell: Circuit = {
+    ...circuitWith(2),
+    name: 'Bell State',
+    operations: [
+      gate('op_0', 'h', ['q_0']),
+      gate('op_1', 'cx', ['q_1'], ['q_0']),
+    ],
+  };
+
+  async function offerExamples() {
+    vi.mocked(fetchExamples).mockResolvedValue(catalogue);
+    vi.mocked(fetchExample).mockResolvedValue(bell);
+
+    const editor = open(circuitWith(3));
+    await screen.findByRole('option', { name: 'Bell State' });
+
+    return editor;
+  }
+
+  it('replaces the circuit with the chosen example', async () => {
+    const editor = await offerExamples();
+
+    fireEvent.click(screen.getByRole('button', { name: /^Load Bell State/ }));
+
+    await waitFor(() => {
+      expect(editor.status()).toHaveTextContent('2 operations');
+    });
+    expect(editor.cell('q0, cycle 0, h')).toBeInTheDocument();
+  });
+
+  /**
+   * One undo step, like import, and for the same reason: a replacement the
+   * user did not mean must cost one keystroke to reverse, not one per gate.
+   */
+  it('is a single undo step that names the example', async () => {
+    const editor = await offerExamples();
+
+    fireEvent.click(screen.getByRole('button', { name: /^Load Bell State/ }));
+    await waitFor(() => {
+      expect(editor.status()).toHaveTextContent('2 operations');
+    });
+
+    expect(
+      screen.getByRole('button', { name: /Undo load Bell State/i }),
+    ).toBeInTheDocument();
+
+    editor.undo();
+
+    expect(editor.status()).toHaveTextContent('0 operations');
+  });
+
+  it('leaves the circuit alone when the example cannot be fetched', async () => {
+    vi.mocked(fetchExamples).mockResolvedValue(catalogue);
+    vi.mocked(fetchExample).mockRejectedValue(new Error('down'));
+
+    const editor = open(circuitWith(3));
+    await screen.findByRole('option', { name: 'Bell State' });
+
+    fireEvent.click(screen.getByRole('button', { name: /^Load Bell State/ }));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent(/circuit on the canvas is unchanged/);
+    expect(editor.status()).toHaveTextContent('0 operations');
   });
 });

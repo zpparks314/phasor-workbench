@@ -19,7 +19,7 @@ A user can build a circuit from empty in the browser, edit its parameters and
 measurement targets, save work that survives a refresh, watch its final state
 follow every edit, and run it for measurement counts.
 
-The design is settled by ADRs 0001–0008 and by the topic documents. Where this
+The design is settled by ADRs 0001–0009 and by the topic documents. Where this
 file and a topic document disagree about behaviour, **the topic document is the
 specification** — `CircuitModel.md` for the model, `UI.md` for the editor,
 `API.md` for endpoints, `Simulation.md` for the simulator seam.
@@ -443,7 +443,9 @@ Prepare the project for public deployment.
   JSON one
 * [x] JSON import/export — `frontend/src/files/`, the file adapter beside
   `persistence/`'s storage one
-* [ ] Example circuits
+* [x] Example circuits — `examples/` and `GET /api/v1/examples`, authored as
+  OpenQASM and read through the importer, with an `ExamplePicker` beside the
+  structure controls
 * [ ] Documentation
 * [ ] Deployment
 
@@ -480,9 +482,22 @@ do it *before* starting was left here.
   `API.md`: quantum register grouping does not survive at all, and parameter
   expressions are evaluated, so `rx(pi/2)` becomes a number and the intent is
   gone — see `CircuitModel.md`.
-* [ ] Example circuits load, validate without violations, and simulate. Each is
+* [x] Example circuits load, validate without violations, and simulate. Each is
   authored through the import path rather than hand-written JSON — that is what
-  makes them evidence the path works rather than decoration.
+  makes them evidence the path works rather than decoration. **Done 2026-08-04**,
+  six of them, and the simulate half earned its place immediately: the first QFT
+  written for the catalogue validated cleanly and was *wrong*, built the textbook
+  way with qubit 0 as the most significant bit. It produced the correct uniform
+  distribution from `|000>` — so any check of the *shape* of the output would
+  have passed — and the wrong state for every other input. The suite now compares
+  amplitudes against the analytic transform.
+
+  Teleportation is deliberately absent. Its final corrections are conditioned on
+  two measurement outcomes and [ADR-0003](decisions/ADR0003_ExecutionSemantics.md)
+  defers classical control, so the closest expressible circuit applies them
+  unconditionally — it validates, and it is not teleportation.
+  [ADR-0009](decisions/ADR0009_CircuitCatalogue.md) records why that is worse
+  than an absent example.
 * [ ] At 1280px, 768px and 375px every region is reachable and the body never
   scrolls horizontally. The canvas keeps its own horizontal scroll; that is not
   the same thing.

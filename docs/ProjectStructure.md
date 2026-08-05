@@ -177,8 +177,9 @@ backend/
 │   ├── analysis/        Gate counts, depth       (Milestone 4)
 │   ├── importers/       Foreign formats in       (Milestone 5)
 │   │   └── qasm/        OpenQASM 2.0 reader
-│   └── exporters/       Foreign formats out      (Milestone 5)
-│       └── qasm.py     OpenQASM 2.0 writer
+│   ├── exporters/       Foreign formats out      (Milestone 5)
+│   │   └── qasm.py     OpenQASM 2.0 writer
+│   └── examples/        Built-in circuits, as .qasm   (Milestone 5)
 ├── tests/
 └── pyproject.toml
 ```

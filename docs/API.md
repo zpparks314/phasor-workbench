@@ -2,7 +2,7 @@
 
 **Status:** Implemented, except where a section says otherwise.
 
-Live: `/health`, `/circuits/analyze`, `/circuits/import/qasm`, `/circuits/export/qasm`, `/simulations/statevector`, `/simulations/sample`. Still proposed: `/capabilities`, `/circuits/validate`, and the deferred Milestone 5 endpoints listed near the end.
+Live: `/health`, `/circuits/analyze`, `/circuits/import/qasm`, `/circuits/export/qasm`, `/examples`, `/simulations/statevector`, `/simulations/sample`. Still proposed: `/capabilities`, `/circuits/validate`, and the deferred Milestone 5 endpoints listed near the end.
 
 Sections describing built endpoints record where the implementation departed from what this document originally proposed, and why. Those notes are the point — each marks a place the first design was wrong.
 
@@ -81,6 +81,7 @@ Errors are never returned with a `200` status.
 | `200` | Success |
 | `400` | Malformed JSON or structurally unreadable request |
 | `422` | Well-formed request, invalid circuit |
+| `404` | No resource with that id |
 | `413` | Circuit exceeds size limits |
 | `429` | Rate limit exceeded |
 | `500` | Unexpected backend failure |
@@ -413,13 +414,72 @@ them arbitrary and import renames qubits after the register it read them from.
 
 ---
 
+## `GET /api/v1/examples`
+
+The built-in example catalogue. Built 2026-08-04.
+
+```json
+{
+  "examples": [
+    {
+      "id": "bell-state",
+      "name": "Bell State",
+      "summary": "The simplest entangled pair...",
+      "qubitCount": 2,
+      "operationCount": 5
+    }
+  ]
+}
+```
+
+**The list carries no circuits.** Six small circuits would fit in one response
+and bundling them would save a round trip; it is refused because a *generated*
+entry — a QAOA layer count, a VQE ansatz width — has no single circuit to
+bundle, and the list's contract should not have to change when one arrives. See
+[ADR-0009](decisions/ADR0009_CircuitCatalogue.md) section 3.
+
+An entry may later carry a `parameters` description. A client that ignores a
+field it does not recognise keeps working when one appears, which is what makes
+generated entries additive rather than breaking.
+
+`qubitCount` and `operationCount` are computed from the circuit rather than
+declared in the source, so they cannot disagree with it. Order is stable, by id.
+
+---
+
+## `GET /api/v1/examples/{id}`
+
+One example, as a circuit document in the wire form every other endpoint
+accepts:
+
+```json
+{ "circuit": { "schemaVersion": "0.1.0", "id": "...", "qubits": [], "...": "..." } }
+```
+
+An unknown id returns `404` with `NOT_FOUND`. That code was added with this
+endpoint — it is the first to address a resource by id rather than take one in a
+body.
+
+Examples are authored as OpenQASM and parsed by the same importer an uploaded
+file goes through, which is `Roadmap.md`'s exit criterion rather than an
+implementation detail: a circuit authored as a Circuit Model document would be
+the only one in the system never to pass through that path, and so evidence of
+nothing.
+
+---
+
 ## Deferred Endpoints
 
-Planned for Milestone 5, listed so the path structure stays coherent:
+Planned beyond Milestone 5, listed so the path structure stays coherent:
 
 | Endpoint | Purpose |
 |---|---|
-| `GET /api/v1/examples` | Built-in example circuits |
+| `POST /api/v1/generators/{id}` | Parameterised circuit families — QAOA, VQE ansätze |
+| `POST /api/v1/transforms/{id}` | Circuit-to-circuit rewrites — randomized compiling |
+
+Both are named in [ADR-0009](decisions/ADR0009_CircuitCatalogue.md) section 4,
+which is explicit that a transform is **not** a generator taking a circuit
+argument: a generator has no input that can be invalid, and a transform does.
 
 ---
 

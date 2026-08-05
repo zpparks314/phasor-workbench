@@ -10,6 +10,20 @@ import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import App from './App';
+
+/**
+ * The example catalogue never resolves here.
+ *
+ * These tests are not about examples, and a catalogue that settles mid-test
+ * would update state outside `act` -- 97 warnings across this file before the
+ * stub. `ExamplePicker.test.tsx` drives the picker directly from props, which
+ * is what the presentational split is for.
+ */
+vi.mock('./api/examples', () => ({
+  fetchExamples: () => new Promise(() => undefined),
+  fetchExample: () => new Promise(() => undefined),
+}));
+
 import { STORAGE_KEY } from './persistence';
 import { circuitWith, gate } from './state/testCircuits';
 import { insertOperation } from './state/edits';
