@@ -73,8 +73,9 @@ frontend/src/
 ├── cycles/         Cycle derivation                    (Milestone 2)
 ├── serialization/  Versioned load and dump             (Milestone 3)
 ├── persistence/    Local storage adapter               (Milestone 3)
+├── files/          File import and export adapter      (Milestone 5)
 ├── state/          Circuit state, edits, undo/redo     (Milestone 3)
-├── components/     Shared presentational components    (Milestone 3)
+├── components/     Shared presentational components    (Milestone 5)
 ├── editor/         Circuit editor, SVG rendering       (Milestone 3)
 ├── visualization/  State visualization                 (Milestone 4)
 └── test/           Test setup
@@ -171,6 +172,35 @@ browser storage, on the same principle that confines `fetch` to `api/`. It is th
 working-set store; files are the interchange format and arrive with Milestone 5's
 JSON import/export. Storage can be unavailable or full, and both surface as errors
 rather than silence — the editor stays fully usable without it.
+
+## `components/`, and the One Thing In It
+
+Reserved from Milestone 3 and first filled in Milestone 5, by the two modules
+that catch a render error: `ErrorBoundary` and `RecoveryScreen`. They are here
+rather than in `editor/` because neither is about circuits — the boundary is
+mechanism, and the screen is what the *application* shows once there is no editor
+left to show anything.
+
+**`ErrorBoundary` is a class, and it is the only one in the frontend.**
+`getDerivedStateFromError` and `componentDidCatch` have no function-component
+equivalent in React 19, and this is the one place that needs them. It knows
+nothing about what to say: the caller supplies the fallback, which is what would
+let a second boundary around a panel reuse it without dragging a full-page
+recovery screen along.
+
+**It does not log.** React's root already reports a caught error to the console,
+so a `console.error` here would print every crash twice. The `onError` prop is
+the seam for a real reporter and is deliberately not filled with a second logger
+in the meantime.
+
+**It normalises what was thrown.** `throw` takes any value, and a string reaches
+a boundary exactly as an `Error` does; without normalising, a fallback reading
+`.message` off a string would itself be the second thing to fail.
+
+`RecoveryScreen` is the fallback the root installs, and what it offers is
+specified in [UI.md](UI.md) under *When the Editor Stops* — including the reason
+it reaches past `serialization/` for the stored document, which is the one design
+decision in it that looks like a shortcut and is not.
 
 ## Validation Scope
 
@@ -341,3 +371,6 @@ What UI.md still defers, and why:
   so that history and labeling cannot be bypassed
 * the app must degrade gracefully when the backend is unavailable, and when local
   storage is unavailable
+* a render error must never reach the browser as a blank page — the root error
+  boundary in `main.tsx` is what guarantees it, and nothing may be mounted
+  outside it

@@ -11,13 +11,15 @@ Milestone 1 (Foundation) closed on 2026-07-28, Milestone 2 (Circuit Model) on
 (Simulation MVP) on 2026-08-02.
 
 **Milestones 1–4 are closed.** The foundation, the Circuit Model, the editor and
-simulation all exist and are enforced by tests: 827 frontend and 458 backend,
+simulation all exist and are enforced by tests: 844 frontend and 458 backend,
 with 51 fixtures in `shared/fixtures/` holding the two language implementations
 to one specification.
 
-**Milestone 5 is most of the way through.** Import, export and example circuits
-are done; what remains is responsive layout, error handling, keyboard shortcuts,
-deployment and the documentation pass — see *Where to Pick Up*.
+**Milestone 5 is most of the way through.** Import, export, example circuits and
+error handling are done; what remains is responsive layout, keyboard shortcuts,
+deployment and the documentation pass — plus the screen-reader check, which is
+not a task but an exit criterion, and which needs a person at the machine. See
+*Where to Pick Up*.
 
 A user can build a circuit from empty in the browser, edit its parameters and
 measurement targets, save work that survives a refresh, open one of six built-in
@@ -446,7 +448,10 @@ Prepare the project for public deployment.
   controls; whether that survives a narrow screen is a question for this
   task, which is the first place the real constraint appears. See *Files*
   in `UI.md` for what was already weighed
-* [ ] Error handling
+* [x] Error handling — a root error boundary and the recovery screen behind it,
+  in `frontend/src/components/`. The three file and storage failures already
+  reported through the header's alerts; what had no surface at all was a render
+  that threw, because it takes the header with it
 * [ ] Keyboard shortcuts
 * [x] OpenQASM import — `importers/qasm/`,
   `POST /api/v1/circuits/import/qasm`, and the frontend routing through the
@@ -520,9 +525,22 @@ do it *before* starting was left here.
   3, the backend unreachable from Milestone 4. **Done 2026-08-02** with JSON
   import: a persistent header alert naming every reason, and stating that the
   circuit on the canvas is untouched. OpenQASM import will reuse it.
-* [ ] An unhandled render error shows something other than a blank page. This is
+* [x] An unhandled render error shows something other than a blank page. This is
   the failure the Definition of Done's browser check was added for, and nothing
-  currently catches it.
+  caught it until now. **Done 2026-08-05** with a root error boundary in
+  `main.tsx` and the recovery screen behind it, both in `frontend/src/components/`
+  — the directory Milestone 3 reserved and nothing had yet filled. Verified the
+  way the criterion means it: a deliberate throw in `App`, loaded in a browser,
+  dumping a page that names the error rather than an empty `#root`.
+
+  The criterion understates what the task found. A blank page is the visible
+  failure; the one worth designing for is that the editor opens on whatever local
+  storage restored, so a saved circuit the renderer cannot draw crashes again on
+  every reload and seals the user's work inside a browser that will not start.
+  Reload alone is not an escape from that. The screen offers the stored document
+  as a download — raw bytes, not routed back through `serialization/`, since that
+  code is what may have failed — and then discards it and reloads. See `UI.md`,
+  *When the Editor Stops*.
 * [ ] The `?` shortcut reference exists and is derived from the same source the
   editor binds its keys from, so it cannot drift from behaviour. It is currently
   the one row in `UI.md`'s shortcut table with nothing behind it.
@@ -593,9 +611,33 @@ checked against real assistive technology, and "suitable for public use" is not
 honestly claimable while that is true. It is first in the order below for a
 reason — see there.
 
-**Where the milestone actually stands.** Four of the nine tasks are done, and
-they were the four with dependencies between them — each reused what the one
-before it built:
+**It was attempted on 2026-08-05 and could not be done, and the reason is worth
+recording so it is not re-attempted the same way.** The development machine has
+no NVDA and no JAWS; the only screen reader present is Narrator, which is a GUI
+speech application with no programmatic transcript an agent or a script can read
+back. So there was nothing to drive and nothing to capture, and the criterion is
+explicit that what it wants is *what was announced*, not a second assertion that
+the roles are right. Asserting roles and names from the test suite and calling it
+done is exactly the evidence *Open Issues* already rejects.
+
+**What would actually close it:** install NVDA, turn on its Speech Viewer, and
+tab into the canvas — the viewer is a text transcript, which is the part that
+makes the result recordable rather than merely heard. Then paste what it said
+into `UI.md` beside *Structure*, pass or fail. It needs a person at the machine
+for perhaps ten minutes; nothing about it is a code change until the transcript
+says so.
+
+**Error handling was taken instead, and it did not disturb the canvas** — the
+whole reason the accessibility check was ordered first was that a fix there would
+touch markup every later task builds on. The root boundary and the recovery
+screen are new files plus three lines of wiring in `main.tsx`; no canvas markup
+changed, so the screen-reader check is worth exactly as much now as it was, and
+still goes before the layout work.
+
+**Where the milestone actually stands.** Five of the nine tasks are done. The
+first four had dependencies between them — each reused what the one before it
+built — and error handling had none, which is why it could be taken out of order
+when the check ahead of it turned out to need a person at the machine:
 
 | Task | State |
 |---|---|
@@ -603,8 +645,8 @@ before it built:
 | OpenQASM import | **Done** — `importers/qasm/`, parsed on the backend |
 | OpenQASM export | **Done** — `exporters/qasm.py` |
 | Example circuits | **Done** — `examples/`, six, read through the importer |
+| Error handling | **Done** — `frontend/src/components/`, root boundary |
 | Responsive layout | Not started |
-| Error handling | Not started |
 | Keyboard shortcuts | Not started |
 | Documentation | Not started, and belongs last |
 | Deployment | Not started, and belongs last |
@@ -617,17 +659,20 @@ then export, then example circuits~~ — **all done**, and the premise held each
 time: `serialization/` never needed a change, and each feature reused the surface
 the one before it built.
 
-The remaining five have far weaker dependencies on each other, so the order below
+The remaining four have far weaker dependencies on each other, so the order below
 is about risk rather than blocking:
 
 1. **The screen-reader check first**, because it is the only item that can
    invalidate work already done. *Open Issues* has carried it through four
    milestones, and two features have already steered around it. If the composite
-   grid turns out to announce badly, the fix touches the canvas — and every later
-   task in this milestone is layout, error surfaces and packaging on top of that
-   canvas. Doing it last means discovering it after building on it.
-2. **Error handling**, which is small and self-contained: the exit criterion is an
-   unhandled render error showing something other than a blank page.
+   grid turns out to announce badly, the fix touches the canvas — and every
+   remaining task in this milestone is layout and packaging on top of that
+   canvas. Doing it last means discovering it after building on it. It needs a
+   person with NVDA at the machine; see above for why the 2026-08-05 attempt
+   could not stand in for that.
+2. ~~**Error handling**~~ — **done 2026-08-05**, and taken out of order for the
+   reason above. It touched no canvas markup, so it cost the screen-reader check
+   nothing.
 3. **Keyboard shortcuts**, whose criterion is that the `?` reference is *derived*
    from the same source the handlers use rather than written twice.
 4. **Responsive layout**, which is where the header question below gets settled.

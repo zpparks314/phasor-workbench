@@ -20,6 +20,7 @@ import {
   STORAGE_KEY,
   clearStoredCircuit,
   loadStoredCircuit,
+  readStoredDocument,
   saveCircuit,
   type StorageAdapter,
 } from './index';
@@ -218,6 +219,38 @@ describe('clearing', () => {
     expect(() => {
       clearStoredCircuit(storage);
     }).not.toThrow();
+  });
+});
+
+describe('reading the stored document as text', () => {
+  /**
+   * The recovery screen's read, and the only one that skips the loader. Its
+   * premise is a document this build cannot handle, so parsing it would fail
+   * exactly where it is needed -- and re-serialising would hand back something
+   * other than what is stored.
+   */
+  it('returns the bytes as written, not a circuit', () => {
+    const raw = '{"schemaVersion":"0.1.0","unreadable":';
+    const storage = fakeStorage({ [STORAGE_KEY]: raw });
+
+    expect(readStoredDocument(storage)).toBe(raw);
+  });
+
+  it('reads nothing stored and an empty string alike', () => {
+    expect(readStoredDocument(fakeStorage())).toBeNull();
+    expect(readStoredDocument(fakeStorage({ [STORAGE_KEY]: '' }))).toBeNull();
+  });
+
+  it('has nothing to hand back when storage is unreachable', () => {
+    expect(readStoredDocument(null)).toBeNull();
+
+    const throwing: StorageAdapter = {
+      ...fakeStorage(),
+      getItem: () => {
+        throw new Error('denied');
+      },
+    };
+    expect(readStoredDocument(throwing)).toBeNull();
   });
 });
 
