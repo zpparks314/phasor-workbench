@@ -34,13 +34,22 @@ export interface EditorHeaderProps {
   readonly savedAt: Date | null;
   /** Present only when the last save failed, and stated rather than hinted. */
   readonly saveError: string | null;
-  /** Present only when the last import failed. The circuit is untouched. */
-  readonly importError: string | null;
+  /**
+   * Present only when the last file operation failed.
+   *
+   * Import and OpenQASM export share it: both leave the canvas exactly as it
+   * was, so one alert says so in one place. The message arrives complete --
+   * what reassurance is appropriate depends on which operation failed, and the
+   * caller is the only one that knows.
+   */
+  readonly fileError: string | null;
   readonly onUndo: () => void;
   readonly onRedo: () => void;
   readonly onClear: () => void;
   readonly onSave: () => void;
   readonly onExport: () => void;
+  /** OpenQASM export. Asynchronous and backend-bound, unlike `onExport`. */
+  readonly onExportQasm: () => void;
   /** Opens the file picker. Import itself is the editor's to apply. */
   readonly onImport: (file: File) => void;
 }
@@ -56,12 +65,13 @@ export function EditorHeader({
   operationCount,
   savedAt,
   saveError,
-  importError,
+  fileError,
   onUndo,
   onRedo,
   onClear,
   onSave,
   onExport,
+  onExportQasm,
   onImport,
 }: EditorHeaderProps): React.JSX.Element {
   const [focused, setFocused] = useState(0);
@@ -79,6 +89,7 @@ export function EditorHeader({
     // Export is enabled for an empty circuit too, on the same reasoning: an
     // empty circuit is a valid document, not a missing one.
     { key: 'export', enabled: true },
+    { key: 'exportQasm', enabled: true },
     { key: 'import', enabled: true },
   ];
 
@@ -241,7 +252,26 @@ export function EditorHeader({
         onClick={onExport}
         className={BUTTON}
       >
-        Export
+        Export JSON
+      </button>
+
+      {/*
+        A separate control rather than a format picker on one button. Import
+        can route on content because the file already says what it is; export
+        has no such evidence, so the choice is the user's and is better made
+        visible than hidden behind a menu.
+      */}
+      <button
+        ref={register('exportQasm')}
+        type="button"
+        tabIndex={tabbableKey === 'exportQasm' ? 0 : -1}
+        aria-label="Export circuit as an OpenQASM 2.0 file"
+        title="Export circuit as an OpenQASM 2.0 file"
+        onFocus={focus('exportQasm')}
+        onClick={onExportQasm}
+        className={BUTTON}
+      >
+        Export QASM
       </button>
 
       {/*
@@ -312,12 +342,12 @@ export function EditorHeader({
         problems strip: that surface is about the circuit on the canvas, and a
         file that never loaded has nothing there to point at. See UI.md, Files.
       */}
-      {importError !== null && (
+      {fileError !== null && (
         <p
           role="alert"
           className="rounded border border-ink-muted/40 px-2 py-1 text-sm"
         >
-          {importError} The circuit on the canvas is unchanged.
+          {fileError}
         </p>
       )}
     </header>

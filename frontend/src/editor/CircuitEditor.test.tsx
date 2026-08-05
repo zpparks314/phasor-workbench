@@ -1604,7 +1604,9 @@ describe('importing and exporting', () => {
       .mockImplementation(() => undefined);
 
     open(circuitWith(2));
-    fireEvent.click(screen.getByRole('button', { name: /^Export circuit/ }));
+    fireEvent.click(
+      screen.getByRole('button', { name: /^Export circuit as a JSON file/ }),
+    );
 
     expect(click).toHaveBeenCalledOnce();
     click.mockRestore();

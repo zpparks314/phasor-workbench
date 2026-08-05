@@ -12,12 +12,13 @@ function show(overrides: Partial<EditorHeaderProps> = {}) {
     operationCount: 3,
     savedAt: null,
     saveError: null,
-    importError: null,
+    fileError: null,
     onUndo: vi.fn(),
     onRedo: vi.fn(),
     onClear: vi.fn(),
     onSave: vi.fn(),
     onExport: vi.fn(),
+    onExportQasm: vi.fn(),
     onImport: vi.fn(),
     ...overrides,
   };
@@ -184,5 +185,42 @@ describe('the roving focus', () => {
     fireEvent.keyDown(screen.getByRole('toolbar'), { key: 'ArrowRight' });
 
     expect(button('Clear 3 operations')).toHaveFocus();
+  });
+});
+
+describe('exporting', () => {
+  /**
+   * Two controls rather than one with a format picker. Import can route on
+   * content because the file already says what it is; export has no such
+   * evidence, so the choice is the user's and is made visible.
+   */
+  it('offers both formats as separate controls', () => {
+    show();
+
+    expect(button(/Export circuit as a JSON file/)).toBeInTheDocument();
+    expect(
+      button(/Export circuit as an OpenQASM 2.0 file/),
+    ).toBeInTheDocument();
+  });
+
+  it('calls the OpenQASM handler and not the JSON one', () => {
+    const { props } = show();
+
+    fireEvent.click(button(/Export circuit as an OpenQASM 2.0 file/));
+
+    expect(props.onExportQasm).toHaveBeenCalledOnce();
+    expect(props.onExport).not.toHaveBeenCalled();
+  });
+
+  it('is reachable by the roving focus', () => {
+    show();
+    const toolbar = screen.getByRole('toolbar');
+
+    // undo -> redo -> clear -> save -> export -> export qasm
+    for (let step = 0; step < 5; step += 1) {
+      fireEvent.keyDown(toolbar, { key: 'ArrowRight' });
+    }
+
+    expect(button(/Export circuit as an OpenQASM 2.0 file/)).toHaveFocus();
   });
 });

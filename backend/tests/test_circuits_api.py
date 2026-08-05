@@ -238,3 +238,78 @@ class TestQasmImport:
         )
 
         assert response.status_code == 422
+
+
+EXPORT_QASM = "/api/v1/circuits/export/qasm"
+
+
+class TestQasmExport:
+    """The export endpoint's transport.
+
+    What the writer produces is `test_qasm_export.py`'s job, including the
+    round trip. What matters here is that an invalid document never reaches it.
+    """
+
+    def test_returns_source_the_import_endpoint_accepts(
+        self, client: TestClient
+    ) -> None:
+        """The two endpoints are each other's inverse, asserted across the wire."""
+        imported = client.post(IMPORT_QASM, json={"source": QASM_BELL})
+        circuit = imported.json()["circuit"]
+
+        exported = client.post(EXPORT_QASM, json={"circuit": circuit})
+        assert exported.status_code == 200
+
+        source = exported.json()["source"]
+        assert source.startswith("OPENQASM 2.0;")
+
+        again = client.post(IMPORT_QASM, json={"source": source})
+        assert again.status_code == 200
+        assert again.json()["circuit"]["operations"] == circuit["operations"]
+
+    def test_refuses_an_invalid_circuit(self, client: TestClient) -> None:
+        """A document the model rejects has no OpenQASM form worth writing."""
+        response = client.post(
+            EXPORT_QASM,
+            json={
+                "circuit": {
+                    "schemaVersion": "0.1.0",
+                    "id": "circ_1",
+                    "qubits": [{"id": "q_0", "index": 0}],
+                    "classicalRegisters": [],
+                    "operations": [
+                        {
+                            "id": "op_0",
+                            "kind": "gate",
+                            "name": "h",
+                            "targets": ["q_missing"],
+                        }
+                    ],
+                }
+            },
+        )
+
+        assert response.status_code == 422
+        assert "UNKNOWN_QUBIT_REFERENCE" in codes(response)
+
+    def test_refuses_an_unsupported_schema_version(self, client: TestClient) -> None:
+        response = client.post(
+            EXPORT_QASM,
+            json={
+                "circuit": {
+                    "schemaVersion": "99.0.0",
+                    "id": "circ_1",
+                    "qubits": [],
+                    "classicalRegisters": [],
+                    "operations": [],
+                }
+            },
+        )
+
+        assert response.status_code == 422
+        assert "SCHEMA_VERSION_UNSUPPORTED" in codes(response)
+
+    def test_rejects_an_unknown_field(self, client: TestClient) -> None:
+        response = client.post(EXPORT_QASM, json={"circuit": {}, "dialect": "qasm3"})
+
+        assert response.status_code == 422

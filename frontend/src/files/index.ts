@@ -39,7 +39,7 @@
  */
 
 import { ApiError } from '../api/client';
-import { importQasm } from '../api/qasm';
+import { exportQasm, importQasm } from '../api/qasm';
 import type { Circuit } from '../model/circuit';
 import { dumpCircuit, loadCircuit } from '../serialization';
 import type { Violation } from '../validation/violations';
@@ -86,6 +86,16 @@ export type ImportOutcome =
       readonly reason: 'unreachable';
       readonly message: string;
     };
+
+/**
+ * What writing a circuit out can produce.
+ *
+ * Only OpenQASM can fail: JSON is written in this process. There are no
+ * violations here because a circuit on the canvas is already valid -- the
+ * failure is always the backend, never the document.
+ */
+export type ExportOutcome =
+  { readonly ok: true } | { readonly ok: false; readonly message: string };
 
 const FALLBACK_NAME = 'circuit';
 
@@ -158,18 +168,67 @@ function slugify(name: string | undefined): string {
   return slug === '' ? FALLBACK_NAME : slug;
 }
 
+/** Hand a circuit to the browser as a JSON download. */
+export function downloadCircuit(
+  circuit: Circuit,
+  target: Document = globalThis.document,
+): void {
+  download(circuitFile(circuit), target);
+}
+
 /**
- * Hand a circuit to the browser as a download.
+ * Hand a circuit to the browser as an OpenQASM file.
+ *
+ * Asynchronous where `downloadCircuit` is not, because the writer lives on the
+ * backend: a Circuit Model document *is* JSON, so the frontend can write one
+ * itself, and OpenQASM is a foreign grammar that `Architecture.md` puts on the
+ * other side of the API. That makes this the only export that can fail without
+ * the circuit being at fault, so it returns an outcome rather than throwing --
+ * the same shape `importCircuitFile` returns, for the same reason.
+ */
+export async function downloadQasm(
+  circuit: Circuit,
+  target: Document = globalThis.document,
+): Promise<ExportOutcome> {
+  let source: string;
+
+  try {
+    source = await exportQasm(circuit);
+  } catch (error) {
+    /**
+     * A valid circuit always has an OpenQASM form, so a failure here is the
+     * backend rather than the document -- and the message says so instead of
+     * implying the user's circuit cannot be written.
+     */
+    return {
+      ok: false,
+      message:
+        error instanceof ApiError && error.code === 'BACKEND_UNAVAILABLE'
+          ? 'Writing OpenQASM needs the backend, and it could not be reached.'
+          : 'OpenQASM export failed unexpectedly.',
+    };
+  }
+
+  download(
+    {
+      filename: `${slugify(circuit.name)}.qasm`,
+      text: source,
+      type: 'text/plain',
+    },
+    target,
+  );
+
+  return { ok: true };
+}
+
+/**
+ * The click-a-link download, shared by both formats.
  *
  * The object URL is revoked on a later task rather than immediately after the
  * click: some browsers have not finished reading the blob when `click` returns,
  * and revoking under them cancels the download.
  */
-export function downloadCircuit(
-  circuit: Circuit,
-  target: Document = globalThis.document,
-): void {
-  const file = circuitFile(circuit);
+function download(file: CircuitFile, target: Document): void {
   const url = URL.createObjectURL(new Blob([file.text], { type: file.type }));
 
   const anchor = target.createElement('a');
