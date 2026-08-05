@@ -55,8 +55,10 @@ measurement terminates a qubit, barriers exempt), identifier generation
 no implicit register), the shared-model strategy (JSON Schema as source of
 truth), version compatibility (declared version selects a mode, content decides
 the outcome), the editing model (pure edits, snapshot history), local
-persistence, and bit ordering (**qubit 0 is the rightmost bit of a basis
-string**).
+persistence, bit ordering (**qubit 0 is the rightmost bit of a basis string**),
+and the circuit catalogue (examples are `.qasm` files read through the importer;
+a generator and a circuit-to-circuit transform are *different shapes* and the
+second is not the first with an extra argument — ADR-0009).
 
 **A barrier's targets are captured at placement and never rewritten.** Adding a
 qubit afterwards does not join it; removing one does shrink it, because a removed
