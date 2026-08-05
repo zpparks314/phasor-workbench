@@ -67,7 +67,7 @@ const VALID_NAMES = names(VALID);
 describe('importing a circuit file', () => {
   it('has fixtures to run', () => {
     // A suite that silently found no fixtures would pass while asserting
-    // nothing, which is the vacuity failure CLAUDE.md records.
+    // nothing, which is the vacuity failure AGENTS.md records.
     expect(VERSION_NAMES).toHaveLength(14);
     expect(VALID_NAMES).toHaveLength(5);
   });
