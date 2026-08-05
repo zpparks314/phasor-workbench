@@ -34,7 +34,7 @@ this document says what the user sees and ADR-0007 says what the code does.
 │  Header   undo · redo · clear · save · export ×2 · import · status │
 ├───────────┬──────────────────────────────────────┬───────────┤
 │           │                                      │           │
-│           │  Structure · View                    │ Inspector │
+│           │  Structure · Examples · View         │ Inspector │
 │  Palette  │        Circuit Canvas                │           │
 │           │                                      │ Analysis  │
 │           │                                      │ Results   │
@@ -967,6 +967,46 @@ both controls are already reachable by keyboard, and `Ctrl/Cmd + O` is spoken fo
 by the browser in most of them. The full shortcut map — including whether file
 actions deserve accelerators at all — is its own Milestone 5 task, and this
 declines to pre-empt it.
+
+---
+
+## Examples
+
+Added 2026-08-04, with the built-in catalogue. Six circuits a user can open
+without authoring one first, which is what an empty canvas otherwise demands
+before the app can show what it is for.
+
+**Beside the structure controls, not in the header and not in View.** `ViewControls`
+draws the line this follows: structure controls change the *document* and are
+undoable, view controls change only what is drawn. Loading an example replaces
+the circuit in one undo step, so it sits on the document side. It is not *inside*
+`StructureControls` either — that toolbar is about the qubits and registers of
+the circuit you already have, and its roving focus is sized for them. The header
+was declined for a different reason: it already carries seven controls, and
+whether that survives a small screen is the responsive task's question rather
+than one to answer by adding an eighth.
+
+**A `<select>` and a Load button.** The editor has no menu or dialog pattern
+anywhere, and introducing one to place six items would be the most expensive
+possible way to ask a small question. A native select is what the inspector
+already uses for a classical register, and it brings keyboard and screen-reader
+support with the element.
+
+**Choosing does not load.** The select changes a choice; the button applies it.
+Loading on change would let an arrow key replace the circuit on the canvas, which
+is precisely what a keyboard user does to read through a list. The button names
+what it will replace — "Load Bell State, replacing the circuit" — for the same
+reason every other destructive control here does.
+
+**Loading behaves exactly like an import**, because it is one: the whole circuit
+is replaced in a single undo step labelled with the example's name, and a failure
+leaves the canvas untouched and says so through the header's file alert. An
+example is a circuit that arrived over the network rather than from a file.
+
+**The catalogue can be unavailable, and that is not an empty catalogue.** It is
+fetched from the backend, so the picker distinguishes "loading", "here they are",
+and "nothing answered" — showing an empty list for the third would state
+something false. The same distinction OpenQASM import draws.
 
 ---
 

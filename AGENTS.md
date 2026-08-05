@@ -40,6 +40,7 @@ specification.
 | `docs/CircuitModel.md` + ADRs 0001–0006 | before touching the model, either shared source, or anything generated from them |
 | `docs/UI.md` + ADR-0007 | before touching the editor |
 | `docs/decisions/ADR0008_LocalPersistence.md` | before touching local save, `serialization/`, `persistence/`, or the generated validator |
+| `docs/decisions/ADR0009_CircuitCatalogue.md` | before touching `examples/`, or adding anything that produces a circuit from parameters |
 | `docs/Frontend.md` | before touching frontend structure; it forbids some obvious shortcuts |
 | `docs/API.md`, `docs/Simulation.md` | before touching endpoints or the simulator seam |
 | `docs/decisions/` | when a decision looks arbitrary — the reasoning is there |

@@ -11,6 +11,19 @@ import { targetGlyph } from './glyphs';
 import { columnCenter, layoutCircuit, pendingConnector } from './layout';
 import { describeCells } from './placement';
 
+/**
+ * The example catalogue never resolves here.
+ *
+ * These tests are not about examples, and a catalogue that settles mid-test
+ * would update state outside `act` -- 97 warnings across this file before the
+ * stub. `ExamplePicker.test.tsx` drives the picker directly from props, which
+ * is what the presentational split is for.
+ */
+vi.mock('../api/examples', () => ({
+  fetchExamples: () => new Promise(() => undefined),
+  fetchExample: () => new Promise(() => undefined),
+}));
+
 function draw(circuit: Circuit, overrides: Partial<CircuitCanvasProps> = {}) {
   const decomposition = deriveCycles(circuit);
   const layout = layoutCircuit(circuit, decomposition);

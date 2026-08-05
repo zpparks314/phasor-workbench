@@ -62,6 +62,12 @@ operation that's wrong, in a problems strip that clears as you fix things.
 
 **Keep your work.** Circuits save to local storage and survive a refresh.
 
+**Start from something.** Six built-in examples — Bell, GHZ, Deutsch-Jozsa,
+Bernstein-Vazirani, Grover and the QFT — each loadable in one step and undoable
+in one. They are authored as OpenQASM and read through the same importer your
+own files go through, so they are evidence that path works rather than
+decoration.
+
 **Open and save files.** One Import control takes either a JSON circuit or an
 OpenQASM 2.0 program, and the *content* decides which — a mis-named `.txt`
 holding QASM still opens, because routing on the extension would refuse it with a
@@ -79,8 +85,8 @@ probabilities.
 
 ### Not Yet
 
-A library of example circuits, responsive layout for small screens, and a public
-deployment are the rest of Milestone 5 — see the [Roadmap](docs/Roadmap.md).
+Responsive layout for small screens and a public deployment are the rest of
+Milestone 5 — see the [Roadmap](docs/Roadmap.md).
 
 Two honest limits on OpenQASM today. Most Qiskit-*exported* QASM 2 is refused on
 import: `qelib1.inc` declares `u3`, `u2`, `u0`, `ch`, `crz`, `cu1`, `cu3` and
@@ -107,12 +113,12 @@ progress.**
 | Simulation | Built — state vector and sampling, Qiskit behind a swappable seam |
 | Analysis | Built — gate counts, depth, cycle decomposition |
 | Import / export | Built — JSON and OpenQASM 2.0, both directions |
-| Example circuits | **Not started** — Milestone 5 |
+| Example circuits | Built — six, loaded through the import path |
 | Deployment | **Not started** — Milestone 5 |
-| Tests | 816 frontend, 427 backend, 51 cross-language fixtures |
+| Tests | 827 frontend, 458 backend, 51 cross-language fixtures |
 | CI | Lint, format, types, tests, build, and binding freshness on every push |
 
-The HTTP API is six endpoints:
+The HTTP API is eight endpoints:
 
 | Endpoint | Does |
 |---|---|
@@ -120,6 +126,8 @@ The HTTP API is six endpoints:
 | `POST /api/v1/circuits/analyze` | Gate counts, depth, cycle decomposition |
 | `POST /api/v1/circuits/import/qasm` | Parses OpenQASM 2.0 into a circuit |
 | `POST /api/v1/circuits/export/qasm` | Writes a circuit as OpenQASM 2.0 |
+| `GET /api/v1/examples` | The built-in example catalogue |
+| `GET /api/v1/examples/{id}` | One example as a circuit |
 | `POST /api/v1/simulations/statevector` | Final state vector |
 | `POST /api/v1/simulations/sample` | Sampled measurement outcomes |
 

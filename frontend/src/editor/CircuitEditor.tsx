@@ -45,6 +45,7 @@ import {
   setRegisterSize,
 } from '../state/edits';
 import { downloadCircuit, downloadQasm, importCircuitFile } from '../files';
+import { fetchExample, type ExampleEntry } from '../api/examples';
 import { saveCircuit } from '../persistence';
 import { useCircuitStore } from '../state/useCircuitStore';
 import { validateCircuit } from '../validation';
@@ -56,6 +57,8 @@ import {
 } from './CircuitCanvas';
 import { AnalysisPanel } from './AnalysisPanel';
 import { EditorHeader } from './EditorHeader';
+import { ExamplePicker } from './ExamplePicker';
+import { useExamples } from './useExamples';
 import { GatePalette } from './GatePalette';
 import { Inspector } from './Inspector';
 import { ResultsPanel } from './ResultsPanel';
@@ -248,6 +251,32 @@ export function CircuitEditor({
     setFileError(null);
     store.apply(`Import ${file.name}`, () => outcome.circuit);
   }
+
+  /**
+   * Replace the circuit with a built-in example.
+   *
+   * The same shape as `importFile`, and deliberately: both replace the whole
+   * circuit in one undo step whose label names where it came from, and both
+   * leave the canvas untouched when they fail. An example is a circuit that
+   * arrived over the network rather than from a file, and nothing else.
+   */
+  async function loadExample(entry: ExampleEntry): Promise<void> {
+    let loaded;
+    try {
+      loaded = await fetchExample(entry.id);
+    } catch {
+      setFileError(
+        `Could not load ${entry.name}: the backend could not be reached. ` +
+          'The circuit on the canvas is unchanged.',
+      );
+      return;
+    }
+
+    setFileError(null);
+    store.apply(`Load ${entry.name}`, () => loaded);
+  }
+
+  const examples = useExamples();
 
   const decomposition = useMemo(() => deriveCycles(circuit), [circuit]);
   const layout = useMemo(
@@ -878,6 +907,13 @@ export function CircuitEditor({
             rule rather than two, and it is the honest one: the question is
             whether there is anything to label, not whether there are qubits.
           */}
+          <ExamplePicker
+            examples={examples}
+            onLoad={(entry) => {
+              void loadExample(entry);
+            }}
+          />
+
           <ViewControls
             showCycleLabels={showCycleLabels}
             onShowCycleLabelsChange={setShowCycleLabels}

@@ -15,6 +15,9 @@ class ErrorCode(StrEnum):
     REQUEST_MALFORMED = "REQUEST_MALFORMED"
     LIMIT_EXCEEDED = "LIMIT_EXCEEDED"
     RATE_LIMITED = "RATE_LIMITED"
+    #: A named resource does not exist. Added with the example catalogue, the
+    #: first endpoint to address something by id rather than take it in a body.
+    NOT_FOUND = "NOT_FOUND"
     BACKEND_UNAVAILABLE = "BACKEND_UNAVAILABLE"
     SIMULATION_TIMEOUT = "SIMULATION_TIMEOUT"
     INTERNAL_ERROR = "INTERNAL_ERROR"
