@@ -1058,6 +1058,14 @@ beyond the editor. `Roadmap.md` places responsive layout in Milestone 5; the
 three-column grid is built so that collapsing it is a change to the grid rather
 than to the components.
 
+Two things have been added to the layout since that was written, and both are
+that task's to resolve rather than this document's: the header now carries seven
+controls, because export shipped as two buttons rather than a format picker, and
+the row above the canvas now holds an *Examples* picker beside the structure
+controls. *Files* records the export-control alternative that was weighed and
+deferred here — including the native `<select>` — so it does not need
+re-deriving at 375px.
+
 **~~Import/export affordances.~~ Built** for JSON and OpenQASM — see *Files*.
 This entry once read that OpenQASM would reuse the same two controls, "since the
 affordance is 'a circuit goes out, a circuit comes in' and the format is a detail

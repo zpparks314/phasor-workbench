@@ -11,12 +11,17 @@ Milestone 1 (Foundation) closed on 2026-07-28, Milestone 2 (Circuit Model) on
 (Simulation MVP) on 2026-08-02.
 
 **Milestones 1–4 are closed.** The foundation, the Circuit Model, the editor and
-simulation all exist and are enforced by tests: 728 frontend and 327 backend,
+simulation all exist and are enforced by tests: 827 frontend and 458 backend,
 with 51 fixtures in `shared/fixtures/` holding the two language implementations
 to one specification.
 
+**Milestone 5 is most of the way through.** Import, export and example circuits
+are done; what remains is responsive layout, error handling, keyboard shortcuts,
+deployment and the documentation pass — see *Where to Pick Up*.
+
 A user can build a circuit from empty in the browser, edit its parameters and
-measurement targets, save work that survives a refresh, watch its final state
+measurement targets, save work that survives a refresh, open one of six built-in
+examples, read and write both JSON and OpenQASM 2.0 files, watch the final state
 follow every edit, and run it for measurement counts.
 
 The design is settled by ADRs 0001–0009 and by the topic documents. Where this
@@ -68,6 +73,14 @@ currently produces has one register. A missing feature, not a wrong result.
 
 **`register` generates as `register_` in Python**, aliased back to `register` on
 the wire. Cosmetic, and confined to the Python API.
+
+**Three React `act` warnings come out of `useAnalysis.test.ts`** on a full
+frontend run. They predate the example catalogue — the suite that introduced a
+component fetching on mount brought the count to 212 and then to zero by making
+`ExamplePicker` presentational and stubbing the catalogue where it is not the
+subject. These three are the remainder, they are noise rather than failure, and
+they are recorded here so the next person to run `npm test` does not spend the
+afternoon on them.
 
 ---
 
@@ -558,70 +571,139 @@ output is a paragraph in `UI.md` rather than a green check.
 the app runs natively and in Docker on 3.11 and 3.14.
 
 **This milestone is a different kind of work.** The first four built the thing;
-this one makes it fit for other people. Two consequences worth planning for:
+this one makes it fit for other people.
 
-**OpenQASM import/export is the real test of ADR-0001.** It is the first time
-the Circuit Model meets a format it was not designed around, and the first
-consumer that can genuinely disagree with it — an importer has to answer what a
-bare `barrier;` expands to, what happens to a gate the spec does not have, and
-how a QASM register maps onto `classicalRegisters`. The first two already have
-answers recorded (expansion at placement time; `UNKNOWN_GATE_NAME`), and the
-value of doing import early is that it either confirms them or exposes a gap
-while there is still room to move.
+**OpenQASM was the real test of ADR-0001, and the model passed.** This section
+used to predict that — the first time the Circuit Model met a format it was not
+designed around, and the first consumer that could genuinely disagree with it.
+It is now settled: a bare `barrier;` expands to every qubit declared so far, a
+gate the spec does not have reports `UNKNOWN_GATE_NAME` rather than being
+decomposed, and a QASM classical register maps one-for-one onto
+`classicalRegisters` keeping its name as a label. All three answers were the ones
+already recorded, so the representation needed no change.
 
-**The accessibility gap should close here.** *Open Issues* has the detail: the
-grid's screen-reader behaviour has never been checked against real assistive
-technology, and "suitable for public use" is not honestly claimable while that
-is true.
+What the exercise *did* expose is recorded in `API.md`: quantum register grouping
+does not survive at all, and parameter expressions are evaluated, so `rx(pi/2)`
+becomes a number and export cannot recover the intent. Both are consequences of
+ADR-0001 rather than defects in it.
 
-**Suggested order.** ~~JSON import/export first~~ — **done**, and the premise
-held: `serialization/` needed no change, and the file-handling path, the two
-header controls, and the import-failure surface are all in place for OpenQASM to
-reuse. Next is OpenQASM import, then export, then example circuits, which need an
-import path to be written in anything but hand-authored JSON. Deployment last,
-since it consumes the Dockerfiles and should not be built against a moving
-target.
+**The accessibility gap has not closed, and it is now the oldest open item.**
+*Open Issues* has the detail: the grid's screen-reader behaviour has never been
+checked against real assistive technology, and "suitable for public use" is not
+honestly claimable while that is true. It is first in the order below for a
+reason — see there.
 
-**What JSON import settled for OpenQASM.** Import replaces the whole circuit in
-one undo step and reports failure without touching the canvas; both are format
-independent, so QASM adds a parser rather than a second affordance. Where the
-parsing runs is now settled too: the backend, per `Architecture.md`, which makes
-OpenQASM the first import that can fail because the backend is down — a state
-JSON import cannot reach, and the frontend change has to handle it.
+**Where the milestone actually stands.** Four of the nine tasks are done, and
+they were the four with dependencies between them — each reused what the one
+before it built:
 
-**What OpenQASM import found, and what is left.** The parser is hand-written and
-takes no dependency: Qiskit can read QASM but lives in the optional `simulation`
-extra, so importing through it would make a core feature unavailable on a default
-install. Two findings worth carrying forward:
+| Task | State |
+|---|---|
+| JSON import/export | **Done** — `frontend/src/files/` |
+| OpenQASM import | **Done** — `importers/qasm/`, parsed on the backend |
+| OpenQASM export | **Done** — `exporters/qasm.py` |
+| Example circuits | **Done** — `examples/`, six, read through the importer |
+| Responsive layout | Not started |
+| Error handling | Not started |
+| Keyboard shortcuts | Not started |
+| Documentation | Not started, and belongs last |
+| Deployment | Not started, and belongs last |
 
-* **Most Qiskit-exported QASM 2 will be refused**, because `u3`, `u2`, `cu1` and
-  friends have no representation in the model and decomposing them inside an
-  importer would return a circuit the user did not hand over. This is the gap
-  the milestone was supposed to expose, and the honest fix is a wider gate set
-  rather than a cleverer importer. **Confirmed as Milestone 6 work on
-  2026-08-02** — see *Widening the Gate Set* under *Future Milestones*.
-* **`ProjectStructure.md`'s reserved directories nearly failed to do their job.**
-  The parser was written as a top-level `qasm/` package before anyone reread the
-  backend tree, where `importers/` had been reserved for it since Milestone 1
-  with a docstring stating the exact invariant the parser had independently
-  arrived at. It was moved. An empty directory is only as good as the habit of
-  looking at it.
+`README.md` is not on that list because it is part of *Documentation*; it was
+pulled ahead deliberately and is current — see below.
+
+**Suggested order for what is left.** ~~JSON import/export, then OpenQASM import,
+then export, then example circuits~~ — **all done**, and the premise held each
+time: `serialization/` never needed a change, and each feature reused the surface
+the one before it built.
+
+The remaining five have far weaker dependencies on each other, so the order below
+is about risk rather than blocking:
+
+1. **The screen-reader check first**, because it is the only item that can
+   invalidate work already done. *Open Issues* has carried it through four
+   milestones, and two features have already steered around it. If the composite
+   grid turns out to announce badly, the fix touches the canvas — and every later
+   task in this milestone is layout, error surfaces and packaging on top of that
+   canvas. Doing it last means discovering it after building on it.
+2. **Error handling**, which is small and self-contained: the exit criterion is an
+   unhandled render error showing something other than a blank page.
+3. **Keyboard shortcuts**, whose criterion is that the `?` reference is *derived*
+   from the same source the handlers use rather than written twice.
+4. **Responsive layout**, which is where the header question below gets settled.
+5. **Deployment**, still last — it consumes the Dockerfiles and should not be
+   built against a moving target.
+
+**Documentation last**, and unchanged in reasoning: it should describe what
+shipped, not what was planned.
+
+**What the file work settled that the remaining tasks inherit.**
+
+* **There is one file-failure surface, and it is now shared.** A failed import, a
+  failed OpenQASM export and a failed example load all report through the
+  header's `fileError` alert, which states that the circuit on the canvas is
+  unchanged. *Error handling* should extend that surface rather than add a
+  fourth: the editor already has `saveError` and `fileError`, and a third
+  alert-shaped thing would be the point at which nobody can predict where a
+  message will appear.
+* **The header carries seven controls and there is now a second row above the
+  canvas.** Export shipped as two buttons rather than a format picker, and the
+  Examples picker sits beside the structure controls. Both were sized for a wide
+  screen. *Responsive layout* owns the question of whether either survives
+  375px — `UI.md`'s *Files* section records the export-control alternative that
+  was weighed and deliberately deferred to that task, including the native
+  `<select>` option, so it does not need re-deriving.
+* **Nothing in the remaining work needs the backend to grow.** The API is eight
+  endpoints and none of the five open tasks adds one. ADR-0009 reserves
+  `/generators` and `/transforms` for circuit families like QAOA and VQE and for
+  circuit-to-circuit rewrites like randomized compiling; **that is Milestone 6
+  work and not this milestone's**, recorded so the reservation is not mistaken
+  for a plan.
+
+**What example circuits found.** Two things worth carrying:
+
+* **The exit criterion's "and simulate" clause caught a real defect on its first
+  use.** The first QFT written for the catalogue validated cleanly and was wrong
+  — built the textbook way, with qubit 0 as the most significant bit, where this
+  project fixes qubit 0 as the rightmost. It produced the correct uniform
+  distribution from `|000>`, so any assertion about the *shape* of the output
+  would have passed, and the wrong state for every other input. **Anything that
+  claims to implement a known quantum primitive must be asserted against its
+  analytic definition**, not against a plausible-looking distribution. This
+  applies directly to *Educational Visualizations* later.
+* **The model cannot express teleportation honestly**, and the catalogue omits it
+  rather than shipping a circuit that looks like the diagram and does something
+  else. Its corrections are conditioned on measurement outcomes; ADR-0003 defers
+  classical control. This is the second feature to be shaped by that deferral,
+  after mid-circuit measurement itself, which is worth noting if classical
+  control is ever reconsidered.
 
 **`README.md` was pulled ahead of the rest of *Documentation* and is done**, for
 a reason worth keeping: every other stale document is read by someone who has
 already cloned the repository, while that one is the front page. It depended on
 none of the other tasks, so leaving it until the end would have meant the
-milestone's most visible artifact was wrong for the whole of it. The rest of
-*Documentation* — chiefly whatever import/export and deployment add — still
-belongs at the end, where it can describe what actually shipped.
+milestone's most visible artifact was wrong for the whole of it. It has been kept
+current since, and the counts in it are checked by running both suites rather
+than estimated.
+
+The rest of *Documentation* still belongs at the end. Import, export and examples
+each updated `API.md`, `UI.md`, `ProjectStructure.md` and the `README` in the same
+change that introduced them, which is the project's rule and leaves less for that
+task than the original plan assumed — what remains is chiefly whatever deployment
+adds, plus a pass for anything the last four tasks contradict.
 
 **Two things already prepared for this milestone.** Both Dockerfiles are
 multi-stage, so adding a `production` target is additive rather than a rewrite.
 And the three-column grid was built so that collapsing it for small screens is a
 change to the grid rather than to the components.
 
-**`docs/API.md` lists deferred endpoints** — QASM import/export and examples —
-so the path structure stays coherent when they arrive.
+**`docs/API.md`'s deferred list has turned over.** QASM import, QASM export and
+examples were on it and are now built sections. What sits there instead is
+`POST /generators/{id}` and `POST /transforms/{id}`, reserved by ADR-0009 for
+parameterised circuit families and circuit-to-circuit rewrites. **Neither is
+Milestone 5 work.** They are listed so the path structure stays coherent, which
+is the same reason the endpoints now built were listed before them — not a
+commitment to build them next.
 
 ---
 
