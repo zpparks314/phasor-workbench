@@ -1186,7 +1186,7 @@ describe('saving the circuit', () => {
 
   /**
    * A failed save is stated and persistent. Silence would let someone close the
-   * tab believing their work was safe, which UI.md and CLAUDE.md both forbid.
+   * tab believing their work was safe, which UI.md and AGENTS.md both forbid.
    */
   it('says so when storage refuses, and says the circuit is still open', () => {
     const setItem = vi

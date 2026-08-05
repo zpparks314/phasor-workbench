@@ -23,7 +23,7 @@ type BackendState =
  *
  * A stored document that cannot be read is *not* silently discarded. It is
  * reported, and the editor opens empty beside the reason -- ADR-0008 section 5
- * and CLAUDE.md both forbid swallowing it, and the likeliest causes are a
+ * and AGENTS.md both forbid swallowing it, and the likeliest causes are a
  * partial write or a build older than the document.
  *
  * The backend check stays because Architecture.md requires the frontend to remain

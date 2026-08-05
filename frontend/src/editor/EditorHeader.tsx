@@ -324,7 +324,7 @@ export function EditorHeader({
       {/*
         A failed save is persistent and non-blocking, and says the circuit is
         still in memory. Silence would let someone close the tab believing their
-        work was safe, which UI.md forbids and CLAUDE.md forbids more generally.
+        work was safe, which UI.md forbids and AGENTS.md forbids more generally.
         `alert` rather than `status`: this is not a passing update.
       */}
       {saveError !== null && (

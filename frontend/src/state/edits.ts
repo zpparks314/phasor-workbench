@@ -18,7 +18,7 @@
  * What edits *do* reject is an unresolvable reference, because that is a bug in
  * the caller rather than a state a user can reach: removing an operation that is
  * not there means the caller is working from a stale circuit, and returning the
- * input unchanged would hide it. Per CLAUDE.md, fail predictably rather than
+ * input unchanged would hide it. Per AGENTS.md, fail predictably rather than
  * silently.
  */
 
