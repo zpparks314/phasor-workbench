@@ -143,7 +143,7 @@ frontend/
 │   ├── persistence/    Local storage adapter             (Milestone 3)
 │   ├── files/          File import and export adapter    (Milestone 5)
 │   ├── state/          Circuit state, edits, undo/redo   (Milestone 3)
-│   ├── components/     Shared presentational components  (Milestone 3)
+│   ├── components/     Shared presentational components  (Milestone 5)
 │   ├── editor/         Circuit editor, SVG rendering     (Milestone 3)
 │   ├── visualization/  State visualization               (Milestone 4)
 │   └── test/           Test setup
@@ -293,6 +293,16 @@ at all.
 **Only `CircuitEditor` touches the store.** Everything else takes values and
 callbacks, which is what keeps the single-source-of-truth rule checkable — the
 store's state is asserted to be a bare `Circuit` in `state/store.test.ts`.
+
+## Inside `src/components/`
+
+Reserved from Milestone 3 and first filled in Milestone 5: `ErrorBoundary`, the
+only class component in the frontend, and `RecoveryScreen`, the fallback the root
+installs behind it. Neither is about circuits, which is why neither is in
+`editor/` — the boundary is mechanism, and the screen is what the application
+shows once there is no editor left. `main.tsx` is the only place they are wired
+together. See [Frontend.md](Frontend.md) and, for what the screen offers,
+[UI.md](UI.md) under *When the Editor Stops*.
 
 **Inside `simulation/`** the split is one file per job: `backend.py` is the
 port every adapter satisfies, `errors.py` the typed failures an adapter may

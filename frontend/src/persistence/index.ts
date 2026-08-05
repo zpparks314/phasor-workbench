@@ -139,6 +139,31 @@ export function loadStoredCircuit(
   return { ok: true, circuit: result.circuit, warnings: result.warnings };
 }
 
+/**
+ * The stored document exactly as it was written, with nothing parsed.
+ *
+ * The one read here that does not go through the loader, and deliberately so.
+ * Its caller is the recovery screen, whose premise is that the stored document
+ * may be precisely what this build cannot handle -- so putting it through the
+ * code that just failed would either fail again or hand back something other
+ * than what is stored. Bytes out, as they went in, so that a circuit this build
+ * cannot open is still a circuit the user can keep.
+ *
+ * An empty string reads as nothing stored, matching `loadStoredCircuit`.
+ */
+export function readStoredDocument(
+  storage: StorageAdapter | null = browserStorage(),
+): string | null {
+  if (storage === null) return null;
+
+  try {
+    const raw = storage.getItem(STORAGE_KEY);
+    return raw === null || raw === '' ? null : raw;
+  } catch {
+    return null;
+  }
+}
+
 /** Forget the working set. Used when a stored document cannot be read. */
 export function clearStoredCircuit(
   storage: StorageAdapter | null = browserStorage(),

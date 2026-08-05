@@ -1010,6 +1010,69 @@ something false. The same distinction OpenQASM import draws.
 
 ---
 
+## When the Editor Stops
+
+Added 2026-08-05, with *Error handling*. Every other failure in this document
+happens *inside* a working editor and reports through one of the header's two
+alerts — a save that could not be written, a file that could not be read, a
+backend that did not answer. This is the one that does not, and the reason is
+structural rather than editorial: **a component that throws while rendering
+unmounts its whole tree**, so the header carrying those alerts is gone with
+everything else and there is no surface left to extend. What replaces the page is
+a recovery screen, from a single error boundary at the root.
+
+**One boundary, at the root, not one per region.** Keeping the shell alive around
+a crashed canvas would produce a page that looks half-working and offers nothing
+to do — the shell is a title, a backend status line, and the alerts about what
+was restored. Boundaries around the individual panels are additive and remain
+available; the case for one is a panel that can fail while the canvas stays
+usable, and nothing built so far makes that case.
+
+**It names the error.** "Something went wrong" is the silence `AGENTS.md` forbids
+with a message painted over it. The error's own text is shown, and the stack sits
+one disclosure away — not behind a build flag, because gating it on the build
+leaves it available only where nobody is hitting the problem.
+
+**It says the saved circuit was not touched**, which is the same reassurance a
+failed import gets, and for the same reason: a person looking at a crashed editor
+will assume otherwise.
+
+### Reload is not, by itself, a way out
+
+This is the part worth reading before changing any of it. The editor opens on
+whatever local storage restored. So if the crash is *caused* by the saved circuit
+— a document this build's layout cannot draw — then reloading brings the same
+crash back, every time. The application is then unusable in that browser with the
+user's work sealed inside it, and no control on a "something went wrong" page
+would help.
+
+Discarding the saved circuit escapes the loop, and destroying someone's only copy
+to rescue them is not a trade to make quietly. So the screen offers both, in
+order: **download the saved circuit, then discard it and reload.** The discard
+takes two presses, like every destructive control here — and this one has no
+history behind it, which makes it the most irreversible button in the
+application.
+
+**The download is the stored bytes, unparsed.** It cannot go through
+`serialization/`: the premise is that the document may be one this build cannot
+handle, so putting it back through that code would either fail in the same place
+or hand back something other than what is stored. `readStoredDocument` exists for
+this and is the only read in `persistence/` that skips the loader.
+
+**Both offers are absent when nothing is stored.** There is then neither a loop
+nor a rescue, and a control that discards nothing is a control that does nothing.
+
+**Focus moves to the heading on mount.** A caught error unmounts the element that
+held focus, so focus falls to `body`; without this, a keyboard user meets the
+crash screen from the top of the document with nothing to say that anything
+changed.
+
+**There is no "try again".** Re-rendering the same tree from the same state runs
+the same code and throws again, so a retry button would look like a way out and
+not be one. What the screen offers instead is a change of state.
+
+---
+
 # Visual Language
 
 ## Colour

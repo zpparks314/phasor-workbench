@@ -173,7 +173,7 @@ export function downloadCircuit(
   circuit: Circuit,
   target: Document = globalThis.document,
 ): void {
-  download(circuitFile(circuit), target);
+  downloadFile(circuitFile(circuit), target);
 }
 
 /**
@@ -209,7 +209,7 @@ export async function downloadQasm(
     };
   }
 
-  download(
+  downloadFile(
     {
       filename: `${slugify(circuit.name)}.qasm`,
       text: source,
@@ -222,13 +222,20 @@ export async function downloadQasm(
 }
 
 /**
- * The click-a-link download, shared by both formats.
+ * The click-a-link download, shared by every format.
+ *
+ * Exported because not everything handed to the browser starts as a `Circuit`:
+ * the recovery screen downloads the stored document as raw text, precisely
+ * because it may be one this build cannot turn into a circuit at all.
  *
  * The object URL is revoked on a later task rather than immediately after the
  * click: some browsers have not finished reading the blob when `click` returns,
  * and revoking under them cancels the download.
  */
-function download(file: CircuitFile, target: Document): void {
+export function downloadFile(
+  file: CircuitFile,
+  target: Document = globalThis.document,
+): void {
   const url = URL.createObjectURL(new Blob([file.text], { type: file.type }));
 
   const anchor = target.createElement('a');
