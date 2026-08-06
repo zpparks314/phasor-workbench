@@ -11,7 +11,7 @@ Milestone 1 (Foundation) closed on 2026-07-28, Milestone 2 (Circuit Model) on
 (Simulation MVP) on 2026-08-02.
 
 **Milestones 1–4 are closed.** The foundation, the Circuit Model, the editor and
-simulation all exist and are enforced by tests: 911 frontend and 458 backend,
+simulation all exist and are enforced by tests: 913 frontend and 458 backend,
 with 51 fixtures in `shared/fixtures/` holding the two language implementations
 to one specification.
 

@@ -41,6 +41,28 @@ describe('native controls follow the page', () => {
   it('lets the scheme follow the same preference the tokens do', () => {
     expect(CSS).toMatch(/color-scheme:\s*light dark/);
   });
+
+  /**
+   * And the part `color-scheme` alone did not fix. It gets the *computed*
+   * values right — Chrome resolves an `option` to white on its own grey under a
+   * dark preference — but how faithfully a browser paints a dark control varies
+   * by engine and platform, and the picker was still reported hard to read.
+   * Author-specified colours are painted the same way everywhere.
+   */
+  it('paints a dropdown from the tokens rather than trusting the browser', () => {
+    const rule = /select,\s*\n?option\s*\{([^}]*)\}/.exec(CSS)?.[1] ?? '';
+
+    expect(rule).toMatch(/background-color:\s*var\(--color-/);
+    expect(rule).toMatch(/color:\s*var\(--color-/);
+  });
+
+  /** Tokens, never literals — the rule the whole file exists to keep. */
+  it('uses no literal colour outside the token definitions', () => {
+    const belowTokens = CSS.slice(CSS.indexOf('#root'));
+
+    expect(belowTokens).not.toMatch(/#[0-9a-f]{3,8}\b/i);
+    expect(belowTokens).not.toMatch(/\brgb\(|\bhsl\(/);
+  });
 });
 
 describe('the token set', () => {

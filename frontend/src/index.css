@@ -20,9 +20,11 @@
 
    `light dark` rather than a fixed value, because the tokens below key off
    `prefers-color-scheme` and this must follow the same signal or the two drift
-   apart again. One declaration fixes every native control at once, which is why
-   it belongs here rather than as a background on each component: this file is
-   where the visual language lives, and no component hardcodes a colour. */
+   apart again. One declaration reaches every native control at once, which is
+   why it belongs here rather than on each component: this file is where the
+   visual language lives, and no component hardcodes a colour.
+
+   It is necessary and it was not sufficient -- see the `select` rule below. */
 :root {
   color-scheme: light dark;
 }
@@ -42,6 +44,24 @@ html,
 body,
 #root {
   height: 100%;
+}
+
+/* A dropdown is painted by the browser, so it is styled here explicitly rather
+   than left to `color-scheme` alone.
+
+   `color-scheme` above gets the computed values right -- Chrome resolves an
+   `option` to white on its own grey under a dark preference -- but "right" there
+   means *Chrome's* palette, not this project's, and how faithfully any browser
+   paints a dark control varies by engine, platform and OS theme. Relying on it
+   left the examples picker still hard to read after the first fix.
+
+   Author-specified colours are painted the same way everywhere, and they are the
+   app's own surface rather than a grey that belongs to nobody. Tokens, not
+   literals, so this stays one place to change. */
+select,
+option {
+  background-color: var(--color-surface-raised);
+  color: var(--color-ink);
 }
 
 /* An operation sliding from where it was dropped to the column the derivation
