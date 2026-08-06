@@ -23,6 +23,8 @@
 
 import { useRef, useState } from 'react';
 
+import { isTypingTarget } from './shortcuts';
+
 export interface EditorHeaderProps {
   readonly canUndo: boolean;
   readonly canRedo: boolean;
@@ -47,12 +49,40 @@ export interface EditorHeaderProps {
   readonly onRedo: () => void;
   readonly onClear: () => void;
   readonly onSave: () => void;
-  readonly onExport: () => void;
-  /** OpenQASM export. Asynchronous and backend-bound, unlike `onExport`. */
-  readonly onExportQasm: () => void;
+  /**
+   * Write the circuit out in the chosen format.
+   *
+   * One callback taking a format, rather than one per format. The header is
+   * where the choice is collected, so it is also where the two paths converge —
+   * and a third format would add a row to `EXPORT_FORMATS` and nothing else.
+   */
+  readonly onExport: (format: ExportFormat) => void;
   /** Opens the file picker. Import itself is the editor's to apply. */
   readonly onImport: (file: File) => void;
 }
+
+export type ExportFormat = 'json' | 'qasm';
+
+/**
+ * What the format picker offers, and what the button then says it will do.
+ *
+ * The button's name changes with the choice rather than staying a generic
+ * "Export". Two controls acting on one decision have to be readable as a
+ * sentence — "OpenQASM 2.0" then "Export circuit as an OpenQASM 2.0 file" —
+ * or a screen-reader user has no way to check what the pair currently means.
+ */
+const EXPORT_FORMATS: readonly {
+  readonly value: ExportFormat;
+  readonly label: string;
+  readonly action: string;
+}[] = [
+  { value: 'json', label: 'JSON', action: 'Export circuit as a JSON file' },
+  {
+    value: 'qasm',
+    label: 'OpenQASM 2.0',
+    action: 'Export circuit as an OpenQASM 2.0 file',
+  },
+];
 
 const BUTTON =
   'rounded border border-ink-muted/40 px-2 py-1 text-sm enabled:hover:border-ink disabled:opacity-40';
@@ -71,12 +101,14 @@ export function EditorHeader({
   onClear,
   onSave,
   onExport,
-  onExportQasm,
   onImport,
 }: EditorHeaderProps): React.JSX.Element {
   const [focused, setFocused] = useState(0);
   const [confirming, setConfirming] = useState(false);
-  const buttons = useRef(new Map<string, HTMLButtonElement>());
+  const [format, setFormat] = useState<ExportFormat>('json');
+  // `HTMLElement`, not `HTMLButtonElement`: the format picker is a `select`,
+  // and the roving focus has to be able to land on it like any other control.
+  const buttons = useRef(new Map<string, HTMLElement>());
   const picker = useRef<HTMLInputElement>(null);
 
   const controls = [
@@ -88,10 +120,13 @@ export function EditorHeader({
     { key: 'save', enabled: true },
     // Export is enabled for an empty circuit too, on the same reasoning: an
     // empty circuit is a valid document, not a missing one.
+    { key: 'exportFormat', enabled: true },
     { key: 'export', enabled: true },
-    { key: 'exportQasm', enabled: true },
     { key: 'import', enabled: true },
   ];
+
+  const chosen =
+    EXPORT_FORMATS.find((entry) => entry.value === format) ?? EXPORT_FORMATS[0];
 
   /**
    * The roving tab stop never lands on a disabled control.
@@ -124,6 +159,17 @@ export function EditorHeader({
       ArrowUp: -1,
     };
 
+    /*
+      The roving focus does not take arrow keys away from the format picker.
+
+      A `select` uses them to change its own value, and this toolbar uses them
+      to move between controls -- so without this guard, adding the picker
+      would have made the export format unreachable by keyboard, which is worse
+      than the two buttons it replaced. `isTypingTarget` is the same helper the
+      global `?` binding uses to decide a key belongs to the element under it.
+    */
+    if (isTypingTarget(event.target)) return;
+
     if (event.key in step) {
       event.preventDefault();
       moveFocus(focused, step[event.key] ?? 0);
@@ -133,7 +179,7 @@ export function EditorHeader({
     }
   }
 
-  const register = (key: string) => (element: HTMLButtonElement | null) => {
+  const register = (key: string) => (element: HTMLElement | null) => {
     if (element === null) buttons.current.delete(key);
     else buttons.current.set(key, element);
   };
@@ -170,7 +216,7 @@ export function EditorHeader({
       aria-label="Circuit actions"
       aria-orientation="horizontal"
       onKeyDown={handleKeyDown}
-      className="flex items-center gap-2"
+      className="flex flex-wrap items-center gap-2"
     >
       <button
         ref={register('undo')}
@@ -242,36 +288,57 @@ export function EditorHeader({
         Save
       </button>
 
+      {/*
+        A native `select` and one button, replacing the two buttons this
+        shipped as. Import routes on content because a file says what it is;
+        export has no such evidence, so the choice is genuinely the user's --
+        that part has not changed. What changed is where the choice is
+        collected: two buttons cost a header slot each, and the header is what
+        does not fit at 375px.
+
+        A native select rather than a custom menu, for the reason the inspector
+        and the examples picker already use one: keyboard and screen-reader
+        support arrive with the element, where `role="menu"` would bring focus
+        trapping and its own arrow semantics to place two items. UI.md weighed
+        this in Milestone 5 and deferred it here, which is where it is settled.
+
+        Choosing does not export -- the same rule the examples picker follows.
+        An arrow key through a list must not write a file.
+      */}
+      <label className="flex items-center gap-1 text-sm">
+        <span className="sr-only">Export format</span>
+        <select
+          ref={register('exportFormat')}
+          value={format}
+          tabIndex={tabbableKey === 'exportFormat' ? 0 : -1}
+          aria-label="Export format"
+          onFocus={focus('exportFormat')}
+          onChange={(event) => {
+            setFormat(event.target.value as ExportFormat);
+          }}
+          className={BUTTON}
+        >
+          {EXPORT_FORMATS.map((entry) => (
+            <option key={entry.value} value={entry.value}>
+              {entry.label}
+            </option>
+          ))}
+        </select>
+      </label>
+
       <button
         ref={register('export')}
         type="button"
         tabIndex={tabbableKey === 'export' ? 0 : -1}
-        aria-label="Export circuit as a JSON file"
-        title="Export circuit as a JSON file"
+        aria-label={chosen?.action}
+        title={chosen?.action}
         onFocus={focus('export')}
-        onClick={onExport}
+        onClick={() => {
+          onExport(format);
+        }}
         className={BUTTON}
       >
-        Export JSON
-      </button>
-
-      {/*
-        A separate control rather than a format picker on one button. Import
-        can route on content because the file already says what it is; export
-        has no such evidence, so the choice is the user's and is better made
-        visible than hidden behind a menu.
-      */}
-      <button
-        ref={register('exportQasm')}
-        type="button"
-        tabIndex={tabbableKey === 'exportQasm' ? 0 : -1}
-        aria-label="Export circuit as an OpenQASM 2.0 file"
-        title="Export circuit as an OpenQASM 2.0 file"
-        onFocus={focus('exportQasm')}
-        onClick={onExportQasm}
-        className={BUTTON}
-      >
-        Export QASM
+        Export
       </button>
 
       {/*
