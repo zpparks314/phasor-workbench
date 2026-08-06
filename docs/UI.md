@@ -453,10 +453,23 @@ markup being right on paper proves little.
 
 ## Shortcuts
 
+**`frontend/src/editor/shortcuts.ts` is the source, and this table documents it
+rather than competing with it.** Amended 2026-08-05, when the `?` reference
+landed. Before that the canvas read `event.key` in six places and this table was
+a hand-written third copy; a help panel written the same way would have been a
+fourth, and the one thing a shortcut reference must never be is out of date. The
+canvas now dispatches through `resolveShortcut`, the panel renders the same
+entries, and a test drives every row of the list against the canvas to check it
+reaches a handler.
+
+So **a new shortcut is added in one place** and appears in the editor and in the
+reference together. If this table and that file ever disagree, the file is right
+and this is stale.
+
 | Key | Action |
 |---|---|
 | `Arrow` keys | move the cell cursor within the canvas |
-| `Home` / `End` | first / last column on the current wire |
+| `Home` / `End` | first / last cycle on the current wire |
 | `Enter` / `Space` | place the armed gate, or select the operation under the cursor |
 | `Delete` / `Backspace` | remove the selection |
 | `Escape` | cancel a pending multi-qubit gate, else disarm, else clear selection |
@@ -465,7 +478,41 @@ markup being right on paper proves little.
 | `Ctrl/Cmd` + `Z` | undo |
 | `Ctrl/Cmd` + `Shift` + `Z` | redo |
 | `Ctrl/Cmd` + `S` | save |
-| `?` | shortcut reference |
+| `?` | show or hide the shortcut reference |
+
+**Every one of these is scoped to the canvas**, `Ctrl/Cmd + Z` and `Ctrl/Cmd + S`
+included — that was already true before `?` joined them, and is why `?` is not
+made the one global key. A global listener would have to guard against firing
+inside the register-size input and the angle field, and it would be the only
+document-level handler in the editor. The reference carries its own control
+instead, which is an ordinary tab stop, so it stays reachable from anywhere by
+`Tab`.
+
+### The Reference Itself
+
+A collapsed disclosure at the foot of the canvas column, below the problems
+strip. `?` toggles it and moves focus to it; the same key closes it.
+
+**A disclosure, not a dialog**, on the reasoning *Examples* already used: the
+editor has no menu or dialog pattern anywhere, and this would have been the first
+— bringing focus trapping, `aria-modal`, and an `Escape` binding that would
+collide with the three meanings `Escape` already carries on the canvas. A
+shortcut list is also something you read *beside* the circuit rather than instead
+of it.
+
+**Rows are grouped**, and the grouping is derived from the entries rather than
+declared beside them, so a group cannot end up listed but empty.
+
+**One entry is one row and one binding.** That is what makes the two agree, and
+it is why an entry claims a *family* of presses: the four arrows are one line to
+a reader and four presses to a dispatcher. Splitting them would give four rows
+nobody wants to read; merging them for display only would put an editorial step
+between the list and the panel, which is the drift this exists to prevent.
+
+**The roving arrow keys in the header, palette, structure controls and examples
+picker are not in this table.** They are region navigation — the composite-widget
+pattern described under *Structure* — not commands, and listing `Arrow` a fifth
+time would bury the eleven rows that are.
 
 Arrow keys within the palette move between gates; `Enter` arms the focused gate.
 
@@ -964,9 +1011,12 @@ is locatable.
 
 **No new keyboard accelerator.** The header is a toolbar with a roving focus, so
 both controls are already reachable by keyboard, and `Ctrl/Cmd + O` is spoken for
-by the browser in most of them. The full shortcut map — including whether file
-actions deserve accelerators at all — is its own Milestone 5 task, and this
-declines to pre-empt it.
+by the browser in most of them. This deferred the question to the shortcut-map
+task, **and that task answered it the same way on 2026-08-05: they get none.**
+Every shortcut is canvas-scoped, so a file accelerator would have to be the first
+global binding in the editor, bought for two controls that are already one `Tab`
+away. Import is also the more destructive of the two, and a one-key path to
+replacing the circuit is not an improvement.
 
 ---
 
@@ -1116,10 +1166,13 @@ was the point of deferring it. See *The Results Panel*. State visualization
 proper (Bloch spheres, amplitude phase, evolution over time) stays deferred to
 *Educational Visualizations*.
 
-**To Milestone 5.** Responsive and small-screen layout, and the full shortcut map
-beyond the editor. `Roadmap.md` places responsive layout in Milestone 5; the
-three-column grid is built so that collapsing it is a change to the grid rather
-than to the components.
+**To Milestone 5.** Responsive and small-screen layout. `Roadmap.md` places it
+there; the three-column grid is built so that collapsing it is a change to the
+grid rather than to the components.
+
+**~~The full shortcut map.~~ Built** 2026-08-05 — see *Shortcuts*. It settled two
+things this document had left open: the map is `editor/shortcuts.ts` rather than
+a table maintained here, and file actions get no accelerators.
 
 Two things have been added to the layout since that was written, and both are
 that task's to resolve rather than this document's: the header now carries seven
@@ -1143,6 +1196,8 @@ records the amendment.
 # Rules
 
 * every interaction has a keyboard path
+* a key binding is declared once, in `editor/shortcuts.ts`, and the `?` reference
+  renders that same list — never a second copy of it
 * colour is never the only carrier of meaning
 * no component stores a coordinate, a column index, or a copy of the circuit
 * animation explains something or does not exist

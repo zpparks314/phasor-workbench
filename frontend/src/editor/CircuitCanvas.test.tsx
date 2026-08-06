@@ -10,6 +10,12 @@ import { CircuitCanvas, type CircuitCanvasProps } from './CircuitCanvas';
 import { targetGlyph } from './glyphs';
 import { columnCenter, layoutCircuit, pendingConnector } from './layout';
 import { describeCells } from './placement';
+import {
+  SHORTCUTS,
+  resolveShortcut,
+  type KeyPress,
+  type Shortcut,
+} from './shortcuts';
 
 /**
  * The example catalogue never resolves here.
@@ -54,6 +60,7 @@ function draw(circuit: Circuit, overrides: Partial<CircuitCanvasProps> = {}) {
     onRedo: vi.fn(),
     onCycleBarriers: vi.fn(),
     onSave: vi.fn(),
+    onShowShortcuts: vi.fn(),
     ...overrides,
   };
 
@@ -813,6 +820,116 @@ describe('keyboard', () => {
 
     expect(props.onCancel).toHaveBeenCalled();
   });
+
+  it('opens the shortcut reference with ?', () => {
+    const { props } = draw(circuitWith(1));
+
+    press('?');
+
+    expect(props.onShowShortcuts).toHaveBeenCalled();
+  });
+
+  /**
+   * A press the table does not claim is left to the browser rather than
+   * swallowed, which is what `resolveShortcut` returning `undefined` is for.
+   */
+  it('leaves a key it does not bind alone', () => {
+    const { props } = draw(circuitWith(2));
+
+    press('a');
+
+    for (const value of Object.values(props)) {
+      if (vi.isMockFunction(value)) expect(value).not.toHaveBeenCalled();
+    }
+  });
+});
+
+/**
+ * Every row of `./shortcuts` reaches a handler on the canvas.
+ *
+ * This is the half of the Milestone 5 criterion that a `?` panel cannot check
+ * for itself. The panel proves the table is *displayed*; this proves the same
+ * table is what the editor is *bound to*, so a row cannot describe a key that
+ * does nothing. Both read `SHORTCUTS` rather than a list written beside them,
+ * which is what makes them guards rather than snapshots.
+ *
+ * It derives its presses instead of listing them: a shortcut added with a key
+ * outside `KEYS` fails here with "no press found", which is a nudge to extend
+ * the candidates rather than a silent gap in the coverage.
+ */
+describe('every shortcut in the table', () => {
+  const KEYS = [
+    'z',
+    'Z',
+    's',
+    'b',
+    'B',
+    'ArrowUp',
+    'ArrowDown',
+    'ArrowLeft',
+    'ArrowRight',
+    'Home',
+    'End',
+    'Enter',
+    ' ',
+    'Delete',
+    'Backspace',
+    'Escape',
+    '?',
+  ];
+  const MODIFIERS: Partial<KeyPress>[] = [
+    {},
+    { shiftKey: true },
+    { ctrlKey: true },
+    { metaKey: true },
+    { ctrlKey: true, shiftKey: true },
+  ];
+
+  /** A press this entry claims *and* wins, so firing it exercises this row. */
+  function pressFor(shortcut: Shortcut): KeyPress {
+    for (const key of KEYS) {
+      for (const modifiers of MODIFIERS) {
+        const candidate: KeyPress = {
+          key,
+          ctrlKey: false,
+          metaKey: false,
+          shiftKey: false,
+          ...modifiers,
+        };
+        const claimed = shortcut.resolve(candidate);
+        if (claimed === undefined) continue;
+        // An entry shadowed by an earlier one would otherwise be tested through
+        // the wrong handler and pass while being unreachable.
+        if (
+          JSON.stringify(resolveShortcut(candidate)) === JSON.stringify(claimed)
+        ) {
+          return candidate;
+        }
+      }
+    }
+    throw new Error(`no press found for "${shortcut.keys}"`);
+  }
+
+  it.each(SHORTCUTS.map((shortcut) => [shortcut.keys, shortcut] as const))(
+    'reaches a handler for %s',
+    (_keys, shortcut) => {
+      // A circuit with an operation, so no entry is a no-op for want of one.
+      const circuit = insertOperation(
+        circuitWith(2),
+        gate('op_0', 'h', ['q_0']),
+        0,
+      );
+      const { props } = draw(circuit, { selection: 'op_0' });
+      const { key, ...modifiers } = pressFor(shortcut);
+
+      fireEvent.keyDown(screen.getByRole('grid'), { key, ...modifiers });
+
+      const called = Object.values(props).filter(
+        (value) => vi.isMockFunction(value) && value.mock.calls.length > 0,
+      );
+      expect(called.length).toBeGreaterThan(0);
+    },
+  );
 });
 
 describe('pointer', () => {

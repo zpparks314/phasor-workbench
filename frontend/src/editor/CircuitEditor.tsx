@@ -65,6 +65,7 @@ import { ResultsPanel } from './ResultsPanel';
 import { useSimulation } from './useSimulation';
 import { useAnalysis } from './useAnalysis';
 import { ProblemsStrip } from './ProblemsStrip';
+import { ShortcutReference } from './ShortcutReference';
 import { StructureControls } from './StructureControls';
 import { ViewControls } from './ViewControls';
 import { columnCenter, layoutCircuit, pendingConnector } from './layout';
@@ -117,6 +118,15 @@ export function CircuitEditor({
    * derived from `deriveCycles` with nothing hand-authored.
    */
   const [showCycleLabels, setShowCycleLabels] = useState(false);
+
+  /**
+   * Whether the `?` reference is open.
+   *
+   * Component state beside `showCycleLabels`, and for the same reason: ADR-0007
+   * section 4 keeps history to circuit values, so reading the shortcut list must
+   * not be undoable and must not make the previous edit un-undoable.
+   */
+  const [showShortcuts, setShowShortcuts] = useState(false);
 
   /**
    * A multi-qubit gate part-way through having its wires assigned.
@@ -951,6 +961,10 @@ export function CircuitEditor({
             onRedo={redo}
             onCycleBarriers={cycleBarriers}
             onSave={save}
+            /* `?` toggles, so the key that opened it also closes it. */
+            onShowShortcuts={() => {
+              setShowShortcuts((open) => !open);
+            }}
             onSelectOperation={(id) => {
               store.select(id);
             }}
@@ -999,6 +1013,17 @@ export function CircuitEditor({
               const id = operationIdFromPath(circuit, path);
               if (id !== undefined) store.select(id);
             }}
+          />
+
+          {/*
+            Last in the column and collapsed by default: a shortcut list is read
+            once and then not again, so it costs one line of chrome until asked
+            for. Its rows come from the same `./shortcuts` the canvas dispatches
+            through, which is what stops it drifting from behaviour.
+          */}
+          <ShortcutReference
+            open={showShortcuts}
+            onOpenChange={setShowShortcuts}
           />
         </div>
 
