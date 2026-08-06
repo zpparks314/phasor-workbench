@@ -76,6 +76,24 @@ currently produces has one register. A missing feature, not a wrong result.
 **`register` generates as `register_` in Python**, aliased back to `register` on
 the wire. Cosmetic, and confined to the Python API.
 
+**`main` carries one red CI run, and it is not a code failure.** The run for
+#52 on 2026-08-06 failed only on *Shared model*, which died during "Set up job"
+with `Failed to resolve action download info. Error: Service Unavailable` — a
+GitHub Actions outage that day, not this repository. The bindings that job
+verifies were confirmed current locally, and every other job on that run passed.
+Recorded because the run stays red in the history and looks alarming.
+
+**That run also found a real defect, now fixed.** The aggregate `CI` job — the
+one check branch protection requires — *passed* while `Shared model` failed, so
+a red run merged. Its guard step tested for `'failure'` and `'cancelled'`
+specifically, and a job that dies in set-up reports neither, so the step was
+skipped and the gate reported success. It was the first time in twenty runs that
+the gate had been reached by a failing job, and it did not hold. The rule this
+leaves behind is worth more than the fix: **a gate must enumerate the one good
+state, not the bad ones**, or it passes on every state nobody thought of. The
+comment above the job records the three separate fail-open shapes that were
+found while fixing it.
+
 **Three React `act` warnings come out of `useAnalysis.test.ts`** on a full
 frontend run. They predate the example catalogue — the suite that introduced a
 component fetching on mount brought the count to 212 and then to zero by making
