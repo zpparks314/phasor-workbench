@@ -92,8 +92,6 @@ export interface CircuitCanvasProps {
   readonly onRedo: () => void;
   readonly onCycleBarriers: (direction: 1 | -1) => void;
   readonly onSave: () => void;
-  /** `?`. The panel is the editor's to open, since it lives outside the grid. */
-  readonly onShowShortcuts: () => void;
 }
 
 export function CircuitCanvas({
@@ -118,7 +116,6 @@ export function CircuitCanvas({
   onRedo,
   onCycleBarriers,
   onSave,
-  onShowShortcuts,
 }: CircuitCanvasProps): React.JSX.Element {
   const { lane, column: columnWidth } = layout.metrics;
 
@@ -145,7 +142,9 @@ export function CircuitCanvas({
    * callback each command belongs to.
    */
   function handleKeyDown(event: React.KeyboardEvent<HTMLDivElement>): void {
-    const command = resolveShortcut(event);
+    // Canvas-scoped entries only. `?` is global and is handled by the editor,
+    // because a help key that needs the grid focused first is no help at all.
+    const command = resolveShortcut(event, 'canvas');
     if (command === undefined) return;
 
     // Escape keeps the browser's default, as it did before. Everything else
@@ -201,7 +200,10 @@ export function CircuitCanvas({
         onCancel();
         return;
       case 'shortcuts':
-        onShowShortcuts();
+        // Unreachable: `?` is the one global entry, and `resolveShortcut` was
+        // asked for canvas ones. Present because the union is exhaustive, and
+        // deliberately does nothing rather than duplicating the editor's
+        // handler -- two listeners for one key toggles it twice.
         return;
     }
   }

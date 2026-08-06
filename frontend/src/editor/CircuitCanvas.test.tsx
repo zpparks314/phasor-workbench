@@ -60,7 +60,6 @@ function draw(circuit: Circuit, overrides: Partial<CircuitCanvasProps> = {}) {
     onRedo: vi.fn(),
     onCycleBarriers: vi.fn(),
     onSave: vi.fn(),
-    onShowShortcuts: vi.fn(),
     ...overrides,
   };
 
@@ -821,12 +820,19 @@ describe('keyboard', () => {
     expect(props.onCancel).toHaveBeenCalled();
   });
 
-  it('opens the shortcut reference with ?', () => {
+  /**
+   * `?` is the one global entry, so the canvas deliberately does not claim it.
+   * Two listeners for one key would toggle the panel twice and leave it exactly
+   * as it was. `CircuitEditor.test.tsx` is where it is asserted to work.
+   */
+  it('leaves ? to the editor rather than claiming it', () => {
     const { props } = draw(circuitWith(1));
 
     press('?');
 
-    expect(props.onShowShortcuts).toHaveBeenCalled();
+    for (const value of Object.values(props)) {
+      if (vi.isMockFunction(value)) expect(value).not.toHaveBeenCalled();
+    }
   });
 
   /**
@@ -857,7 +863,16 @@ describe('keyboard', () => {
  * outside `KEYS` fails here with "no press found", which is a nudge to extend
  * the candidates rather than a silent gap in the coverage.
  */
-describe('every shortcut in the table', () => {
+describe('every canvas shortcut in the table', () => {
+  /*
+    Canvas-scoped entries only. The global ones are the editor's to dispatch,
+    and `CircuitEditor.test.tsx` runs the mirror of this over them -- between
+    the two, every entry is covered by whichever surface owns it.
+  */
+  const CANVAS_SHORTCUTS = SHORTCUTS.filter(
+    (shortcut) => shortcut.scope === 'canvas',
+  );
+
   const KEYS = [
     'z',
     'Z',
@@ -901,7 +916,8 @@ describe('every shortcut in the table', () => {
         // An entry shadowed by an earlier one would otherwise be tested through
         // the wrong handler and pass while being unreachable.
         if (
-          JSON.stringify(resolveShortcut(candidate)) === JSON.stringify(claimed)
+          JSON.stringify(resolveShortcut(candidate, 'canvas')) ===
+          JSON.stringify(claimed)
         ) {
           return candidate;
         }
@@ -910,26 +926,25 @@ describe('every shortcut in the table', () => {
     throw new Error(`no press found for "${shortcut.keys}"`);
   }
 
-  it.each(SHORTCUTS.map((shortcut) => [shortcut.keys, shortcut] as const))(
-    'reaches a handler for %s',
-    (_keys, shortcut) => {
-      // A circuit with an operation, so no entry is a no-op for want of one.
-      const circuit = insertOperation(
-        circuitWith(2),
-        gate('op_0', 'h', ['q_0']),
-        0,
-      );
-      const { props } = draw(circuit, { selection: 'op_0' });
-      const { key, ...modifiers } = pressFor(shortcut);
+  it.each(
+    CANVAS_SHORTCUTS.map((shortcut) => [shortcut.keys, shortcut] as const),
+  )('reaches a handler for %s', (_keys, shortcut) => {
+    // A circuit with an operation, so no entry is a no-op for want of one.
+    const circuit = insertOperation(
+      circuitWith(2),
+      gate('op_0', 'h', ['q_0']),
+      0,
+    );
+    const { props } = draw(circuit, { selection: 'op_0' });
+    const { key, ...modifiers } = pressFor(shortcut);
 
-      fireEvent.keyDown(screen.getByRole('grid'), { key, ...modifiers });
+    fireEvent.keyDown(screen.getByRole('grid'), { key, ...modifiers });
 
-      const called = Object.values(props).filter(
-        (value) => vi.isMockFunction(value) && value.mock.calls.length > 0,
-      );
-      expect(called.length).toBeGreaterThan(0);
-    },
-  );
+    const called = Object.values(props).filter(
+      (value) => vi.isMockFunction(value) && value.mock.calls.length > 0,
+    );
+    expect(called.length).toBeGreaterThan(0);
+  });
 });
 
 describe('pointer', () => {

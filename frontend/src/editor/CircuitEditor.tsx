@@ -17,7 +17,7 @@
  * out of history: undo restores the document, not where you were looking.
  */
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { deriveCycles } from '../cycles';
 import type {
@@ -66,6 +66,7 @@ import { useSimulation } from './useSimulation';
 import { useAnalysis } from './useAnalysis';
 import { ProblemsStrip } from './ProblemsStrip';
 import { ShortcutReference } from './ShortcutReference';
+import { isTypingTarget, resolveShortcut } from './shortcuts';
 import { StructureControls } from './StructureControls';
 import { ViewControls } from './ViewControls';
 import { columnCenter, layoutCircuit, pendingConnector } from './layout';
@@ -127,6 +128,34 @@ export function CircuitEditor({
    * not be undoable and must not make the previous edit un-undoable.
    */
   const [showShortcuts, setShowShortcuts] = useState(false);
+
+  /**
+   * `?`, from wherever you are.
+   *
+   * The editor's only document-level listener, and the only shortcut not scoped
+   * to the canvas. It was canvas-scoped at first, on the reasoning that it
+   * should match the other ten — which was backwards: those need a cell cursor,
+   * and this one needs to work when you have no idea where you are. In practice
+   * it did nothing until you had clicked the canvas, which is how the mistake
+   * was found.
+   *
+   * Guarded against firing while you type. `?` is `Shift` + `/`, so without
+   * `isTypingTarget` it would swallow a question mark meant for a field.
+   */
+  useEffect(() => {
+    function handleGlobalKey(event: KeyboardEvent): void {
+      if (isTypingTarget(event.target)) return;
+      if (resolveShortcut(event, 'global')?.kind !== 'shortcuts') return;
+
+      event.preventDefault();
+      setShowShortcuts((open) => !open);
+    }
+
+    globalThis.addEventListener('keydown', handleGlobalKey);
+    return () => {
+      globalThis.removeEventListener('keydown', handleGlobalKey);
+    };
+  }, []);
 
   /**
    * A multi-qubit gate part-way through having its wires assigned.
@@ -961,10 +990,6 @@ export function CircuitEditor({
             onRedo={redo}
             onCycleBarriers={cycleBarriers}
             onSave={save}
-            /* `?` toggles, so the key that opened it also closes it. */
-            onShowShortcuts={() => {
-              setShowShortcuts((open) => !open);
-            }}
             onSelectOperation={(id) => {
               store.select(id);
             }}

@@ -9,6 +9,24 @@
   --color-ink-muted: oklch(50% 0 0);
 }
 
+/* Native controls follow the same preference the tokens below do.
+
+   Without this the browser draws every select, number input, range, checkbox
+   and scrollbar in its light palette regardless, while `--color-ink` flips to
+   near-white under the dark media query. The two then disagree in the one place
+   the page does not paint: an `option` list is drawn by the browser, inherits
+   the near-white `color`, and lands it on the browser's white popup — white on
+   white, which is how this was reported against the examples picker.
+
+   `light dark` rather than a fixed value, because the tokens below key off
+   `prefers-color-scheme` and this must follow the same signal or the two drift
+   apart again. One declaration fixes every native control at once, which is why
+   it belongs here rather than as a background on each component: this file is
+   where the visual language lives, and no component hardcodes a colour. */
+:root {
+  color-scheme: light dark;
+}
+
 /* @theme emits these as custom properties on :root, so dark mode overrides
    them as ordinary CSS. @theme itself cannot be nested inside a media query. */
 @media (prefers-color-scheme: dark) {

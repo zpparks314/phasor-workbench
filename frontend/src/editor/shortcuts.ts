@@ -26,10 +26,19 @@
  * component stays thin enough to read. `KeyPress` is the four fields a decision
  * can be made from, which a React `KeyboardEvent` already satisfies structurally.
  *
- * **The scope is the canvas**, which is where every row of UI.md's shortcut table
- * already applied — `Ctrl/Cmd + Z` and `Ctrl/Cmd + S` included. `?` follows the
- * same rule rather than becoming the one global key, and the reference carries
- * its own control so it stays reachable from anywhere by `Tab`.
+ * **Scope is per entry, and it is not decoration.** Every binding used to be
+ * canvas-scoped, which meant it fired only while the grid held focus. That was
+ * fine for the ten that act on a cell or a selection and wrong for `?`, which
+ * did nothing at all until you had clicked the canvas — reported as a bug on
+ * 2026-08-05, correctly. A key whose whole job is helping someone who is lost is
+ * the worst possible one to hide behind a focus requirement, and the argument
+ * that it should match the others had the reasoning backwards: the others are
+ * scoped because they need a cursor, not because scoping is the house style.
+ *
+ * So `scope` says which surface listens, `resolveShortcut` takes it as an
+ * argument, and neither surface can silently claim the other's keys. Adding a
+ * second global binding means weighing it against the input guard in
+ * `CircuitEditor`, which is exactly the thought that should be forced.
  */
 
 /** The fields a key decision is made from. A `KeyboardEvent` satisfies this. */
@@ -69,12 +78,23 @@ export type Command =
   | { readonly kind: 'cancel' }
   | { readonly kind: 'shortcuts' };
 
+/**
+ * Which surface listens for an entry.
+ *
+ * `canvas` fires only while the grid holds focus, which is right for anything
+ * acting on the cell cursor or the selection — there is no sensible answer to
+ * "move the cursor" from inside the header. `global` fires wherever you are, and
+ * costs an input guard, so it is for keys that must work when you are lost.
+ */
+export type ShortcutScope = 'canvas' | 'global';
+
 export interface Shortcut {
   /** As written for a reader: "Ctrl/Cmd + Z". Never platform-detected. */
   readonly keys: string;
   readonly description: string;
   /** The reference groups by this, in first-appearance order. */
   readonly group: string;
+  readonly scope: ShortcutScope;
   /** The command this press means, or nothing if this entry does not claim it. */
   readonly resolve: (press: KeyPress) => Command | undefined;
 }
@@ -102,6 +122,7 @@ export const SHORTCUTS: readonly Shortcut[] = [
     keys: 'Ctrl/Cmd + Z',
     description: 'Undo the last edit',
     group: 'The circuit',
+    scope: 'canvas',
     resolve: (press) =>
       accel(press) && !press.shiftKey && press.key.toLowerCase() === 'z'
         ? { kind: 'undo' }
@@ -111,6 +132,7 @@ export const SHORTCUTS: readonly Shortcut[] = [
     keys: 'Ctrl/Cmd + Shift + Z',
     description: 'Redo the last undone edit',
     group: 'The circuit',
+    scope: 'canvas',
     resolve: (press) =>
       accel(press) && press.shiftKey && press.key.toLowerCase() === 'z'
         ? { kind: 'redo' }
@@ -122,6 +144,7 @@ export const SHORTCUTS: readonly Shortcut[] = [
     keys: 'Ctrl/Cmd + S',
     description: 'Save the circuit to this browser',
     group: 'The circuit',
+    scope: 'canvas',
     resolve: (press) =>
       accel(press) && press.key.toLowerCase() === 's'
         ? { kind: 'save' }
@@ -138,6 +161,7 @@ export const SHORTCUTS: readonly Shortcut[] = [
     keys: 'B / Shift + B',
     description: 'Select the next / previous barrier',
     group: 'Moving around',
+    scope: 'canvas',
     resolve: (press) =>
       !accel(press) && press.key.toLowerCase() === 'b'
         ? { kind: 'cycleBarriers', direction: press.shiftKey ? -1 : 1 }
@@ -151,6 +175,7 @@ export const SHORTCUTS: readonly Shortcut[] = [
     keys: 'Ctrl/Cmd + Arrow keys',
     description: 'Move the selected operation',
     group: 'Building',
+    scope: 'canvas',
     resolve: (press) => {
       const arrow = ARROWS[press.key];
       return arrow !== undefined && accel(press)
@@ -162,6 +187,7 @@ export const SHORTCUTS: readonly Shortcut[] = [
     keys: 'Arrow keys',
     description: 'Move the cell cursor',
     group: 'Moving around',
+    scope: 'canvas',
     resolve: (press) => {
       const arrow = ARROWS[press.key];
       return arrow !== undefined && !accel(press)
@@ -173,6 +199,7 @@ export const SHORTCUTS: readonly Shortcut[] = [
     keys: 'Home / End',
     description: 'First / last cycle on this wire',
     group: 'Moving around',
+    scope: 'canvas',
     resolve: (press) => {
       if (accel(press)) return undefined;
       if (press.key === 'Home') return { kind: 'cursorToEdge', edge: 'start' };
@@ -184,6 +211,7 @@ export const SHORTCUTS: readonly Shortcut[] = [
     keys: 'Enter / Space',
     description: 'Place the armed gate, or select what is under the cursor',
     group: 'Building',
+    scope: 'canvas',
     resolve: (press) =>
       press.key === 'Enter' || press.key === ' '
         ? { kind: 'activate' }
@@ -193,6 +221,7 @@ export const SHORTCUTS: readonly Shortcut[] = [
     keys: 'Delete / Backspace',
     description: 'Remove the selected operation',
     group: 'Building',
+    scope: 'canvas',
     resolve: (press) =>
       press.key === 'Delete' || press.key === 'Backspace'
         ? { kind: 'remove' }
@@ -208,6 +237,7 @@ export const SHORTCUTS: readonly Shortcut[] = [
     keys: 'Escape',
     description: 'Cancel a placement, disarm the gate, or clear the selection',
     group: 'Building',
+    scope: 'canvas',
     resolve: (press) =>
       press.key === 'Escape' ? { kind: 'cancel' } : undefined,
   },
@@ -215,23 +245,60 @@ export const SHORTCUTS: readonly Shortcut[] = [
     keys: '?',
     description: 'Show or hide this list',
     group: 'Help',
+    scope: 'global',
     resolve: (press) => (press.key === '?' ? { kind: 'shortcuts' } : undefined),
   },
 ];
 
 /**
- * What a press means, or nothing if the editor does not claim it.
+ * What a press means on one surface, or nothing if that surface does not claim
+ * it.
  *
  * First match wins, so the list's order is its precedence. Returning `undefined`
  * rather than a no-op command is what lets the caller leave an unclaimed press to
  * the browser.
+ *
+ * `scope` is required rather than defaulted. A default would make the safe
+ * choice invisible at the call site, and the whole point of the field is that
+ * every listener states which keys are its own — a global listener silently
+ * inheriting the canvas's would fire `Delete` from inside the header.
  */
-export function resolveShortcut(press: KeyPress): Command | undefined {
+export function resolveShortcut(
+  press: KeyPress,
+  scope: ShortcutScope,
+): Command | undefined {
   for (const shortcut of SHORTCUTS) {
+    if (shortcut.scope !== scope) continue;
     const command = shortcut.resolve(press);
     if (command !== undefined) return command;
   }
   return undefined;
+}
+
+/**
+ * Should a press be left to whatever the user is typing into?
+ *
+ * The cost of a global binding, and the reason `scope` makes you think before
+ * adding one. `?` is `Shift` + `/` on most layouts, so without this it would
+ * swallow a question mark meant for a field — and the editor has a register
+ * size, an angle and a bit index that all take typed input.
+ *
+ * Kept beside the table rather than in the component, because it is a fact about
+ * global shortcuts rather than about the editor.
+ */
+export function isTypingTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  if (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return true;
+
+  // Both, and neither is redundant. `isContentEditable` is the canonical API
+  // and inherits correctly, but jsdom does not implement it, so a test for this
+  // branch would fail in Node while the browser was fine. `closest` handles the
+  // inheritance the attribute check would otherwise miss -- a press inside a
+  // child of an editable region.
+  return (
+    target.isContentEditable ||
+    target.closest('[contenteditable]:not([contenteditable="false"])') !== null
+  );
 }
 
 /**

@@ -480,13 +480,28 @@ and this is stale.
 | `Ctrl/Cmd` + `S` | save |
 | `?` | show or hide the shortcut reference |
 
-**Every one of these is scoped to the canvas**, `Ctrl/Cmd + Z` and `Ctrl/Cmd + S`
-included — that was already true before `?` joined them, and is why `?` is not
-made the one global key. A global listener would have to guard against firing
-inside the register-size input and the angle field, and it would be the only
-document-level handler in the editor. The reference carries its own control
-instead, which is an ordinary tab stop, so it stays reachable from anywhere by
-`Tab`.
+**Ten of these are scoped to the canvas and one is not.** Everything that acts on
+the cell cursor or the selection fires only while the grid has focus, which is
+right — there is no sensible answer to "move the cursor" from inside the header.
+`Ctrl/Cmd + Z` and `Ctrl/Cmd + S` are in that group too.
+
+**`?` is global, and it was briefly not.** It shipped canvas-scoped on the
+reasoning that it should match the other ten, and that was wrong in a way worth
+recording: the others are scoped because they *need* a cursor, not because
+scoping is the house style. A key whose whole job is helping someone who is lost
+is the worst possible one to hide behind a focus requirement, and in practice it
+did nothing at all until you had clicked the canvas. Reported and fixed on
+2026-08-05.
+
+A global binding costs an input guard — `?` is `Shift` + `/`, so without one it
+would swallow a question mark meant for the register size, an angle, or a bit
+index. `scope` is a field on each entry rather than a convention, so
+`resolveShortcut` takes the surface as an argument and neither listener can
+silently claim the other's keys. **Adding a second global binding should be
+weighed against that guard**, which is what making scope explicit is for.
+
+The reference also carries its own control, an ordinary tab stop, so it stays
+reachable by `Tab` as well.
 
 ### The Reference Itself
 
@@ -499,6 +514,11 @@ editor has no menu or dialog pattern anywhere, and this would have been the firs
 collide with the three meanings `Escape` already carries on the canvas. A
 shortcut list is also something you read *beside* the circuit rather than instead
 of it.
+
+**Only one surface listens for `?`.** The canvas deliberately does not claim it,
+which is not an oversight to be tidied up: a press landing on the grid bubbles to
+the document listener as well, so a second handler would toggle the panel twice
+and leave it exactly where it started.
 
 **Rows are grouped**, and the grouping is derived from the entries rather than
 declared beside them, so a group cannot end up listed but empty.
@@ -1138,6 +1158,35 @@ use, which makes holding lightness constant across hues straightforward.
 
 Roles needed for Milestone 3: wire, wire-classical, gate fill per family, control,
 barrier, selection, violation, preview.
+
+### Native Controls
+
+**`index.css` declares `color-scheme: light dark`, and that one line is
+load-bearing.** Added 2026-08-05, fixing a defect reported against the examples
+picker: in dark mode its dropdown was white text on a white background.
+
+The cause is worth writing down, because nothing about it is visible in the
+component. A `select`, a number input, a range and a checkbox are drawn by the
+*browser*, not by this project's CSS — and Tailwind's reset makes their
+background transparent, so the page paints no background for them at all. Without
+a declared scheme the browser draws its light palette regardless of the media
+query, while `--color-ink` has flipped to near-white. The closed control still
+reads, because it sits over the page's own dark surface; the `option` list does
+not, because that popup's background is the browser's and it is white.
+
+So the fix is a scheme declaration, not a colour on the component. **`light dark`
+rather than a fixed value**, because the tokens key off `prefers-color-scheme` and
+the controls must follow the same signal or the two drift apart again — pinning
+them to one scheme is the same defect from the other direction.
+
+Two consequences to keep:
+
+* **Never fix a control by giving it a hardcoded background.** That treats one
+  symptom, leaves the popup wrong, and breaks the rule above this section.
+* **A new token needs its dark counterpart in the same change.** A token defined
+  only in `@theme` is invisible until someone opens the app in dark mode, which
+  is how long this defect survived. `src/theme.test.ts` checks the two blocks
+  match.
 
 ## Typography and Spacing
 
