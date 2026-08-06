@@ -1174,19 +1174,59 @@ query, while `--color-ink` has flipped to near-white. The closed control still
 reads, because it sits over the page's own dark surface; the `option` list does
 not, because that popup's background is the browser's and it is white.
 
-So the fix is a scheme declaration, not a colour on the component. **`light dark`
-rather than a fixed value**, because the tokens key off `prefers-color-scheme` and
-the controls must follow the same signal or the two drift apart again — pinning
-them to one scheme is the same defect from the other direction.
+**`light dark` rather than a fixed value**, because the tokens key off
+`prefers-color-scheme` and the controls must follow the same signal or the two
+drift apart again — pinning them to one scheme is the same defect from the other
+direction.
 
-Two consequences to keep:
+### That declaration was necessary and not sufficient
 
-* **Never fix a control by giving it a hardcoded background.** That treats one
-  symptom, leaves the popup wrong, and breaks the rule above this section.
+**Amended 2026-08-05, after the picker was reported still hard to read.** The
+first fix was `color-scheme` alone, on the reasoning that the browser would then
+draw the popup correctly. It does get the *computed* values right — Chrome
+resolves an `option` to white on its own grey under a dark preference, which
+measures fine — and that was not the same thing as the popup looking right.
+
+Two problems with leaving it there. **How faithfully a browser paints a dark
+control varies** by engine, platform and OS theme, so the appearance was never
+this project's to guarantee. And even where it works, the result is *Chrome's*
+grey, which belongs to no part of this interface.
+
+So `index.css` also styles the control explicitly, from the tokens:
+
+```css
+select,
+option {
+  background-color: var(--color-surface-raised);
+  color: var(--color-ink);
+}
+```
+
+**Author-specified colours are painted the same way everywhere**, and they are
+the app's own surface. `color-scheme` stays, because it still owns everything
+with no author-styleable surface — the scrollbars, the range track, the checkbox,
+the number spinners and the file picker.
+
+Three consequences to keep:
+
+* **The distinction is tokens versus literals, not CSS versus none.** A literal
+  colour on a component is still forbidden. A token-based rule in this file is
+  where control styling belongs.
+* **`input[type=range]` and `input[type=checkbox]` must not be given a
+  background**, which is why the rule names `select` and `option` rather than
+  every form element. Those two are drawn entirely by the browser and a
+  background makes them worse, not better.
 * **A new token needs its dark counterpart in the same change.** A token defined
   only in `@theme` is invisible until someone opens the app in dark mode, which
-  is how long this defect survived. `src/theme.test.ts` checks the two blocks
-  match.
+  is how long the original defect survived. `src/theme.test.ts` checks the two
+  blocks match, and checks this rule is present.
+
+**None of this is checkable from the test suite**, which is the honest limit
+here: jsdom applies no Tailwind and computes no cascade, and headless Chrome
+does not paint UA form controls the way a real one does — it drew the option
+list light while reporting dark computed values, which is exactly the trap that
+made the first fix look complete. It was settled by rendering the app with the
+dark tokens applied and *looking at it*.
 
 ## Typography and Spacing
 
