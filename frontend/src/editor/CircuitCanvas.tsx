@@ -36,6 +36,7 @@ import type {
 } from './layout';
 import { columnCenter } from './layout';
 import { targetGlyph, type TargetGlyph } from './glyphs';
+import { resolveShortcut } from './shortcuts';
 
 export interface CellPosition {
   readonly row: number;
@@ -130,60 +131,80 @@ export function CircuitCanvas({
   const active = clampCursor(cursor, layout);
   const removeAt = removePosition(layout, selection);
 
+  /**
+   * Every press goes through `./shortcuts`, and none of it is decided here.
+   *
+   * This was a chain of `if`s reading `event.key` in six places, and the `?`
+   * reference could only ever have been a second description of it. Now the list
+   * is the binding *and* the documentation, so the two cannot disagree — which
+   * is the whole of the Milestone 5 criterion. What is left here is the part
+   * that genuinely needs the canvas: how far a cursor may move, and which
+   * callback each command belongs to.
+   */
   function handleKeyDown(event: React.KeyboardEvent<HTMLDivElement>): void {
-    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
-      event.preventDefault();
-      if (event.shiftKey) onRedo();
-      else onUndo();
-      return;
-    }
+    // Canvas-scoped entries only. `?` is global and is handled by the editor,
+    // because a help key that needs the grid focused first is no help at all.
+    const command = resolveShortcut(event, 'canvas');
+    if (command === undefined) return;
 
-    // preventDefault matters more here than elsewhere: without it the browser
-    // opens its own save dialogue over the editor.
-    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
-      event.preventDefault();
-      onSave();
-      return;
-    }
+    // Escape keeps the browser's default, as it did before. Everything else
+    // takes the press -- most of all Ctrl/Cmd + S, which otherwise opens the
+    // browser's own save dialogue over the editor.
+    if (command.kind !== 'cancel') event.preventDefault();
 
-    /*
-      Barriers are in no cell, so no amount of arrowing reaches one. A command
-      rather than a cursor position: `b` steps forward through them from wherever
-      the cursor is, Shift+B backwards. Shift+arrow was the obvious alternative
-      and is left alone -- it conventionally extends selection, which multi-select
-      will want -- and Alt+arrow is Back/Forward in two browsers.
-    */
-    if (event.key.toLowerCase() === 'b' && !event.ctrlKey && !event.metaKey) {
-      event.preventDefault();
-      onCycleBarriers(event.shiftKey ? -1 : 1);
-      return;
-    }
-
-    // Ctrl/Cmd + arrow moves the selected operation; a bare arrow moves the
-    // cursor. Each press is a complete action, so unlike a drag it declares no
-    // coalescing -- one press, one undo step.
-    const nudge = NUDGES[event.key];
-    if (nudge !== undefined && (event.ctrlKey || event.metaKey)) {
-      event.preventDefault();
-      onNudgeSelection(nudge.rows, nudge.columns);
-      return;
-    }
-
-    const moved = nextCursor(event.key, active, layout);
-    if (moved !== undefined) {
-      event.preventDefault();
-      onCursorChange(moved);
-      return;
-    }
-
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      onActivate(active);
-    } else if (event.key === 'Delete' || event.key === 'Backspace') {
-      event.preventDefault();
-      onRemoveSelection();
-    } else if (event.key === 'Escape') {
-      onCancel();
+    switch (command.kind) {
+      case 'undo':
+        onUndo();
+        return;
+      case 'redo':
+        onRedo();
+        return;
+      case 'save':
+        onSave();
+        return;
+      case 'cycleBarriers':
+        onCycleBarriers(command.direction);
+        return;
+      case 'nudgeSelection':
+        onNudgeSelection(command.rows, command.columns);
+        return;
+      case 'moveCursor':
+        onCursorChange(
+          clampCursor(
+            {
+              row: active.row + command.rows,
+              column: active.column + command.columns,
+            },
+            layout,
+          ),
+        );
+        return;
+      case 'cursorToEdge':
+        onCursorChange(
+          clampCursor(
+            {
+              row: active.row,
+              column: command.edge === 'start' ? 0 : layout.columnCount - 1,
+            },
+            layout,
+          ),
+        );
+        return;
+      case 'activate':
+        onActivate(active);
+        return;
+      case 'remove':
+        onRemoveSelection();
+        return;
+      case 'cancel':
+        onCancel();
+        return;
+      case 'shortcuts':
+        // Unreachable: `?` is the one global entry, and `resolveShortcut` was
+        // asked for canvas ones. Present because the union is exhaustive, and
+        // deliberately does nothing rather than duplicating the editor's
+        // handler -- two listeners for one key toggles it twice.
+        return;
     }
   }
 
@@ -544,33 +565,11 @@ function BarrierHitTarget({
   );
 }
 
-function nextCursor(
-  key: string,
-  cursor: CellPosition,
-  layout: CircuitLayout,
-): CellPosition | undefined {
-  const lastRow = layout.wires.length - 1;
-  const lastColumn = layout.columnCount - 1;
-  const clamp = (value: number, highest: number): number =>
-    Math.max(0, Math.min(value, highest));
-
-  switch (key) {
-    case 'ArrowUp':
-      return { ...cursor, row: clamp(cursor.row - 1, lastRow) };
-    case 'ArrowDown':
-      return { ...cursor, row: clamp(cursor.row + 1, lastRow) };
-    case 'ArrowLeft':
-      return { ...cursor, column: clamp(cursor.column - 1, lastColumn) };
-    case 'ArrowRight':
-      return { ...cursor, column: clamp(cursor.column + 1, lastColumn) };
-    case 'Home':
-      return { ...cursor, column: 0 };
-    case 'End':
-      return { ...cursor, column: clamp(lastColumn, lastColumn) };
-    default:
-      return undefined;
-  }
-}
+/*
+ * `nextCursor` and `NUDGES` used to live here, each switching on `event.key` a
+ * second time. Both are gone: `./shortcuts` decides what a press means and hands
+ * back the offsets, and `clampCursor` below is all the geometry that was left.
+ */
 
 function clampCursor(
   cursor: CellPosition,
@@ -584,15 +583,6 @@ function clampCursor(
     column: clamp(cursor.column, layout.columnCount),
   };
 }
-
-const NUDGES: Readonly<
-  Record<string, { readonly rows: number; readonly columns: number }>
-> = {
-  ArrowUp: { rows: -1, columns: 0 },
-  ArrowDown: { rows: 1, columns: 0 },
-  ArrowLeft: { rows: 0, columns: -1 },
-  ArrowRight: { rows: 0, columns: 1 },
-};
 
 /**
  * How far an operation should appear to travel, and nothing if it should not.

@@ -272,6 +272,7 @@ The first group is where the logic lives, and it is tested directly:
 | `useAnalysis.ts` | the debounced, abortable call to `/circuits/analyze` |
 | `useSimulation.ts` | the live statevector, and sampling on request |
 | `outcomes.ts` | merging exact and sampled probabilities into one ranked list |
+| `shortcuts.ts` | a key press → the command it means, and the `?` reference's rows |
 | `demoCircuit.ts` | scaffolding, removed when local save lands |
 
 `useAnalysis.ts` is the one entry here that imports React, and it is in `editor/`
@@ -284,7 +285,8 @@ The components are `CircuitEditor` (owns the store and dispatches every edit),
 registers), `ViewControls` (what the canvas draws), `EditorHeader` (undo, redo,
 clear), `ProblemsStrip`, `Inspector` (the selected operation's editable
 properties), `AnalysisPanel` (the backend's counts and depth), and
-`ResultsPanel` (the final state, and measurement counts).
+`ResultsPanel` (the final state, and measurement counts), and
+`ShortcutReference` (the `?` list, rendered from `shortcuts.ts`).
 
 `StructureControls` and `ViewControls` are separate on purpose: everything in the
 first is an edit with an undo step, and nothing in the second touches the circuit

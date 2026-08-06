@@ -11,15 +11,15 @@ Milestone 1 (Foundation) closed on 2026-07-28, Milestone 2 (Circuit Model) on
 (Simulation MVP) on 2026-08-02.
 
 **Milestones 1–4 are closed.** The foundation, the Circuit Model, the editor and
-simulation all exist and are enforced by tests: 844 frontend and 458 backend,
+simulation all exist and are enforced by tests: 911 frontend and 458 backend,
 with 51 fixtures in `shared/fixtures/` holding the two language implementations
 to one specification.
 
-**Milestone 5 is most of the way through.** Import, export, example circuits and
-error handling are done; what remains is responsive layout, keyboard shortcuts,
-deployment and the documentation pass — plus the screen-reader check, which is
-not a task but an exit criterion, and which needs a person at the machine. See
-*Where to Pick Up*.
+**Milestone 5 is most of the way through.** Import, export, example circuits,
+error handling and keyboard shortcuts are done; what remains is responsive
+layout, deployment and the documentation pass — plus the screen-reader check,
+which is not a task but an exit criterion, and which needs a person at the
+machine. See *Where to Pick Up*.
 
 A user can build a circuit from empty in the browser, edit its parameters and
 measurement targets, save work that survives a refresh, open one of six built-in
@@ -452,7 +452,11 @@ Prepare the project for public deployment.
   in `frontend/src/components/`. The three file and storage failures already
   reported through the header's alerts; what had no surface at all was a render
   that threw, because it takes the header with it
-* [ ] Keyboard shortcuts
+* [x] Keyboard shortcuts — `editor/shortcuts.ts` as the one list a key is
+  declared in, and `ShortcutReference` rendering it behind `?`. It also closed
+  the file-accelerator question `UI.md` had deferred here: none, because every
+  shortcut is canvas-scoped and a file accelerator would be the first global
+  binding in the editor
 * [x] OpenQASM import — `importers/qasm/`,
   `POST /api/v1/circuits/import/qasm`, and the frontend routing through the
   same Import control JSON uses
@@ -541,9 +545,25 @@ do it *before* starting was left here.
   as a download — raw bytes, not routed back through `serialization/`, since that
   code is what may have failed — and then discards it and reloads. See `UI.md`,
   *When the Editor Stops*.
-* [ ] The `?` shortcut reference exists and is derived from the same source the
-  editor binds its keys from, so it cannot drift from behaviour. It is currently
-  the one row in `UI.md`'s shortcut table with nothing behind it.
+* [x] The `?` shortcut reference exists and is derived from the same source the
+  editor binds its keys from, so it cannot drift from behaviour. It was the one
+  row in `UI.md`'s shortcut table with nothing behind it. **Done 2026-08-05** —
+  `editor/shortcuts.ts` is now the single list, the canvas dispatches through
+  `resolveShortcut` rather than the chain of `if`s that read `event.key` in six
+  places, and `ShortcutReference` renders those same entries.
+
+  **"Derived" is asserted from both ends, because either alone proves half of
+  it.** `ShortcutReference.test.tsx` walks `SHORTCUTS` and requires every entry
+  to be on screen; `CircuitCanvas.test.tsx` walks the same list, derives a press
+  each entry claims *and wins*, fires it at the grid, and requires a handler to
+  run. A row describing a key that does nothing therefore cannot exist. Verified
+  non-vacuous by breaking the `?` case in the canvas and watching the coverage
+  test fail.
+
+  One entry is one row *and* one binding, which is why an entry claims a family
+  of presses — the four arrows are one line to a reader and four presses to a
+  dispatcher. Merging them for display only would reintroduce the editorial step
+  the criterion is about.
 * [x] `README.md` describes the application that exists, and a newcomer can
   install, run and test both projects from it alone — `AGENTS.md` is an
   agent's file, not a contributor's. **Done 2026-08-02.** It had announced
@@ -627,17 +647,21 @@ into `UI.md` beside *Structure*, pass or fail. It needs a person at the machine
 for perhaps ten minutes; nothing about it is a code change until the transcript
 says so.
 
-**Error handling was taken instead, and it did not disturb the canvas** — the
-whole reason the accessibility check was ordered first was that a fix there would
-touch markup every later task builds on. The root boundary and the recovery
-screen are new files plus three lines of wiring in `main.tsx`; no canvas markup
-changed, so the screen-reader check is worth exactly as much now as it was, and
-still goes before the layout work.
+**Error handling and the shortcut map were taken instead, and neither disturbed
+the canvas markup** — the whole reason the accessibility check was ordered first
+was that a fix there would touch markup every later task builds on. The root
+boundary and the recovery screen are new files plus three lines of wiring in
+`main.tsx`. The shortcut map did change `CircuitCanvas.tsx`, and the distinction
+is worth being exact about: it replaced the `keydown` *handler* and touched no
+role, no accessible name, and nothing `aria-activedescendant` reads. Those are
+what a screen reader announces, so the check is worth exactly as much now as it
+was, and still goes before the layout work.
 
-**Where the milestone actually stands.** Five of the nine tasks are done. The
+**Where the milestone actually stands.** Six of the nine tasks are done. The
 first four had dependencies between them — each reused what the one before it
-built — and error handling had none, which is why it could be taken out of order
-when the check ahead of it turned out to need a person at the machine:
+built — and neither error handling nor the shortcut map had any, which is why
+both could be taken while the check ahead of them waits on a person at the
+machine:
 
 | Task | State |
 |---|---|
@@ -646,8 +670,8 @@ when the check ahead of it turned out to need a person at the machine:
 | OpenQASM export | **Done** — `exporters/qasm.py` |
 | Example circuits | **Done** — `examples/`, six, read through the importer |
 | Error handling | **Done** — `frontend/src/components/`, root boundary |
+| Keyboard shortcuts | **Done** — `editor/shortcuts.ts`, `?` renders it |
 | Responsive layout | Not started |
-| Keyboard shortcuts | Not started |
 | Documentation | Not started, and belongs last |
 | Deployment | Not started, and belongs last |
 
@@ -673,9 +697,14 @@ is about risk rather than blocking:
 2. ~~**Error handling**~~ — **done 2026-08-05**, and taken out of order for the
    reason above. It touched no canvas markup, so it cost the screen-reader check
    nothing.
-3. **Keyboard shortcuts**, whose criterion is that the `?` reference is *derived*
-   from the same source the handlers use rather than written twice.
+3. ~~**Keyboard shortcuts**~~ — **done 2026-08-05**. The criterion was that the
+   `?` reference be *derived* from the same source the handlers use rather than
+   written twice, and it is asserted from both ends: the panel must show every
+   entry, and the canvas must reach a handler for every entry.
 4. **Responsive layout**, which is where the header question below gets settled.
+   **This is next.** Note that it now has one more thing below the canvas to
+   place — the shortcut reference — though as a collapsed disclosure it is a
+   single line until opened.
 5. **Deployment**, still last — it consumes the Dockerfiles and should not be
    built against a moving target.
 

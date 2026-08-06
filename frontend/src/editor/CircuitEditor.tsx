@@ -17,7 +17,7 @@
  * out of history: undo restores the document, not where you were looking.
  */
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { deriveCycles } from '../cycles';
 import type {
@@ -65,6 +65,8 @@ import { ResultsPanel } from './ResultsPanel';
 import { useSimulation } from './useSimulation';
 import { useAnalysis } from './useAnalysis';
 import { ProblemsStrip } from './ProblemsStrip';
+import { ShortcutReference } from './ShortcutReference';
+import { isTypingTarget, resolveShortcut } from './shortcuts';
 import { StructureControls } from './StructureControls';
 import { ViewControls } from './ViewControls';
 import { columnCenter, layoutCircuit, pendingConnector } from './layout';
@@ -117,6 +119,43 @@ export function CircuitEditor({
    * derived from `deriveCycles` with nothing hand-authored.
    */
   const [showCycleLabels, setShowCycleLabels] = useState(false);
+
+  /**
+   * Whether the `?` reference is open.
+   *
+   * Component state beside `showCycleLabels`, and for the same reason: ADR-0007
+   * section 4 keeps history to circuit values, so reading the shortcut list must
+   * not be undoable and must not make the previous edit un-undoable.
+   */
+  const [showShortcuts, setShowShortcuts] = useState(false);
+
+  /**
+   * `?`, from wherever you are.
+   *
+   * The editor's only document-level listener, and the only shortcut not scoped
+   * to the canvas. It was canvas-scoped at first, on the reasoning that it
+   * should match the other ten — which was backwards: those need a cell cursor,
+   * and this one needs to work when you have no idea where you are. In practice
+   * it did nothing until you had clicked the canvas, which is how the mistake
+   * was found.
+   *
+   * Guarded against firing while you type. `?` is `Shift` + `/`, so without
+   * `isTypingTarget` it would swallow a question mark meant for a field.
+   */
+  useEffect(() => {
+    function handleGlobalKey(event: KeyboardEvent): void {
+      if (isTypingTarget(event.target)) return;
+      if (resolveShortcut(event, 'global')?.kind !== 'shortcuts') return;
+
+      event.preventDefault();
+      setShowShortcuts((open) => !open);
+    }
+
+    globalThis.addEventListener('keydown', handleGlobalKey);
+    return () => {
+      globalThis.removeEventListener('keydown', handleGlobalKey);
+    };
+  }, []);
 
   /**
    * A multi-qubit gate part-way through having its wires assigned.
@@ -999,6 +1038,17 @@ export function CircuitEditor({
               const id = operationIdFromPath(circuit, path);
               if (id !== undefined) store.select(id);
             }}
+          />
+
+          {/*
+            Last in the column and collapsed by default: a shortcut list is read
+            once and then not again, so it costs one line of chrome until asked
+            for. Its rows come from the same `./shortcuts` the canvas dispatches
+            through, which is what stops it drifting from behaviour.
+          */}
+          <ShortcutReference
+            open={showShortcuts}
+            onOpenChange={setShowShortcuts}
           />
         </div>
 

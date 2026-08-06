@@ -116,7 +116,7 @@ progress.**
 | Example circuits | Built — six, loaded through the import path |
 | Failure states | Built — storage, files and the backend report their own cause, and a render error shows a recovery screen rather than a blank page |
 | Deployment | **Not started** — Milestone 5 |
-| Tests | 844 frontend, 458 backend, 51 cross-language fixtures |
+| Tests | 911 frontend, 458 backend, 51 cross-language fixtures |
 | CI | Lint, format, types, tests, build, and binding freshness on every push |
 
 The HTTP API is eight endpoints:

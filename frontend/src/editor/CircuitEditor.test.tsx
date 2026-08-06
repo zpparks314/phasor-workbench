@@ -14,6 +14,7 @@ import { barrier, circuitWith, gate, measurement } from '../state/testCircuits';
 import { loadStoredCircuit } from '../persistence';
 import { CircuitEditor } from './CircuitEditor';
 import { fetchExample, fetchExamples } from '../api/examples';
+import { SHORTCUTS } from './shortcuts';
 
 /**
  * The example catalogue never resolves here.
@@ -1769,3 +1770,86 @@ describe('loading an example', () => {
     expect(editor.status()).toHaveTextContent('0 operations');
   });
 });
+
+/**
+ * The `?` reference, and the one global key binding in the editor.
+ *
+ * It shipped canvas-scoped and did nothing until you had clicked the grid,
+ * which is how the mistake was found. These drive `document.body` rather than
+ * the grid on purpose: firing at the canvas would pass even under the old,
+ * broken arrangement, which is precisely the kind of test AGENTS.md warns
+ * about.
+ */
+describe('the shortcut reference', () => {
+  const summary = () =>
+    screen.getByText('Keyboard shortcuts', { selector: 'summary' });
+
+  it('is closed until asked for', () => {
+    open();
+
+    expect(summary().closest('details')).not.toHaveAttribute('open');
+  });
+
+  it('opens on ? from outside the canvas', () => {
+    open();
+
+    fireEvent.keyDown(document.body, { key: '?' });
+
+    expect(summary().closest('details')).toHaveAttribute('open');
+  });
+
+  it('closes on a second ?', () => {
+    open();
+
+    fireEvent.keyDown(document.body, { key: '?' });
+    fireEvent.keyDown(document.body, { key: '?' });
+
+    expect(summary().closest('details')).not.toHaveAttribute('open');
+  });
+
+  /**
+   * Once, not twice. The canvas deliberately does not claim `?`; if it did, a
+   * press landing on the grid would bubble to the document listener too and the
+   * panel would toggle back to exactly where it started.
+   */
+  it('toggles once for a press that lands on the grid', () => {
+    open();
+
+    fireEvent.keyDown(screen.getByRole('grid'), { key: '?', bubbles: true });
+
+    expect(summary().closest('details')).toHaveAttribute('open');
+  });
+
+  /** `?` is Shift + / — it must reach the field, not the panel. */
+  it('holds off while a field has focus', () => {
+    open();
+    const size = screen.getByRole('spinbutton', { name: /bits/i });
+
+    fireEvent.keyDown(size, { key: '?', bubbles: true });
+
+    expect(summary().closest('details')).not.toHaveAttribute('open');
+  });
+
+  /**
+   * The mirror of `CircuitCanvas.test.tsx`'s coverage test, over the entries
+   * that surface does not own. Between the two, every row of the table is
+   * asserted to reach whichever listener claims it.
+   */
+  it('dispatches every globally scoped shortcut', () => {
+    const global = SHORTCUTS.filter((shortcut) => shortcut.scope === 'global');
+    expect(global.length).toBeGreaterThan(0);
+
+    for (const shortcut of global) {
+      // `?` is the only one today; when a second arrives this needs a press
+      // derived from it, the way the canvas test does.
+      expect(shortcut.resolve({ ...BARE, key: '?' })).toBeDefined();
+    }
+  });
+});
+
+const BARE = {
+  key: '',
+  ctrlKey: false,
+  metaKey: false,
+  shiftKey: false,
+} as const;

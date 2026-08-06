@@ -133,6 +133,15 @@ and are where the logic lives rather than in the components:
 | `pending.ts` | the multi-qubit control-assignment sequence |
 | `palette.ts` | what the palette offers, and its grouping |
 | `glyphs.ts` | how each gate draws its target |
+| `shortcuts.ts` | a key press → the command it means |
+
+`shortcuts.ts` is the newest of these and the one whose purity is doing the most
+work: because it is a list of data rather than a chain of `if`s in a component,
+the `?` reference can *render* the same entries the canvas *dispatches* through.
+A help panel written by hand would be a second description of the bindings and
+would drift the first time one changed — which is the exact failure mode
+`ADR-0004` exists to prevent for the circuit model, applied to a much smaller
+thing. See [UI.md](UI.md) under *Shortcuts*.
 
 The components — `CircuitEditor`, `CircuitCanvas`, `GatePalette`,
 `StructureControls`, `EditorHeader`, `ProblemsStrip` — render what those return

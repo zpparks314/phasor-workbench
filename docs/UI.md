@@ -453,10 +453,23 @@ markup being right on paper proves little.
 
 ## Shortcuts
 
+**`frontend/src/editor/shortcuts.ts` is the source, and this table documents it
+rather than competing with it.** Amended 2026-08-05, when the `?` reference
+landed. Before that the canvas read `event.key` in six places and this table was
+a hand-written third copy; a help panel written the same way would have been a
+fourth, and the one thing a shortcut reference must never be is out of date. The
+canvas now dispatches through `resolveShortcut`, the panel renders the same
+entries, and a test drives every row of the list against the canvas to check it
+reaches a handler.
+
+So **a new shortcut is added in one place** and appears in the editor and in the
+reference together. If this table and that file ever disagree, the file is right
+and this is stale.
+
 | Key | Action |
 |---|---|
 | `Arrow` keys | move the cell cursor within the canvas |
-| `Home` / `End` | first / last column on the current wire |
+| `Home` / `End` | first / last cycle on the current wire |
 | `Enter` / `Space` | place the armed gate, or select the operation under the cursor |
 | `Delete` / `Backspace` | remove the selection |
 | `Escape` | cancel a pending multi-qubit gate, else disarm, else clear selection |
@@ -465,7 +478,61 @@ markup being right on paper proves little.
 | `Ctrl/Cmd` + `Z` | undo |
 | `Ctrl/Cmd` + `Shift` + `Z` | redo |
 | `Ctrl/Cmd` + `S` | save |
-| `?` | shortcut reference |
+| `?` | show or hide the shortcut reference |
+
+**Ten of these are scoped to the canvas and one is not.** Everything that acts on
+the cell cursor or the selection fires only while the grid has focus, which is
+right — there is no sensible answer to "move the cursor" from inside the header.
+`Ctrl/Cmd + Z` and `Ctrl/Cmd + S` are in that group too.
+
+**`?` is global, and it was briefly not.** It shipped canvas-scoped on the
+reasoning that it should match the other ten, and that was wrong in a way worth
+recording: the others are scoped because they *need* a cursor, not because
+scoping is the house style. A key whose whole job is helping someone who is lost
+is the worst possible one to hide behind a focus requirement, and in practice it
+did nothing at all until you had clicked the canvas. Reported and fixed on
+2026-08-05.
+
+A global binding costs an input guard — `?` is `Shift` + `/`, so without one it
+would swallow a question mark meant for the register size, an angle, or a bit
+index. `scope` is a field on each entry rather than a convention, so
+`resolveShortcut` takes the surface as an argument and neither listener can
+silently claim the other's keys. **Adding a second global binding should be
+weighed against that guard**, which is what making scope explicit is for.
+
+The reference also carries its own control, an ordinary tab stop, so it stays
+reachable by `Tab` as well.
+
+### The Reference Itself
+
+A collapsed disclosure at the foot of the canvas column, below the problems
+strip. `?` toggles it and moves focus to it; the same key closes it.
+
+**A disclosure, not a dialog**, on the reasoning *Examples* already used: the
+editor has no menu or dialog pattern anywhere, and this would have been the first
+— bringing focus trapping, `aria-modal`, and an `Escape` binding that would
+collide with the three meanings `Escape` already carries on the canvas. A
+shortcut list is also something you read *beside* the circuit rather than instead
+of it.
+
+**Only one surface listens for `?`.** The canvas deliberately does not claim it,
+which is not an oversight to be tidied up: a press landing on the grid bubbles to
+the document listener as well, so a second handler would toggle the panel twice
+and leave it exactly where it started.
+
+**Rows are grouped**, and the grouping is derived from the entries rather than
+declared beside them, so a group cannot end up listed but empty.
+
+**One entry is one row and one binding.** That is what makes the two agree, and
+it is why an entry claims a *family* of presses: the four arrows are one line to
+a reader and four presses to a dispatcher. Splitting them would give four rows
+nobody wants to read; merging them for display only would put an editorial step
+between the list and the panel, which is the drift this exists to prevent.
+
+**The roving arrow keys in the header, palette, structure controls and examples
+picker are not in this table.** They are region navigation — the composite-widget
+pattern described under *Structure* — not commands, and listing `Arrow` a fifth
+time would bury the eleven rows that are.
 
 Arrow keys within the palette move between gates; `Enter` arms the focused gate.
 
@@ -964,9 +1031,12 @@ is locatable.
 
 **No new keyboard accelerator.** The header is a toolbar with a roving focus, so
 both controls are already reachable by keyboard, and `Ctrl/Cmd + O` is spoken for
-by the browser in most of them. The full shortcut map — including whether file
-actions deserve accelerators at all — is its own Milestone 5 task, and this
-declines to pre-empt it.
+by the browser in most of them. This deferred the question to the shortcut-map
+task, **and that task answered it the same way on 2026-08-05: they get none.**
+Every shortcut is canvas-scoped, so a file accelerator would have to be the first
+global binding in the editor, bought for two controls that are already one `Tab`
+away. Import is also the more destructive of the two, and a one-key path to
+replacing the circuit is not an improvement.
 
 ---
 
@@ -1089,6 +1159,35 @@ use, which makes holding lightness constant across hues straightforward.
 Roles needed for Milestone 3: wire, wire-classical, gate fill per family, control,
 barrier, selection, violation, preview.
 
+### Native Controls
+
+**`index.css` declares `color-scheme: light dark`, and that one line is
+load-bearing.** Added 2026-08-05, fixing a defect reported against the examples
+picker: in dark mode its dropdown was white text on a white background.
+
+The cause is worth writing down, because nothing about it is visible in the
+component. A `select`, a number input, a range and a checkbox are drawn by the
+*browser*, not by this project's CSS — and Tailwind's reset makes their
+background transparent, so the page paints no background for them at all. Without
+a declared scheme the browser draws its light palette regardless of the media
+query, while `--color-ink` has flipped to near-white. The closed control still
+reads, because it sits over the page's own dark surface; the `option` list does
+not, because that popup's background is the browser's and it is white.
+
+So the fix is a scheme declaration, not a colour on the component. **`light dark`
+rather than a fixed value**, because the tokens key off `prefers-color-scheme` and
+the controls must follow the same signal or the two drift apart again — pinning
+them to one scheme is the same defect from the other direction.
+
+Two consequences to keep:
+
+* **Never fix a control by giving it a hardcoded background.** That treats one
+  symptom, leaves the popup wrong, and breaks the rule above this section.
+* **A new token needs its dark counterpart in the same change.** A token defined
+  only in `@theme` is invisible until someone opens the app in dark mode, which
+  is how long this defect survived. `src/theme.test.ts` checks the two blocks
+  match.
+
 ## Typography and Spacing
 
 One family throughout. Gate glyphs are the one place a monospaced face is used, so
@@ -1116,10 +1215,13 @@ was the point of deferring it. See *The Results Panel*. State visualization
 proper (Bloch spheres, amplitude phase, evolution over time) stays deferred to
 *Educational Visualizations*.
 
-**To Milestone 5.** Responsive and small-screen layout, and the full shortcut map
-beyond the editor. `Roadmap.md` places responsive layout in Milestone 5; the
-three-column grid is built so that collapsing it is a change to the grid rather
-than to the components.
+**To Milestone 5.** Responsive and small-screen layout. `Roadmap.md` places it
+there; the three-column grid is built so that collapsing it is a change to the
+grid rather than to the components.
+
+**~~The full shortcut map.~~ Built** 2026-08-05 — see *Shortcuts*. It settled two
+things this document had left open: the map is `editor/shortcuts.ts` rather than
+a table maintained here, and file actions get no accelerators.
 
 Two things have been added to the layout since that was written, and both are
 that task's to resolve rather than this document's: the header now carries seven
@@ -1143,6 +1245,8 @@ records the amendment.
 # Rules
 
 * every interaction has a keyboard path
+* a key binding is declared once, in `editor/shortcuts.ts`, and the `?` reference
+  renders that same list — never a second copy of it
 * colour is never the only carrier of meaning
 * no component stores a coordinate, a column index, or a copy of the circuit
 * animation explains something or does not exist
