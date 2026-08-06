@@ -26,6 +26,13 @@ measurement targets, save work that survives a refresh, open one of six built-in
 examples, read and write both JSON and OpenQASM 2.0 files, watch the final state
 follow every edit, and run it for measurement counts.
 
+**Milestones 6 to 9 were drafted on 2026-08-06, before Milestone 5 closed.** That
+is deliberate rather than premature: two of Milestone 6's items had been
+accumulating evidence since Milestone 5 — the gate set from OpenQASM import
+refusing Qiskit's own output, classical control from teleportation being absent
+from the catalogue — and the reasoning was worth writing down while it was fresh.
+Nothing in them is started, and the order is argued rather than assumed.
+
 The design is settled by ADRs 0001–0009 and by the topic documents. Where this
 file and a topic document disagree about behaviour, **the topic document is the
 specification** — `CircuitModel.md` for the model, `UI.md` for the editor,
@@ -129,6 +136,10 @@ The highest priorities are:
 6. ~~Circuit editor~~ — done, Milestone 3
 7. ~~Simulation~~ — done, Milestone 4
 8. **Public release** — active, Milestone 5
+9. **Model expressiveness** — Milestone 6: the gate set Qiskit emits, plus
+   mid-circuit measurement and classical control
+10. **Visualization** — Milestone 7: the state, at every cycle, with its phase
+11. **Simulation depth** — Milestone 8: noise, density matrices, a second backend
 
 The rule that gated Milestone 3 — do not build on a provisional data model — held.
 The model was settled first, and the editor never had to renegotiate it. Milestone
@@ -781,11 +792,265 @@ commitment to build them next.
 
 ---
 
+# Milestone 6 — Widening What a Circuit Can Say
+
+**Drafted 2026-08-06. Not started.** Milestone 5 is not yet closed; this is the
+plan for after it, written while the reasoning was fresh and because two of its
+items have been accumulating evidence since Milestone 5.
+
+## Goal
+
+The model expresses the circuits people actually bring to it, and the protocols
+the Vision promises.
+
+**Why this comes before the visualization work.** The project has one proven
+sequencing rule, from Milestone 3: *do not build on a provisional data model.*
+The model was settled first and the editor never had to renegotiate it. Every
+item below changes the model; everything in Milestones 7 and 8 consumes it. A
+state timeline built before classical control would be rebuilt after it, because
+after a mid-circuit measurement the state stops being a single vector.
+
+**Both halves came from evidence rather than a wish list.** The gate set came
+from OpenQASM import refusing most Qiskit-exported files. Classical control came
+from the example catalogue: teleportation is *absent* from it because ADR-0003
+defers classical control, and `Vision.md` names "an educator can demonstrate
+teleportation without preparing slides" as a definition of success. **A Vision
+success criterion is currently blocked by an accepted ADR**, which is the
+strongest signal in the backlog.
+
+### Tasks
+
+* [ ] Gate set — `u3`, `u2`, `cswap`. See *Widening the Gate Set* below for what
+  is already worked out, including why `ch`, `crz`, `cu1` and `cu3` are probably
+  not new gates at all
+* [ ] Settle whether `parameters` stays a flat map when a gate takes three, and
+  whether a controlled gate is a name or a `controls` entry — an ADR, because
+  both reach further than the gate list
+* [ ] **Mid-circuit measurement** — its own ADR, which ADR-0003 explicitly
+  requires. It is the prerequisite for everything after it
+* [ ] **Classical control** — its own ADR
+* [ ] Validation and cycle derivation for both, in both languages, with fixtures
+* [ ] OpenQASM 2.0 import and export of `if (c == N)`
+* [ ] The Qiskit adapter for conditioned operations
+* [ ] Editor support: placing a conditioned operation, and reading its condition
+* [ ] Teleportation and superdense coding as example circuits
+
+**Two reassurances that make this tractable**, both from ADR-0003. Classical
+control "extends the resource set but not the algorithm", so `deriveCycles` was
+designed for it. Mid-circuit measurement "affects validation rather than the
+derivation". The cost is concentrated in validation, the editor and the simulator
+rather than in the scheduling core. OpenQASM 2.0 already has `if`, and Qiskit
+expresses both, so neither the format nor the backend blocks this.
+
+### Exit Criteria
+
+* [ ] **A circuit exported by Qiskit imports without refusal**, from checked-in
+  artifacts Qiskit actually wrote — not from a file we wrote to look like
+  Qiskit's output. That distinction is the whole point of the criterion
+* [ ] **Teleportation validates, simulates, and its corrections depend on the
+  measurement outcomes.** Asserted against the analytic result for *several*
+  input states, not one. This is the QFT lesson from Milestone 5 applied before
+  the fact: the first QFT written for the catalogue was wrong and still produced
+  the correct distribution from `|000>`, so a single input proves nothing
+* [ ] A circuit carrying classical control round-trips through OpenQASM with the
+  same operation sequence and the same `deriveCycles` output
+* [ ] Every existing fixture still passes unchanged, or its change is justified
+  by a revision to the ADR that specified it
+* [ ] Both new ADRs are Accepted, and *Decisions Made* carries them
+
+### Questions To Answer During Development
+
+* **Does measurement still terminate a qubit by default?** `CircuitModel.md`
+  says it does, with barriers exempt. What replaces that rule, and what happens
+  to the circuits and fixtures that depend on it?
+* **What does a conditioned operation contend for** — the bit it reads, the whole
+  register, or both? Depth follows from the answer, and so does whether two
+  operations conditioned on different bits may share a cycle
+* **May a condition read a register that a later operation writes?** Referential
+  integrity permits it; execution order does not. One of the two has to give
+* **What does `POST /simulations/statevector` do with a mid-circuit measurement?**
+  The state stops being a vector. Refuse, collapse onto one branch, or return an
+  ensemble? **Answer this in Milestone 6, not 7** — the state timeline is designed
+  against the answer, and discovering it late is exactly how the timeline gets
+  built twice
+* **Is `u3` stored as a gate taking three parameters, or decomposed on import?**
+  If stored, does export prefer it to the decomposition? Import already refuses
+  to decompose, on the grounds that it would hand back a circuit the user did not
+  write; export meets the mirror of that problem
+* **How is a condition drawn, and how is it announced?** `UI.md` owns the answer.
+  A classical wire carrying a condition upward is the convention, and the canvas
+  already draws measurement connectors downward to the same lanes
+
+---
+
+# Milestone 7 — Seeing the State
+
+**Drafted 2026-08-06. Not started.**
+
+## Goal
+
+The intermediate state becomes visible. `Vision.md` calls visualization "the
+reason the project exists" and "a feature, not a skin", and lists "state should
+be inspectable at any point in a circuit" first among the priorities that follow
+from the gap the project fills.
+
+**The finding that shapes this milestone: phase is already fetched and thrown
+away.** `POST /simulations/statevector` returns `{ basisState, real, imaginary }`
+per amplitude, and `API.md` states that "the amplitudes *are* the state". The
+frontend type carries both components. The results panel renders probabilities
+only — so a tool named after *phasors*, rotating complex numbers carrying
+magnitude and phase, currently makes phase invisible. The data crosses the wire
+on every edit and is discarded. **Nothing on the backend has to change for the
+most important half of this milestone.**
+
+**Only the final state exists today.** Most of the rest follows from making the
+state available *per cycle*, which is the difference between a tool that executes
+and a tool that explains.
+
+### Tasks
+
+* [ ] State at every cycle, not only the last
+* [ ] Amplitude and phase display
+* [ ] Bloch spheres, from the reduced density matrix
+* [ ] State evolution timeline
+* [ ] Matrix viewer
+* [ ] Tensor product visualization
+* [ ] Gate explanations, attached to the operation rather than kept in a manual
+* [ ] Generators — `POST /generators/{id}`, the shape ADR-0009 reserved
+* [ ] Annotated algorithm examples: Deutsch-Jozsa, Bernstein-Vazirani, Grover
+
+**Generators are here rather than in Milestone 6**, which changes what `API.md`
+and the Milestone 5 notes reserved. A parameterised Grover is a teaching artifact
+and is worth most beside the visualization that explains it. ADR-0009 is
+otherwise unaffected — it fixed the *shape*, not the schedule — but the move
+should be recorded in it.
+
+### Exit Criteria
+
+* [ ] **`|+>` and `|->` are distinguishable in the interface.** They have
+  identical probabilities and opposite phase, so a display that cannot tell them
+  apart is not showing the state. This is the cheapest possible check that the
+  milestone happened at all
+* [ ] The state after **every** cycle is reachable, not only the final one
+* [ ] **A Bell state's single-qubit Bloch vector has length zero**, and the
+  interface says why. Taking the vector from a pure single-qubit state gives
+  length one and is wrong; the reduced density matrix gives the truth. Asserted
+  against the analytic value, per the Milestone 5 rule about known primitives
+* [ ] A circuit carrying classical control shows something honest, matching the
+  answer Milestone 6 recorded for the statevector endpoint
+* [ ] Every visualization consumes the Circuit Model and stores no second copy of
+  it — the Milestone 3 rule, extended to the components Vision calls first-class
+* [ ] Colour is never the only carrier of meaning, and `prefers-reduced-motion`
+  removes every animation without removing information
+
+### Questions To Answer During Development
+
+* **Does per-cycle state arrive in one response or one per cycle?** The size is
+  depth × 2^n, and the endpoint's 12-qubit cap exists because 2^n objects of JSON
+  hangs a browser. A 12-qubit circuit of depth 30 is 122,880 amplitudes
+* **Global phase is unobservable. Is it normalised away, or shown and
+  explained?** Normalising is what a physicist expects; showing it and saying it
+  does not matter may teach more. A pedagogy decision, not a mathematical one
+* **A Bloch sphere for an entangled qubit** — the shrunken vector, or a statement
+  that the qubit has no state of its own? The first is correct, the second is what
+  a learner needs to hear, and the honest answer is probably both
+* **After a mid-circuit measurement, does the timeline show one branch, all
+  branches weighted, or the density matrix?** Follows Milestone 6's answer
+* **Do generators return a circuit, or a circuit and an explanation?** ADR-0009
+  reserved the request shape and said nothing about annotation
+* **What happens above the response cap** — refuse, or summarise? The results
+  panel already answers this for probabilities: too many qubits is not an error,
+  and the circuit is fine
+
+---
+
+# Milestone 8 — Simulation Depth
+
+**Drafted 2026-08-06. Not started.**
+
+## Goal
+
+Results that model a real device, and a simulator seam finally proven by a second
+implementation.
+
+**Why this precedes the research surface.** A quantum error-correcting code that
+never sees an error corrects nothing and demonstrates nothing. Noise is the
+prerequisite for error correction being worth showing, which is why Milestone 9
+follows this rather than replacing it.
+
+**The seam has never been tested.** A test asserts that no module outside
+`simulation/backends/qiskit_backend.py` imports Qiskit, and Milestone 4 recorded
+that this "is what makes a second backend possible, and it is invisible until the
+day something breaks it". That day is this milestone. A one-implementation
+abstraction is a claim rather than a demonstration — the same gap the
+importer/exporter seam has, noted under *Beyond OpenQASM 2.0* below.
+
+### Tasks
+
+* [ ] Density matrix representation
+* [ ] Noise models
+* [ ] A second simulator backend
+* [ ] Fidelity metrics
+* [ ] Backend selection, with a stated reason when one is unavailable
+* [ ] Error mitigation — or a recorded decision that it belongs later
+
+### Exit Criteria
+
+* [ ] **A second backend exists, is selectable, and the Qiskit-isolation test
+  still passes.** If it does not, the seam was wrong, and that finding is worth
+  more than the backend
+* [ ] A noisy circuit's fidelity is checked against an analytic value rather than
+  a plausible-looking one
+* [ ] The registry reports more than one backend, and the interface says why an
+  unavailable one is unavailable — the treatment the palette already gives a
+  measurement with no register to write into
+* [ ] Absence of the `simulation` extra remains an ordinary state, with the app
+  installing, importing and running without it
+
+### Questions To Answer During Development
+
+* **Which second backend, and what is "depth" for?** Scale and realism are
+  different answers. A stabilizer simulator runs thousands of Clifford qubits and
+  is what error correction needs; a density-matrix simulator runs few qubits and
+  teaches decoherence. `Vision.md` puts learners first, which argues for the
+  second — but Milestone 9 needs the first
+* **Does noise belong in the Circuit Model?** It should not: noise is a property
+  of the *execution*, not of the circuit, and putting it in the model makes the
+  same circuit mean different things on different days. Worth an ADR anyway,
+  because the pressure to add it will be constant and the argument is better
+  written once than re-had
+* **Does `depth` still mean anything under noise**, where duration matters more
+  than a count of cycles? ADR-0003 anticipated a weighted depth arriving with a
+  `delay` operation
+* **Does a density matrix need a representation the model does not have**, and
+  does that reopen Milestone 4's finding that there is no separate internal
+  representation?
+
+---
+
+# Milestone 9 — Research Surface
+
+**Sketched 2026-08-06.** Error correction, surface codes, stabilizer circuits,
+tensor-network simulation, custom gate libraries.
+
+Sketched rather than drafted, because its shape depends on answers Milestones 6
+and 8 have not given yet: error correction needs classical control for
+feed-forward correction, and it needs a noise model for there to be anything to
+correct. Drafting it now would be planning against two unknowns.
+
+---
+
 # Future Milestones
 
-These are intentionally out of scope for the MVP.
+Directional, and deliberately not scheduled. What *is* scheduled now lives
+in Milestones 6 to 9 above; what remains here either has no milestone yet or
+is a standing reference those milestones point back to.
 
 ## Widening the Gate Set
+
+**Scheduled as part of Milestone 6 on 2026-08-06.** This section stays here
+rather than moving, because it is the worked reasoning and the milestone points
+back to it; what follows is the analysis, and Milestone 6 is the plan.
 
 **Added 2026-08-02, and it is the first future item that came from evidence
 rather than from a wish list.** OpenQASM import discovered that most
@@ -820,43 +1085,111 @@ answer before writing the writer.
 
 ## Educational Visualizations
 
-* Bloch spheres
-* State evolution timeline
-* Gate explanations
-* Matrix viewer
-* Tensor products
+**Scheduled as Milestone 7 on 2026-08-06.** Bloch spheres, the state evolution
+timeline, gate explanations, the matrix viewer and tensor products are all listed
+there with exit criteria. The item that was never on this list, and matters most,
+is **phase**: the amplitudes already carry it and the interface discards it.
 
 ---
 
 ## Advanced Simulation
 
-* Density matrices
-* Noise models
-* Error mitigation
-* Fidelity metrics
-* Multiple simulator backends
+**Scheduled as Milestone 8 on 2026-08-06**, where density matrices, noise models,
+fidelity metrics and a second backend are listed with exit criteria. Error
+mitigation is the one entry that stayed a question rather than becoming a task.
 
 ---
 
 ## Quantum Algorithms
 
-* Bell states
-* GHZ states
-* Teleportation
-* Deutsch-Jozsa
-* Bernstein-Vazirani
-* Grover
-* Quantum Fourier Transform
+**Rewritten 2026-08-06, when this stopped being one thing.** Algorithms are not a
+milestone; they are three groups distinguished by what each demands of the model,
+and they were distributed accordingly.
+
+**Expressible today — content, not capability.** Bell, GHZ, Deutsch-Jozsa,
+Bernstein-Vazirani, Grover, the QFT. Unitary evolution with terminal measurement,
+which the model has expressed since Milestone 2. Six of these are already in the
+catalogue. What they still want is *annotation* and *parameterisation*, which is
+why they appear in Milestone 7 beside the visualization that explains them and
+the generators that produce them at any size.
+
+**Blocked on classical control.** Teleportation, superdense coding, entanglement
+swapping, repeat-until-success. These condition operations on measurement
+outcomes. ADR-0009 records why teleportation is absent from the catalogue rather
+than approximated: the closest expressible circuit applies its corrections
+unconditionally, which validates and is not teleportation. Milestone 6.
+
+**Blocked on classical control and on noise.** Bit-flip and phase-flip codes,
+Shor, Steane, surface codes. Milestone 9, for the reason recorded there.
+
+The split is worth keeping because it is the useful question to ask of any
+algorithm someone proposes: *what does it need the model to be able to say?*
+
+---
+
+## Beyond OpenQASM 2.0
+
+**Added 2026-08-06.** The intent is that a circuit can leave this tool for
+whichever framework the user already has. Q#, Cirq and OpenQASM 3 are the named
+candidates, and staying readable by the ecosystem is what keeps the project
+relevant rather than a curiosity.
+
+Three things to know before starting, because each changes what "add a format"
+costs:
+
+* **OpenQASM 3 is the cheap one and probably comes first.** It is the successor
+  to the format already supported, so the parser has a shape to follow, and it
+  carries classical control natively where QASM 2 offers only `if (c == N)`
+  comparing a whole register to an integer. If Milestone 6 lands classical
+  control, QASM 3 is where it is expressed properly.
+* **Q# and Cirq are not interchange formats.** They are a language and a library,
+  so "importing Q#" means parsing a general-purpose programming language rather
+  than reading a circuit description. The realistic targets are Cirq's JSON
+  serialization and, for Q#, QIR or its OpenQASM output — not the source. Worth
+  stating plainly so nobody begins by writing a Q# parser.
+* **The importer/exporter seam has never been tested by a second format**,
+  exactly as the simulator seam has never been tested by a second backend.
+  `importers/qasm/` and `exporters/qasm.py` are the only implementations, so the
+  shape they share is a claim rather than a demonstrated abstraction. **An ADR
+  generalising that seam belongs before the second format, not during it** — the
+  same lesson ADR-0009 records about discovering the generator/transform
+  distinction while writing the second one.
 
 ---
 
 ## Research Features
 
-* Error correction
-* Surface codes
-* Stabilizer circuits
-* Tensor-network simulation
-* Custom gate libraries
+**Sketched as Milestone 9 on 2026-08-06** — error correction, surface codes,
+stabilizer circuits, tensor-network simulation, custom gate libraries. Sketched
+rather than planned, because it depends on classical control from Milestone 6 and
+a noise model from Milestone 8, and a code that never sees an error corrects
+nothing.
+
+---
+
+## Deferred, And When To Decide
+
+Three families that are neither scheduled nor rejected. Each is listed with the
+moment its decision becomes cheap, because deciding earlier means guessing.
+
+**Quantum phase estimation.** Needs controlled rotations, which Milestone 6
+settles when it decides whether a controlled gate is a name or a `controls`
+entry. After that it is ordinary catalogue content. **Decide during Milestone 7**,
+alongside the other annotated algorithms.
+
+**VQE and QAOA.** These are not circuits but *loops*: bind parameters, run,
+optimise, repeat. That is a subsystem, and it raises a **scope** question rather
+than a scheduling one, since `Vision.md` says the project "is not a replacement
+for Qiskit" and "consumes them, it does not compete with them". A generator
+producing a VQE *ansatz* is a circuit and clearly in scope; the optimiser around
+it may not be. **Decide when generators land in Milestone 7**, where the
+ansatz-shaped half arrives anyway and the boundary becomes concrete.
+
+**Randomized compiling.** A circuit-to-circuit transform, so it needs
+`POST /transforms/{id}` — the path ADR-0009 reserved and deliberately kept
+separate from generators, because a transform takes a circuit and can therefore
+fail on its input. Research-flavoured. **Decide during Milestone 8**, when the
+simulator work makes it clear whether compilation belongs in this tool at all.
 
 ---
 
@@ -867,6 +1200,14 @@ answer before writing the writer.
 * Public sharing
 * Classroom mode
 * Collaborative editing
+
+**One of these is much cheaper than the heading suggests.** `persistence/` is
+explicitly "the working set, not a circuit library" and holds a single
+`localStorage` key, so a user can have exactly one circuit at a time. For a
+teaching tool where a lesson builds several, that is a real limit — and **a local
+library needs no accounts, no backend and no sharing**, only a second key shape
+and a picker. Filing it beside *Accounts* prices it as though it did. Worth
+separating the moment it is scheduled.
 
 ---
 
