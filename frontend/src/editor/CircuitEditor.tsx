@@ -864,8 +864,15 @@ export function CircuitEditor({
         onUndo={undo}
         onRedo={redo}
         onSave={save}
-        onExport={exportFile}
-        onExportQasm={() => void exportQasmFile()}
+        /*
+          One callback, one format argument. The header collects the choice
+          because that is where the control lives; which writer runs is this
+          module's business, and only one of them can fail.
+        */
+        onExport={(format) => {
+          if (format === 'json') exportFile();
+          else void exportQasmFile();
+        }}
         onImport={(file) => {
           void importFile(file);
         }}
@@ -884,8 +891,18 @@ export function CircuitEditor({
         exactly the change the reservation promised: one grid template, one
         `aside`, and nothing else moved.
       */}
-      <div className="grid min-h-0 flex-1 grid-cols-[auto_1fr_auto] gap-6">
-        <aside className="w-44">
+      {/*
+        One grid template, collapsed in two steps -- which is the change
+        Frontend.md promised the three-column layout was built for, and it was:
+        the components below are untouched by it.
+
+        Three columns at `lg`, palette and canvas at `sm` with the inspector
+        spanning both beneath them, and a single stack below that. The DOM order
+        is already the reading order UI.md specifies, so collapsing needs no
+        `order` and the tab sequence is the same at every width.
+      */}
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-6 sm:grid-cols-[auto_1fr] lg:grid-cols-[auto_1fr_auto]">
+        <aside className="min-w-0 sm:w-44">
           {/*
           Arming a different gate abandons any placement in progress. Keeping it
           would leave a half-assigned cx waiting behind a swap the user has
@@ -1058,7 +1075,7 @@ export function CircuitEditor({
           selected operation *is*, the other what the whole circuit *does*, and
           they are read at different moments.
         */}
-        <aside className="flex flex-col gap-6">
+        <aside className="flex min-w-0 flex-col gap-6 sm:col-span-2 lg:col-span-1 lg:w-56">
           <Inspector
             operation={selected}
             registers={layout.registers.map((lane) => ({

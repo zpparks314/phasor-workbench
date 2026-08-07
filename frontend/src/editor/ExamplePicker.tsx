@@ -55,9 +55,19 @@ export function ExamplePicker({
     entries.find((candidate) => candidate.id === chosen) ?? entries[0];
   const empty = entries.length === 0;
 
+  /*
+    `min-w-0` on the row and every text child, and `truncate` on the summary.
+
+    A flex item defaults to `min-width: auto`, so it refuses to shrink below its
+    content -- and the summary is a sentence. At 768px that pushed this row
+    straight through the inspector column beside it, which is a defect at any
+    width where the text is long enough, not only a narrow-screen one. The
+    column already carries `min-w-0`; that is undone by any descendant that does
+    not.
+  */
   return (
-    <div className="flex items-center gap-2 text-sm">
-      <label className="flex items-center gap-2">
+    <div className="flex min-w-0 flex-wrap items-center gap-2 text-sm">
+      <label className="flex min-w-0 items-center gap-2">
         <span className="text-ink-muted uppercase">Examples</span>
         <select
           value={entry?.id ?? ''}
@@ -107,11 +117,16 @@ export function ExamplePicker({
         by most screen readers.
       */}
       {entry !== undefined && (
-        <span className="text-ink-muted">{entry.summary}</span>
+        <span
+          className="min-w-0 flex-1 truncate text-ink-muted"
+          title={entry.summary}
+        >
+          {entry.summary}
+        </span>
       )}
 
       {unavailable && (
-        <span className="text-ink-muted">
+        <span className="min-w-0 flex-1 truncate text-ink-muted">
           Example circuits need the backend, which could not be reached.
         </span>
       )}
