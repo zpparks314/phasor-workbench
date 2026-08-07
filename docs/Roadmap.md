@@ -11,15 +11,15 @@ Milestone 1 (Foundation) closed on 2026-07-28, Milestone 2 (Circuit Model) on
 (Simulation MVP) on 2026-08-02.
 
 **Milestones 1–4 are closed.** The foundation, the Circuit Model, the editor and
-simulation all exist and are enforced by tests: 913 frontend and 458 backend,
+simulation all exist and are enforced by tests: 919 frontend and 458 backend,
 with 51 fixtures in `shared/fixtures/` holding the two language implementations
 to one specification.
 
-**Milestone 5 is most of the way through.** Import, export, example circuits,
-error handling and keyboard shortcuts are done; what remains is responsive
-layout, deployment and the documentation pass — plus the screen-reader check,
-which is not a task but an exit criterion, and which needs a person at the
-machine. See *Where to Pick Up*.
+**Milestone 5 is nearly closed.** Import, export, example circuits, error
+handling, keyboard shortcuts and responsive layout are done; what remains is
+deployment and the documentation pass — plus the screen-reader check, which is
+not a task but an exit criterion, and which needs a person at the machine. See
+*Where to Pick Up*.
 
 A user can build a circuit from empty in the browser, edit its parameters and
 measurement targets, save work that survives a refresh, open one of six built-in
@@ -454,11 +454,12 @@ Prepare the project for public deployment.
 
 ### Tasks
 
-* [ ] Responsive layout — and with it, the header as a whole. Export landed
+* [x] Responsive layout — and with it, the header as a whole. Export had landed
   as two buttons rather than a format picker, taking the header to seven
-  controls; whether that survives a narrow screen is a question for this
-  task, which is the first place the real constraint appears. See *Files*
-  in `UI.md` for what was already weighed
+  controls; whether that survived a narrow screen was this task's question,
+  and it did not. It is now a format picker and one button, the option `UI.md`
+  had weighed and deferred here. The grid collapses in two steps and the
+  palette becomes a horizontal strip in one column — see *Small Screens*
 * [x] Error handling — a root error boundary and the recovery screen behind it,
   in `frontend/src/components/`. The three file and storage failures already
   reported through the header's alerts; what had no surface at all was a render
@@ -531,9 +532,25 @@ do it *before* starting was left here.
   unconditionally — it validates, and it is not teleportation.
   [ADR-0009](decisions/ADR0009_CircuitCatalogue.md) records why that is worse
   than an absent example.
-* [ ] At 1280px, 768px and 375px every region is reachable and the body never
+* [x] At 1280px, 768px and 375px every region is reachable and the body never
   scrolls horizontally. The canvas keeps its own horizontal scroll; that is not
-  the same thing.
+  the same thing. **Done 2026-08-06.** Measured rather than asserted, because
+  jsdom applies no Tailwind and nothing in the suite can compute a width:
+  `scrollWidth` against the viewport is 1280/1280, 753/768 and 360/375, none of
+  them overflowing, and each width was rendered and looked at.
+
+  Two things this turned up that the criterion did not ask for. **The 768px
+  layout was already broken** before any collapsing — the examples summary is a
+  sentence in a flex row, and a flex item's `min-width: auto` made it push
+  through the inspector column, which is wrong at any width where the text is
+  long enough. And **the palette gains its own horizontal scroll** in one
+  column; the criterion says the *body* must not scroll, and a region owning its
+  overflow is how that is met, exactly as the canvas already did.
+
+  **`--window-size=375` does not give a 375px viewport.** Chrome clamps a
+  headless window to about 500px, so a narrow-screen check done that way is
+  measuring something else; a true 375 needs the app in a 375px iframe. Recorded
+  in `UI.md` because it silently invalidates the obvious way to do this.
 * [x] **An import that fails to parse reaches the user with its cause**, matching
   the treatment the rest of the set already gets: local storage unavailable or
   full, an unreadable stored document and a newer-build document from Milestone
@@ -668,11 +685,10 @@ role, no accessible name, and nothing `aria-activedescendant` reads. Those are
 what a screen reader announces, so the check is worth exactly as much now as it
 was, and still goes before the layout work.
 
-**Where the milestone actually stands.** Six of the nine tasks are done. The
+**Where the milestone actually stands.** Seven of the nine tasks are done. The
 first four had dependencies between them — each reused what the one before it
-built — and neither error handling nor the shortcut map had any, which is why
-both could be taken while the check ahead of them waits on a person at the
-machine:
+built — and the three since had none, which is why they could be taken while the
+check ahead of them waits on a person at the machine:
 
 | Task | State |
 |---|---|
@@ -682,7 +698,7 @@ machine:
 | Example circuits | **Done** — `examples/`, six, read through the importer |
 | Error handling | **Done** — `frontend/src/components/`, root boundary |
 | Keyboard shortcuts | **Done** — `editor/shortcuts.ts`, `?` renders it |
-| Responsive layout | Not started |
+| Responsive layout | **Done** — one grid template, collapsed in two steps |
 | Documentation | Not started, and belongs last |
 | Deployment | Not started, and belongs last |
 
@@ -712,12 +728,12 @@ is about risk rather than blocking:
    `?` reference be *derived* from the same source the handlers use rather than
    written twice, and it is asserted from both ends: the panel must show every
    entry, and the canvas must reach a handler for every entry.
-4. **Responsive layout**, which is where the header question below gets settled.
-   **This is next.** Note that it now has one more thing below the canvas to
-   place — the shortcut reference — though as a collapsed disclosure it is a
-   single line until opened.
+4. ~~**Responsive layout**~~ — **done 2026-08-06**, and it settled the header
+   question: six controls, not seven, because export became a format picker and
+   a button. The shortcut reference cost nothing, being a collapsed disclosure.
 5. **Deployment**, still last — it consumes the Dockerfiles and should not be
-   built against a moving target.
+   built against a moving target. **This is next**, and with it the
+   documentation pass.
 
 **Documentation last**, and unchanged in reasoning: it should describe what
 shipped, not what was planned.

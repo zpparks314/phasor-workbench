@@ -121,3 +121,36 @@ describe('when the catalogue cannot be reached', () => {
     expect(loadButton()).toBeDisabled();
   });
 });
+
+/**
+ * The summary is a sentence in a flex row, and a flex item defaults to
+ * `min-width: auto` — so it refused to shrink and pushed this row straight
+ * through the inspector column at 768px. Truncating is the fix.
+ *
+ * **jsdom computes no Tailwind, so none of this asserts a rendered width.**
+ * What it does assert is the part that survives truncation being a behaviour
+ * rather than a style: the full text stays reachable through `title`, which is
+ * the only reason clipping it is acceptable at all. The layout itself was
+ * checked by rendering at 375, 768 and 1280 and measuring the document's scroll
+ * width — see UI.md, *Small Screens*.
+ */
+describe('a summary too long for the row', () => {
+  it('keeps the full text reachable when it is clipped', () => {
+    show();
+
+    const summary = screen.getByText(ENTRIES[0]?.summary ?? '');
+
+    expect(summary).toHaveAttribute('title', ENTRIES[0]?.summary);
+  });
+
+  it('is marked to truncate rather than to widen its column', () => {
+    show();
+
+    const summary = screen.getByText(ENTRIES[0]?.summary ?? '');
+
+    // A class check, and it knows it: the guarantee is verified by rendering,
+    // and this only stops the declaration being dropped by accident.
+    expect(summary.className).toMatch(/\btruncate\b/);
+    expect(summary.className).toMatch(/\bmin-w-0\b/);
+  });
+});

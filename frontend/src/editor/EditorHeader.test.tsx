@@ -18,7 +18,6 @@ function show(overrides: Partial<EditorHeaderProps> = {}) {
     onClear: vi.fn(),
     onSave: vi.fn(),
     onExport: vi.fn(),
-    onExportQasm: vi.fn(),
     onImport: vi.fn(),
     ...overrides,
   };
@@ -189,38 +188,99 @@ describe('the roving focus', () => {
 });
 
 describe('exporting', () => {
+  const picker = () => screen.getByRole('combobox', { name: 'Export format' });
+
   /**
-   * Two controls rather than one with a format picker. Import can route on
-   * content because the file already says what it is; export has no such
-   * evidence, so the choice is the user's and is made visible.
+   * A picker and a button, replacing the two buttons this shipped as. The
+   * choice is still the user's -- import can route on a file's content, export
+   * has no such evidence -- but it costs one header slot instead of two, which
+   * is what the responsive task needed. See UI.md, *Files*.
    */
-  it('offers both formats as separate controls', () => {
+  it('offers both formats from one control', () => {
     show();
 
-    expect(button(/Export circuit as a JSON file/)).toBeInTheDocument();
+    expect(picker()).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'JSON' })).toBeInTheDocument();
     expect(
-      button(/Export circuit as an OpenQASM 2.0 file/),
+      screen.getByRole('option', { name: 'OpenQASM 2.0' }),
     ).toBeInTheDocument();
   });
 
-  it('calls the OpenQASM handler and not the JSON one', () => {
+  it('defaults to JSON and exports it', () => {
     const { props } = show();
 
+    fireEvent.click(button(/Export circuit as a JSON file/));
+
+    expect(props.onExport).toHaveBeenCalledWith('json');
+  });
+
+  it('exports OpenQASM once that is chosen', () => {
+    const { props } = show();
+
+    fireEvent.change(picker(), { target: { value: 'qasm' } });
     fireEvent.click(button(/Export circuit as an OpenQASM 2.0 file/));
 
-    expect(props.onExportQasm).toHaveBeenCalledOnce();
+    expect(props.onExport).toHaveBeenCalledWith('qasm');
+  });
+
+  /**
+   * Choosing does not export, the same rule the examples picker follows: an
+   * arrow key through a list must not write a file.
+   */
+  it('does not export on choosing alone', () => {
+    const { props } = show();
+
+    fireEvent.change(picker(), { target: { value: 'qasm' } });
+
     expect(props.onExport).not.toHaveBeenCalled();
+  });
+
+  /**
+   * The button says which format it will write. Two controls acting on one
+   * decision have to be readable as a pair, or a screen-reader user cannot
+   * check what the button currently means.
+   */
+  it('renames the button to match the choice', () => {
+    show();
+
+    expect(button(/Export circuit as a JSON file/)).toBeInTheDocument();
+
+    fireEvent.change(picker(), { target: { value: 'qasm' } });
+
+    expect(
+      button(/Export circuit as an OpenQASM 2.0 file/),
+    ).toBeInTheDocument();
   });
 
   it('is reachable by the roving focus', () => {
     show();
     const toolbar = screen.getByRole('toolbar');
 
-    // undo -> redo -> clear -> save -> export -> export qasm
-    for (let step = 0; step < 5; step += 1) {
+    // undo -> redo -> clear -> save -> format
+    for (let step = 0; step < 4; step += 1) {
       fireEvent.keyDown(toolbar, { key: 'ArrowRight' });
     }
 
-    expect(button(/Export circuit as an OpenQASM 2.0 file/)).toHaveFocus();
+    expect(picker()).toHaveFocus();
+  });
+
+  /**
+   * And the roving focus gives the arrows back once it is there. A `select`
+   * changes its value with them; without the guard, adding this control would
+   * have made the format unreachable by keyboard -- worse than the two buttons
+   * it replaced.
+   */
+  it('leaves the arrow keys to the picker itself', () => {
+    show();
+    const toolbar = screen.getByRole('toolbar');
+
+    for (let step = 0; step < 4; step += 1) {
+      fireEvent.keyDown(toolbar, { key: 'ArrowRight' });
+    }
+    expect(picker()).toHaveFocus();
+
+    fireEvent.keyDown(picker(), { key: 'ArrowRight', bubbles: true });
+
+    expect(picker()).toHaveFocus();
   });
 });

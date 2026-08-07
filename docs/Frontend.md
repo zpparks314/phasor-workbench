@@ -361,8 +361,13 @@ What UI.md still defers, and why:
   grid reserves the space; nothing else about them is designed, because designing
   a results panel before results exist is the speculation that kept UI.md empty
   through two milestones.
-* **responsive and small-screen layout** — Milestone 5, where `Roadmap.md` places
-  it
+* ~~**responsive and small-screen layout**~~ — **built** 2026-08-06. The claim
+  above that the three-column grid was built so collapsing it is a change to the
+  grid rather than the components held: `CircuitEditor`'s one grid template gained
+  two breakpoints and the components below it were untouched, except where they
+  had defects of their own. `GatePalette` is the exception and a deliberate one —
+  it becomes a horizontal scrolling strip in one column, which is a change to
+  what it *is*, not to what it knows
 * **multi-select** — changes what `Delete` and drag mean, and is not needed to
   build a simple circuit
 
