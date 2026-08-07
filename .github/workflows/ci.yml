@@ -177,6 +177,41 @@ jobs:
   # their version ('Backend (Python 3.11)'), so requiring them directly means
   # every matrix change silently leaves a leg unprotected until someone
   # remembers to update the rule. Requiring this one job instead stays correct.
+  #
+  # **This gate must fail closed, and it did not.** It previously carried
+  # `if: contains(needs.*.result, 'failure') || contains(needs.*.result,
+  # 'cancelled')` on the step -- a list of the bad states, which passes on
+  # anything not on the list. On 2026-08-06 the `schema` job died during "Set up
+  # job" in a GitHub Actions outage, the step was *skipped*, this job reported
+  # success, and a red run merged to main under branch protection. It was the
+  # first time the gate had ever been reached by a failing job in twenty runs,
+  # and it did not hold.
+  #
+  # **The value it saw was `abandoned`.** That is not in the four results
+  # GitHub documents -- `success`, `failure`, `cancelled`, `skipped` -- and it is
+  # what a job reports when the platform gives up on it rather than when it runs
+  # and fails. This version caught one live on 2026-08-06 and printed
+  # `backend=abandoned frontend=abandoned`, which is both the proof the fix works
+  # and the reason the old test could never have matched. **The documented set is
+  # not the whole set**, and any gate written against a list of bad values is
+  # waiting for the next undocumented one.
+  #
+  # Three changes, and each closes a different way of failing open:
+  #
+  # * **No `if:` on the step.** A guard that can be skipped is exactly how this
+  #   failed open. It runs on every result, including ones nobody anticipated.
+  # * **Require `success`, never test for failure.** Enumerating bad states is
+  #   open-ended -- `abandoned` proved exactly how open-ended -- while
+  #   enumerating the one good state is not. Any result that is not `success`
+  #   stops the merge.
+  # * **Iterate the `needs` object, not a joined string.** `join(needs.*.result)`
+  #   reads well and drops a job whose result is empty, because shell word
+  #   splitting discards it -- the same fail-open shape one level down. Walking
+  #   the object's own keys cannot lose an entry, and names the job that failed.
+  #
+  # The whole object is echoed because the old version left no way to tell a
+  # skipped guard from a passing one after the fact. `jq` is preinstalled on
+  # the runner image.
   ci:
     name: CI
     if: always()
@@ -184,5 +219,42 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Verify every job succeeded
-        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
-        run: exit 1
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          set -uo pipefail
+
+          printf 'Required job results:\n%s\n' "$NEEDS"
+
+          # Every failure is handled explicitly rather than left to `set -e`.
+          # `unsuccessful=$(... jq ...)` with a missing or erroring jq leaves the
+          # variable empty, and `set -e` does not reliably abort an assignment
+          # from a command substitution -- verified while writing this, where the
+          # gate passed with jq absent. That is the same fail-open shape as the
+          # defect being fixed, one level further down.
+          if ! command -v jq >/dev/null 2>&1; then
+            echo '::error::jq is unavailable, so job results cannot be verified.'
+            exit 1
+          fi
+
+          # Plain `-r`, not `-e`: without it jq exits 0 whether or not the
+          # filter matched, so "no unsuccessful jobs" and "jq broke" stay
+          # distinguishable by exit status alone. `-e` conflates them and cost
+          # a wrong version of this script.
+          status=0
+          unsuccessful=$(
+            printf '%s' "$NEEDS" |
+              jq -r 'to_entries[] | select(.value.result != "success") | "\(.key)=\(.value.result)"'
+          ) || status=$?
+
+          if [ "$status" -ne 0 ]; then
+            echo "::error::Could not read the needs context (jq exited $status)."
+            exit 1
+          fi
+
+          if [ -n "$unsuccessful" ]; then
+            echo "::error::Required jobs did not succeed: $(echo "$unsuccessful" | tr '\n' ' ')"
+            exit 1
+          fi
+
+          echo 'Every required job succeeded.'
