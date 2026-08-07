@@ -187,14 +187,23 @@ jobs:
   # first time the gate had ever been reached by a failing job in twenty runs,
   # and it did not hold.
   #
+  # **The value it saw was `abandoned`.** That is not in the four results
+  # GitHub documents -- `success`, `failure`, `cancelled`, `skipped` -- and it is
+  # what a job reports when the platform gives up on it rather than when it runs
+  # and fails. This version caught one live on 2026-08-06 and printed
+  # `backend=abandoned frontend=abandoned`, which is both the proof the fix works
+  # and the reason the old test could never have matched. **The documented set is
+  # not the whole set**, and any gate written against a list of bad values is
+  # waiting for the next undocumented one.
+  #
   # Three changes, and each closes a different way of failing open:
   #
   # * **No `if:` on the step.** A guard that can be skipped is exactly how this
   #   failed open. It runs on every result, including ones nobody anticipated.
   # * **Require `success`, never test for failure.** Enumerating bad states is
-  #   open-ended; enumerating the one good state is not. Any result that is not
-  #   `success` -- `failure`, `cancelled`, `skipped`, or whatever a future
-  #   infrastructure fault reports -- stops the merge.
+  #   open-ended -- `abandoned` proved exactly how open-ended -- while
+  #   enumerating the one good state is not. Any result that is not `success`
+  #   stops the merge.
   # * **Iterate the `needs` object, not a joined string.** `join(needs.*.result)`
   #   reads well and drops a job whose result is empty, because shell word
   #   splitting discards it -- the same fail-open shape one level down. Walking

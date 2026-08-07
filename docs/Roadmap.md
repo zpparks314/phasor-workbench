@@ -86,12 +86,20 @@ Recorded because the run stays red in the history and looks alarming.
 **That run also found a real defect, now fixed.** The aggregate `CI` job — the
 one check branch protection requires — *passed* while `Shared model` failed, so
 a red run merged. Its guard step tested for `'failure'` and `'cancelled'`
-specifically, and a job that dies in set-up reports neither, so the step was
-skipped and the gate reported success. It was the first time in twenty runs that
-the gate had been reached by a failing job, and it did not hold. The rule this
-leaves behind is worth more than the fix: **a gate must enumerate the one good
-state, not the bad ones**, or it passes on every state nobody thought of. The
-comment above the job records the three separate fail-open shapes that were
+specifically, so the step was skipped and the gate reported success. It was the
+first time in twenty runs that the gate had been reached by a failing job, and it
+did not hold.
+
+**The value it saw was `abandoned`**, which is not one of the four results
+GitHub documents — `success`, `failure`, `cancelled`, `skipped` — and is what a
+job reports when the platform gives up on it rather than when it runs and fails.
+The replacement gate caught one live on 2026-08-06 and printed
+`backend=abandoned frontend=abandoned`, which is simultaneously the proof it
+works and the reason the old test could never have matched.
+
+The rule this leaves behind is worth more than the fix: **a gate must enumerate
+the one good state, not the bad ones**, because the documented set is not the
+whole set. The comment above the job records the three separate fail-open shapes
 found while fixing it.
 
 **Three React `act` warnings come out of `useAnalysis.test.ts`** on a full
