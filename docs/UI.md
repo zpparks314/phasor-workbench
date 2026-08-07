@@ -31,7 +31,7 @@ this document says what the user sees and ADR-0007 says what the code does.
 
 ```text
 ┌──────────────────────────────────────────────────────────────┐
-│  Header   undo · redo · clear · save · export ×2 · import · status │
+│  Header   undo · redo · clear · save · format · export · import · status │
 ├───────────┬──────────────────────────────────────┬───────────┤
 │           │                                      │           │
 │           │  Structure · Examples · View         │ Inspector │
@@ -59,12 +59,69 @@ drawn, touches the circuit not at all, and is never undoable. Two sets of
 controls that look alike and behave completely differently should not share a
 heading.
 
-The canvas is the only region that scrolls. It scrolls horizontally as the
-circuit deepens; the qubit label gutter is sticky against the left edge so wire
-identity survives scrolling.
+The canvas is the only region that scrolls at full width. It scrolls
+horizontally as the circuit deepens; the qubit label gutter is sticky against
+the left edge so wire identity survives scrolling. The palette becomes a second
+scrolling region below `sm` — see *Small Screens*.
 
 Region order in the DOM matches the reading order above, so tab order needs no
-`tabindex` gymnastics.
+`tabindex` gymnastics. **That is what makes the layout collapse cheap**: the
+stacking order on a narrow screen is the DOM order, so no `order` property is
+involved and the tab sequence is identical at every width.
+
+---
+
+# Small Screens
+
+Built 2026-08-06. `Frontend.md` predicted that collapsing the three-column grid
+would be a change to the grid rather than to the components, and that held — the
+components below it were untouched except where they had their own defects.
+
+**Two steps, not one.**
+
+| Width | Layout |
+|---|---|
+| `lg` and above | three columns: palette, canvas, inspector |
+| `sm` to `lg` | two columns: palette and canvas, with the inspector spanning both beneath |
+| below `sm` | one column, in DOM order |
+
+The inspector is what moves first, and it is the right thing to move: it answers
+*what is this operation* and *what does the circuit amount to*, both of which are
+read after building rather than during. The palette is needed on every placement,
+so it stays beside the canvas as long as there is room for it.
+
+**The palette becomes a horizontal scrolling strip in one column**, not a
+disclosure. Every gate stays one press away — putting the palette behind a toggle
+would charge an extra press per placement on exactly the screen with the least
+room to spare. It scrolls itself rather than widening the page; the criterion is
+that the *body* does not scroll horizontally, and a region that owns its own
+overflow is how that is met. The roving focus needed no change at all, since
+arrow keys already move by index in both directions.
+
+**The overlap at 768px was a separate defect and not a layout-mode question.** A
+flex item defaults to `min-width: auto`, so the examples summary — a sentence —
+refused to shrink and pushed its row straight through the inspector column beside
+it. A column carrying `min-w-0` is undone by any descendant that does not, which
+is the general form of the bug. The summary now truncates and keeps its full text
+in `title`, because clipping text is only acceptable when the whole of it stays
+reachable.
+
+**How this was verified, and how it was not.** jsdom applies no Tailwind and
+computes no cascade, so no test in the suite asserts a rendered width; the class
+checks that exist only stop a declaration being dropped by accident, and say so.
+The layout was checked by rendering the app at each width and measuring
+`document.documentElement.scrollWidth` against the viewport:
+
+| Width | Scroll width | Body overflows |
+|---|---|---|
+| 1280 | 1280 | no |
+| 768 | 753 | no |
+| 375 | 360 | no |
+
+**Chrome clamps a headless window to about 500px**, so `--window-size=375`
+silently yields a 504px viewport and a narrow-screen check done that way is
+measuring the wrong thing. A true 375 needs the app in a 375px iframe. This cost
+an hour once; it is written down so it does not cost another.
 
 ---
 
@@ -954,10 +1011,14 @@ falling back to `circuit.json` when there is no usable name. There is no dialog,
 because there is no decision to collect — the browser already owns where
 downloads land.
 
-**Export is two controls, and Import is one. Amended 2026-08-04**, when OpenQASM
-export landed and contradicted the sentence under *Deferred* below, which had
-said OpenQASM would reuse the same two controls. It does for import and cannot
-for export, and the asymmetry is the point rather than an inconsistency:
+**Export is a format picker and one button. Amended 2026-08-06** by the
+responsive task, which is where the previous amendment deferred the question and
+where the header's width finally became a real constraint. It shipped as two
+buttons on 2026-08-04; the reasoning below for *why the choice is the user's*
+survives unchanged, and only where the choice is collected has moved.
+
+The asymmetry between import and export is the point rather than an
+inconsistency:
 
 *Import* routes on the file's content, so there is nothing to ask. The grammar
 requires `OPENQASM` as the first statement, which means a file already says what
@@ -971,14 +1032,33 @@ keyboard pattern with it — focus trapping, `Escape`, arrow semantics distinct
 from the toolbar's own — to place two items. Two buttons cost one more roving
 stop and nothing else.
 
-A native `<select>`, as the inspector already uses for a classical register,
-would be cheaper than that custom menu and is the honest third option: keyboard
-and screen-reader support arrive with the element. It was weighed and **deferred
-to the responsive-layout task rather than declined**. For exactly two formats it
-wins nothing — a select plus a button is two tab stops, the same as two buttons,
-and costs an extra interaction per export — and no third export format is
-planned. What it would buy is a shorter header, and the header's width only
-becomes a constraint on a small screen, which is where that decision belongs.
+A native `<select>`, as the inspector already uses for a classical register, is
+cheaper than that custom menu and is what this now is: keyboard and
+screen-reader support arrive with the element. It was weighed on 2026-08-04 and
+**deferred to the responsive-layout task rather than declined**, on the grounds
+that for exactly two formats it wins nothing except a shorter header — and that
+the header's width only becomes a constraint on a small screen.
+
+**That deferral was right, and the constraint arrived exactly where predicted.**
+At 375px the header wrapped to two rows and clipped "Export QASM" mid-word. The
+picker costs one slot instead of two, and the reasoning it was measured against
+has not changed: it is still two tab stops and still one extra interaction per
+export. What tipped it is that the alternative did not fit.
+
+Three details the swap turned up, none of them obvious beforehand:
+
+* **The button is renamed by the choice** — "Export circuit as an OpenQASM 2.0
+  file", not a bare "Export". Two controls acting on one decision have to read
+  as a pair, or a screen-reader user has no way to check what the button
+  currently means.
+* **Choosing does not export**, the same rule the examples picker follows. An
+  arrow key through a list must not write a file.
+* **The toolbar gives the arrow keys back.** The header is a `role="toolbar"`
+  with a roving focus that moves on arrows, and a `select` changes its value with
+  the same keys. Without a guard, adding the picker would have made the format
+  unreachable by keyboard — strictly worse than the two buttons it replaced. It
+  reuses the same helper the global `?` binding uses to decide a key belongs to
+  the element under it.
 
 **Only OpenQASM export can fail.** JSON is written in this browser; OpenQASM is
 written by the backend, which `Architecture.md` makes the owner of format
@@ -1255,21 +1335,20 @@ was the point of deferring it. See *The Results Panel*. State visualization
 proper (Bloch spheres, amplitude phase, evolution over time) stays deferred to
 *Educational Visualizations*.
 
-**To Milestone 5.** Responsive and small-screen layout. `Roadmap.md` places it
-there; the three-column grid is built so that collapsing it is a change to the
-grid rather than to the components.
+**~~Responsive and small-screen layout.~~ Built** 2026-08-06 — see *Small
+Screens*. The prediction held: collapsing the three-column grid was a change to
+the grid and not to the components. What it did *not* anticipate is that the
+narrow layout would expose a defect present at every width — the examples
+summary overflowing its column — which is recorded there.
 
 **~~The full shortcut map.~~ Built** 2026-08-05 — see *Shortcuts*. It settled two
 things this document had left open: the map is `editor/shortcuts.ts` rather than
 a table maintained here, and file actions get no accelerators.
 
-Two things have been added to the layout since that was written, and both are
-that task's to resolve rather than this document's: the header now carries seven
-controls, because export shipped as two buttons rather than a format picker, and
-the row above the canvas now holds an *Examples* picker beside the structure
-controls. *Files* records the export-control alternative that was weighed and
-deferred here — including the native `<select>` — so it does not need
-re-deriving at 375px.
+Both of the things that task inherited are resolved. The header's seven controls
+are six, because export became a format picker and a button; the *Examples* row
+above the canvas truncates its summary rather than pushing through the column
+beside it. *Files* records the first, *Small Screens* the second.
 
 **~~Import/export affordances.~~ Built** for JSON and OpenQASM — see *Files*.
 This entry once read that OpenQASM would reuse the same two controls, "since the

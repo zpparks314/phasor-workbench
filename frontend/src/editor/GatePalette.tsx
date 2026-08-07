@@ -87,17 +87,33 @@ export function GatePalette({
   }
 
   return (
+    /*
+      A column beside the canvas, and a horizontal strip below `sm` when the
+      layout collapses to one column.
+
+      A strip rather than a disclosure, so every gate stays one press away: the
+      palette is the thing a user reaches for constantly, and putting it behind
+      a toggle would charge a press for each placement on the screen with the
+      least room to spare. It scrolls itself rather than widening the page --
+      UI.md already allows exactly one region to scroll horizontally, and the
+      criterion is that the *body* does not.
+
+      The roving focus needs no change. Arrow keys already move by index in both
+      directions, so the same handler walks a column or a row.
+    */
     <nav
       aria-label="Gate palette"
       onKeyDown={handleKeyDown}
-      className="flex flex-col gap-4"
+      className="flex gap-4 overflow-x-auto pb-2 sm:flex-col sm:overflow-x-visible sm:pb-0"
     >
       {PALETTE.map((group) => (
-        <section key={group.title}>
+        <section key={group.title} className="shrink-0">
           <h2 className="mb-1 text-xs font-semibold tracking-wide text-ink-muted uppercase">
             {group.title}
           </h2>
-          <ul className="flex flex-wrap gap-1">
+          {/* Nowrap in the strip so a group stays one row; wrapping in the
+              column so a wide group still fits 176px. */}
+          <ul className="flex flex-nowrap gap-1 sm:flex-wrap">
             {group.entries.map((entry) => {
               const index = ENTRIES.indexOf(entry);
 
@@ -171,9 +187,12 @@ function GateButton({
         if (unavailable === undefined) onArm(armed ? null : entry.name);
       }}
       className={[
-        'rounded border px-1 font-mono text-sm',
+        'rounded border px-1 font-mono text-sm whitespace-nowrap',
         // Wide enough for "measurement" without stretching the single-letter
         // gates, which stay square so the palette still reads as a grid.
+        // `whitespace-nowrap` above matters in the strip, where a long name
+        // would otherwise break across two lines and make the row taller than
+        // every other entry in it.
         entry.name.length > 4 ? 'h-10 w-full' : 'h-10 w-10',
         unavailable === undefined ? '' : 'cursor-not-allowed opacity-40',
         armed
