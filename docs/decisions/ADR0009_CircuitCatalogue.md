@@ -163,3 +163,25 @@ prevent.
 which neither side may own; examples are content, and only the backend can read
 OpenQASM. `ProjectStructure.md`'s rule that `importers/` and `exporters/` are
 backend-only applies for the same reason.
+
+---
+
+## Scheduling Note — 2026-08-06
+
+**Generators are Milestone 7, not Milestone 6.** When this ADR was written the
+Milestone 5 notes and `API.md` reserved `/generators` and `/transforms` as "the
+next milestone's" work without naming one. Milestones 6 to 9 were drafted on
+2026-08-06 and placed them deliberately:
+
+* **Generators — Milestone 7**, beside the visualization that explains what they
+  produce. A parameterised Grover is a teaching artifact, and it is worth most
+  next to the state timeline and the annotations, not on its own.
+* **Transforms — Milestone 8 or later.** Randomized compiling is
+  compilation-flavoured and belongs nearer the simulator work. `Roadmap.md`'s
+  *Deferred, And When To Decide* records the moment its decision becomes cheap.
+
+**Nothing in the decision above changes.** This ADR fixed the *shape* — that a
+generator and a transform are different, and why — and said nothing about when
+either is built. The note exists because the Roadmap's Milestone 7 draft
+explicitly asked for the move to be recorded here rather than left in one
+document contradicting another.
