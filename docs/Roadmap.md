@@ -736,8 +736,9 @@ then export, then example circuits~~ — **all done**, and the premise held each
 time: `serialization/` never needed a change, and each feature reused the surface
 the one before it built.
 
-The remaining four have far weaker dependencies on each other, so the order below
-is about risk rather than blocking:
+Two are left — the screen-reader check and deployment — and the order below is
+about risk rather than blocking. The struck-through entries are kept because the
+*reasoning* for taking them out of order is the part worth reading:
 
 1. **The screen-reader check first**, because it is the only item that can
    invalidate work already done. *Open Issues* has carried it through four
@@ -762,7 +763,68 @@ is about risk rather than blocking:
    documentation pass.
 
 **Documentation last**, and unchanged in reasoning: it should describe what
-shipped, not what was planned.
+shipped, not what was planned. The pass is smaller than originally assumed —
+every feature updated `API.md`, `UI.md`, `Frontend.md`, `ProjectStructure.md` and
+the README in the change that introduced it, which is the project's rule. A
+pre-deployment audit on 2026-08-08 found four stale items and fixed them: two
+status lines still saying "Milestone 4", the generators-to-Milestone-7 move that
+ADR-0009 had been asked to record, and a stale count in this section. What
+remains for *Documentation* is whatever deployment itself adds.
+
+### What Deployment Inherits
+
+**Surveyed 2026-08-08, before starting.** None of this is built; it is what is
+already true, so the next session does not re-derive it.
+
+**Both Dockerfiles are multi-stage and have only a `development` target.** That
+was deliberate from Milestone 1 — "adding a `production` target is additive
+rather than a rewrite" — and it still holds. `compose.yaml` names
+`target: development` explicitly for both services, so adding a target changes
+nothing that exists.
+
+**The central decision is how `/api` is routed, and it is not a Docker
+question.** In development the Vite dev server proxies `/api` to the backend, so
+the browser origin is identical and CORS is never exercised on the happy path.
+**There is no Vite in production.** Something else has to route `/api`, or the
+frontend has to call an absolute URL — and those are different deployments with
+different failure modes, not a detail to settle while writing a Dockerfile.
+
+Three things already exist that make the same-origin answer cheap, and they
+should be checked before any other approach is designed:
+
+* `frontend/src/api/client.ts` reads `VITE_API_BASE_URL` and **defaults to the
+  empty string**, so every request is already relative. A reverse proxy in front
+  of both services needs no frontend change at all.
+* `backend/src/phasor_workbench/config.py` defaults `cors_origins` to
+  `http://localhost:5173`. A same-origin deployment never exercises CORS, so that
+  default stays correct and untouched. A cross-origin one must set it, and
+  getting it wrong is a class of bug that only appears in production.
+* `GET /api/v1/health` exists and `compose.yaml` already uses it as a container
+  healthcheck.
+
+**Four things that will bite if they are not checked deliberately:**
+
+1. **`VITE_USE_MOCK_API` must be off.** A production build with it on serves a
+   recorded Bell state for every circuit. It is deliberately recognisable rather
+   than plausible, which is the only reason this would be caught quickly.
+2. **The `simulation` extra must be installed in the production image**, or the
+   registry reports no backends and simulation degrades to an unavailable
+   message. That is an *ordinary* state by design, which is exactly why it would
+   ship unnoticed. The development stage installs `".[dev,simulation]"`;
+   production wants `".[simulation]"` without the dev tools.
+3. **The environment prefix is `QW_`**, from before the 2026-07-28 rename —
+   `QW_CORS_ORIGINS`, `QW_MAX_QUBITS`. **Deciding whether to rename it to
+   `PHASOR_` is cheapest now and irreversible-ish later**, because the first
+   deployment is what turns a prefix into a documented interface someone has
+   configured.
+4. **`uvicorn --reload` is in the development `CMD`** and must not survive into
+   production, along with the bind-mount assumptions the reloader exists for.
+
+**Continuous deployment is still deliberately absent**, and Milestone 1 recorded
+the constraint it should satisfy: it "should consume the Dockerfiles rather than
+duplicate them". Whether CI grows a deploy job, and on what trigger, is a
+question for this task rather than an assumption — note that the `CI` gate is now
+hardened, so a deploy job gated on it inherits a check that fails closed.
 
 **What the file work settled that the remaining tasks inherit.**
 

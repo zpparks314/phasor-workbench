@@ -1,6 +1,13 @@
 # User Interface
 
-**Status:** Implemented. Specifies the editor as built through Milestone 4.
+**Status:** Implemented. Specifies the editor as built through Milestone 5 —
+which added files, examples, the shortcut reference, the recovery screen and the
+small-screen layout, each in its own section below.
+
+**One thing here is specified but unverified**, and it is the oldest open item in
+the project: the canvas grid's screen-reader behaviour. *Keyboard Model* says
+what the markup claims; nobody has yet driven it with real assistive technology.
+`Roadmap.md`'s *Open Issues* carries the detail.
 
 What is on screen, how a circuit is built, what the keyboard does, and what
 things look like. **Where this document and any other disagree about editor

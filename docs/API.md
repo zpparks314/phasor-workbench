@@ -470,12 +470,13 @@ nothing.
 
 ## Deferred Endpoints
 
-Planned beyond Milestone 5, listed so the path structure stays coherent:
+Listed so the path structure stays coherent. Both are scheduled as of
+2026-08-06 — see `Roadmap.md`:
 
-| Endpoint | Purpose |
-|---|---|
-| `POST /api/v1/generators/{id}` | Parameterised circuit families — QAOA, VQE ansätze |
-| `POST /api/v1/transforms/{id}` | Circuit-to-circuit rewrites — randomized compiling |
+| Endpoint | Purpose | When |
+|---|---|---|
+| `POST /api/v1/generators/{id}` | Parameterised circuit families — QAOA, VQE ansätze | Milestone 7, beside the visualization that explains them |
+| `POST /api/v1/transforms/{id}` | Circuit-to-circuit rewrites — randomized compiling | Milestone 8 or later; the decision point is recorded in *Deferred, And When To Decide* |
 
 Both are named in [ADR-0009](decisions/ADR0009_CircuitCatalogue.md) section 4,
 which is explicit that a transform is **not** a generator taking a circuit

@@ -1,8 +1,14 @@
 # Frontend
 
-**Status:** Implemented through Milestone 4. Editor and component design are
-specified in [UI.md](UI.md) and [ADR-0007](decisions/ADR0007_EditingModel.md);
-this document covers structure, boundaries and the rules that keep them.
+**Status:** Implemented through Milestone 5, except deployment. Editor and
+component design are specified in [UI.md](UI.md) and
+[ADR-0007](decisions/ADR0007_EditingModel.md); this document covers structure,
+boundaries and the rules that keep them.
+
+Milestone 5 added `files/` (JSON and OpenQASM import/export), `components/` (the
+root error boundary and its recovery screen), `editor/shortcuts.ts` (the one list
+a key binding is declared in), and the responsive grid. Each is described in its
+own section below.
 
 ---
 

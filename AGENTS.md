@@ -45,9 +45,15 @@ specification.
 | `docs/API.md`, `docs/Simulation.md` | before touching endpoints or the simulator seam |
 | `docs/decisions/` | when a decision looks arbitrary — the reasoning is there |
 
-Milestones 1–4 are closed. `API.md` and `Simulation.md` were drafts through
-Milestone 3 and now describe built behaviour; each still ends with open
-questions that are genuinely open.
+Milestones 1–4 are closed, and **Milestone 5 has one task left: deployment.**
+`API.md` and `Simulation.md` were drafts through Milestone 3 and now describe
+built behaviour; each still ends with open questions that are genuinely open.
+
+**Milestones 6 to 9 are drafted** — model expressiveness, then visualization,
+then simulation depth, then the research surface — each with exit criteria and a
+list of questions to answer while building it. They are plans, not work in
+progress. Read them before proposing where something new should go; the ordering
+is argued rather than assumed, and the argument is the useful part.
 
 **Settled — do not reopen without cause:** mid-circuit measurement (deferred;
 measurement terminates a qubit, barriers exempt), identifier generation
