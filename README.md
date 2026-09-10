@@ -23,7 +23,7 @@ and professional frameworks that assume you already know the mathematics.
 > **On the name:** a *phasor* is a rotating complex number carrying magnitude and
 > phase — which is exactly what a quantum amplitude is.
 
-Built by Zachary Parks ([RogueScholar](https://github.com/zpparks314)).
+Built by Zachary Parks ([zpparks314](https://github.com/zpparks314)).
 
 ---
 
