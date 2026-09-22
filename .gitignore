@@ -45,6 +45,7 @@ dmypy.json
 .env.local
 .env.*.local
 !.env.example
+*.code-workspace
 
 
 # Editors
