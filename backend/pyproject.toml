@@ -69,7 +69,13 @@ packages = ["src/phasor_workbench"]
 testpaths = ["tests"]
 pythonpath = ["src"]
 addopts = "-ra --strict-markers"
-filterwarnings = ["error"]
+# Starlette 1.6.0 still imports AnyIO's deprecated BlockingPortal alias. The
+# upstream fix is merged (encode/starlette#3498) but not yet released. Keep all
+# other warnings fatal and remove this exception once that release is available.
+filterwarnings = [
+    "error",
+    'ignore:^The anyio\.abc\.BlockingPortal alias is deprecated, use anyio\.from_thread\.BlockingPortal instead\.$:DeprecationWarning:^starlette\.testclient$',
+]
 
 [tool.coverage.run]
 source = ["src/phasor_workbench"]
