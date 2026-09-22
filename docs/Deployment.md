@@ -1,14 +1,18 @@
 # Deployment
 
-**Status: repository prepared; no public deployment verified.** This is the
-canonical guide for deploying and operating Phasor Workbench. Milestone 5 stays
-open until the public deployment and its exit criteria have been verified.
+**Status: backend deployed and verified; frontend publication pending.** The
+Render API is live at `https://phasor-workbench-api.onrender.com`. The intended
+frontend domain, `https://phasor.zacharyparks.site`, is not yet publicly
+reachable. This is the canonical guide for deploying and operating Phasor
+Workbench. Milestone 5 stays open until the complete public deployment and its
+exit criteria have been verified.
 
 The setup order is deliberate:
 
-1. Prepare and validate the repository without a Render URL.
-2. Create the Render backend service and obtain its real HTTPS origin.
+1. Prepare and validate the repository without a Render URL. **Complete.**
+2. Create and verify the Render backend. **Complete.**
 3. Configure and deploy the production frontend, then verify the complete site.
+   **Pending.**
 
 Normal CI, tests, and local builds do not require a production URL. Only the
 production Pages workflow requires one. No secrets belong in committed files.
@@ -26,6 +30,7 @@ React/Vite frontend
         v
 Render
 FastAPI/Qiskit compute service
+https://phasor-workbench-api.onrender.com
 ```
 
 GitHub Pages serves static files and cannot execute Python. Render runs the
@@ -72,7 +77,38 @@ secrets; changing the API origin requires rebuilding and publishing the
 frontend. Backend `QW_*` settings are read when the process starts. The existing
 prefix is preserved for compatibility.
 
+## Deployment responsibility
+
+### Automated deployment
+
+The Render service builds and starts from the reviewed service configuration.
+Its build installs the backend package with the `simulation` extra, its start
+command binds Uvicorn to Render's assigned port, and Render checks
+`/api/v1/health`. Render automatic deployment from `main` remains disabled for
+the initial release.
+
+The GitHub Pages workflow validates the production API origin, installs the
+locked frontend dependencies, runs frontend linting, formatting, type checking
+and tests, builds the static site, uploads `frontend/dist`, and publishes it
+through GitHub Pages. Publication is initially started with `workflow_dispatch`.
+The documented trigger change enables deployment from `main` after production
+has been verified.
+
+### Manual infrastructure configuration
+
+Repository maintainers must configure the GitHub Pages source, Actions variable,
+custom domain, deployment-environment branch restriction, and HTTPS setting in
+GitHub. The Render service settings must match `render.yaml`. The DNS provider
+must publish the `phasor` CNAME described below. These settings live outside the
+repository and are not created by committing its configuration files.
+
 ## Backend deployment: Render
+
+The production origin is:
+
+```text
+https://phasor-workbench-api.onrender.com
+```
 
 The root [render.yaml](../render.yaml) makes the service configuration
 reviewable and repeatable. Creating a Blueprint from it is a deployment action;
@@ -115,10 +151,11 @@ deployed backend, add it deliberately to the array. Credentials remain disabled,
 and the middleware permits GET, POST, and JSON request preflights. CORS controls
 browser access; it is not authentication or a compute quota.
 
-Once the service exists, copy the HTTPS origin shown by Render. Do not guess its
-hostname from the service name. Verify `/api/v1/health` and a small simulation
-before configuring Pages. Health is liveness only: it can return `ok` even if
-the simulation extra is missing.
+The service was verified on 2026-09-22: `/api/v1/health` returned status `ok`, a
+one-qubit statevector request returned the expected `|1>` result, a production
+origin preflight was accepted, and an unlisted origin was rejected. The
+simulation request is the check that Qiskit and NumPy are installed; health is
+liveness only and cannot prove that by itself.
 
 ### Cold starts and current limits
 
@@ -148,9 +185,9 @@ After the backend is running:
 1. Make the reviewed readiness change available on `main` through the normal PR
    process. Confirm its complete `CI` check passes before publishing.
 2. In repository Settings, Pages, select **GitHub Actions** as the build source.
-3. Add a repository Actions **variable** named `VITE_API_BASE_URL`, using the
-   real HTTPS backend origin. Do not append `/api` or `/api/v1`; the client owns
-   that prefix. No URL is committed as a stand-in for the future service.
+3. Add a repository Actions **variable** named `VITE_API_BASE_URL` with the exact
+   value `https://phasor-workbench-api.onrender.com`. Do not append `/api` or
+   `/api/v1`; the client owns that prefix.
 4. Set the Pages custom domain to `phasor.zacharyparks.site` and configure DNS
    as described below. Restrict the `github-pages` deployment environment to
    `main` as an additional deployment guard.
@@ -209,8 +246,8 @@ GitHub documents the required relationship and setup order in
 
 ## Deployment verification
 
-Run these against `https://phasor.zacharyparks.site` and the actual Render
-service, not just a local dev server:
+Run these against `https://phasor.zacharyparks.site` and
+`https://phasor-workbench-api.onrender.com`, not just a local dev server:
 
 - Confirm HTTPS, the favicon, scripts, and styles load, including after refresh.
 - Check `/api/v1/health` on Render. In browser network tools, confirm API calls
@@ -239,12 +276,43 @@ build with a local backend origin and allow the preview origin through
 `QW_CORS_ORIGINS`. This is a temporary local test configuration, not a production
 URL to commit.
 
+## Production troubleshooting
+
+**Failed GitHub Pages build.** Inspect the **Deploy GitHub Pages** workflow. A
+missing or malformed `VITE_API_BASE_URL` fails before dependency installation;
+later failures identify the frontend check or build that failed. Confirm the
+repository variable is exactly the Render origin and rerun the workflow from
+`main` after correcting it.
+
+**Frontend cannot reach the API.** Open the browser network tools and confirm
+requests start with `https://phasor-workbench-api.onrender.com/api/v1/`. Check
+the Render health endpoint and confirm the Pages deployment was rebuilt after
+the Actions variable changed. Vite embeds the value at build time.
+
+**CORS failure.** Confirm the browser origin is exactly
+`https://phasor.zacharyparks.site` and Render's `QW_CORS_ORIGINS` is the JSON
+array `["https://phasor.zacharyparks.site"]`, without a trailing slash. Restart
+or redeploy the service after changing the environment variable.
+
+**Render cold start.** A free service can take about a minute to wake. During
+that interval the footer, analysis, examples, or simulation may report that the
+backend is unavailable or remain loading while a request is pending. Wait for
+the health endpoint to answer, then reload or retry the action. The frontend
+does not currently impose a request timeout, so an unusually slow request can
+remain pending until the browser or server ends it.
+
+**Backend health check failure.** Inspect Render's build and runtime logs. Verify
+the build installed `.[simulation]`, the start command uses `--host 0.0.0.0
+--port $PORT`, and the health path is `/api/v1/health`. A healthy endpoint does
+not by itself prove simulation dependencies are installed, so follow it with
+the statevector smoke test.
+
 ## Operation and recovery
 
-Inspect GitHub Actions logs for build/publishing failures and Render logs for
-startup or API failures. Check the configured origin and CORS allowlist before
-debugging the circuit. After changing backend settings, restart/redeploy the
-service; after changing `VITE_API_BASE_URL`, rerun the frontend deployment.
+Inspect GitHub Actions logs for publishing failures and Render logs for startup
+or API failures. Check the configured origin and CORS allowlist before debugging
+the circuit. After changing backend settings, restart or redeploy the service;
+after changing `VITE_API_BASE_URL`, rerun the frontend deployment.
 
 Keep the last verified frontend and backend commit identifiers together in
 release notes. To recover from a faulty release, revert through the normal PR
