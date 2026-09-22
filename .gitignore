@@ -57,6 +57,7 @@ dmypy.json
 
 # Claude Code local settings (per-machine permissions, not shared)
 .claude/settings.local.json
+.claude/*.code-workspace
 
 # OS
 .DS_Store

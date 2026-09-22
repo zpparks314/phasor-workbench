@@ -21,12 +21,13 @@ deployment and the documentation pass — plus the screen-reader check, which is
 not a task but an exit criterion, and which needs a person at the machine. See
 *Where to Pick Up*.
 
-**Deployment readiness prepared on 2026-09-22.** The repository now contains a
-manual GitHub Pages workflow and a native Python Render Blueprint. The actual
-Render service and URL, production configuration, DNS, and public smoke tests
-remain outstanding. [Deployment.md](Deployment.md) is the operational guide;
-normal CI and local validation require no production URL. This does not close
-the deployment task or the human screen-reader exit criterion.
+**Deployment advanced on 2026-09-22.** The Render API is live at
+`https://phasor-workbench-api.onrender.com`; health, simulation, production CORS,
+and rejection of an unlisted origin have been verified. The repository contains
+a manual GitHub Pages workflow and the native Python Render configuration. Pages
+configuration, DNS, frontend publication, and complete public smoke tests remain
+outstanding. [Deployment.md](Deployment.md) is the operational guide. This does
+not close the deployment task or the human screen-reader exit criterion.
 
 A user can build a circuit from empty in the browser, edit its parameters and
 measurement targets, save work that survives a refresh, open one of six built-in
@@ -734,7 +735,7 @@ check ahead of them waits on a person at the machine:
 | Keyboard shortcuts | **Done** — `editor/shortcuts.ts`, `?` renders it |
 | Responsive layout | **Done** — one grid template, collapsed in two steps |
 | Documentation | Not started, and belongs last |
-| Deployment | Repository prepared; service creation, production configuration and public verification remain |
+| Deployment | Render backend verified; Pages configuration, DNS, frontend publication and public verification remain |
 
 `README.md` is not on that list because it is part of *Documentation*; it was
 pulled ahead deliberately and is current — see below.
@@ -766,10 +767,11 @@ about risk rather than blocking. The struck-through entries are kept because the
 4. ~~**Responsive layout**~~ — **done 2026-08-06**, and it settled the header
    question: six controls, not seven, because export became a format picker and
    a button. The shortcut reference cost nothing, being a collapsed disclosure.
-5. **Deployment**, still last. Repository preparation is in place for GitHub
-   Pages and Render's native Python runtime; the existing Dockerfiles remain
-   for development. **Service creation and public verification are next**,
-   following [Deployment.md](Deployment.md).
+5. **Deployment**, still last. The Render backend is live and verified;
+   repository preparation is in place for GitHub Pages, and the existing
+   Dockerfiles remain for development. **Pages configuration, DNS, frontend
+   publication and public verification are next**, following
+   [Deployment.md](Deployment.md).
 
 **Documentation last**, and unchanged in reasoning: it should describe what
 shipped, not what was planned. The pass is smaller than originally assumed —
@@ -787,8 +789,8 @@ production topology now uses GitHub Pages plus Render, with an absolute backend
 origin, explicit CORS, and native builds rather than production Docker images.
 The existing `QW_` settings prefix is retained. Publishing is manual initially,
 with the transition to automatic deployment documented in Deployment.md. The
-public service is not yet verified; the earlier preference to consume Dockerfiles
-is superseded for this hosting choice.
+Render backend is verified, but the public frontend is not; the earlier
+preference to consume Dockerfiles is superseded for this hosting choice.
 
 **Surveyed 2026-08-08, before starting.** None of this is built; it is what is
 already true, so the next session does not re-derive it.
