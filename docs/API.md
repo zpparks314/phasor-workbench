@@ -486,19 +486,24 @@ argument: a generator has no input that can be invalid, and a transform does.
 
 # Limits
 
-Requests exceeding any limit return `413`.
+Implemented size/count limits return `413` when exceeded:
 
-| Limit | Proposed default |
-|---|---|
-| Request body size | 1 MB |
-| Qubits per circuit | 20 |
-| Operations per circuit | 10,000 |
-| Shots per request | 100,000 |
-| Simulation wall clock | 30 s |
+| Limit | Default | Enforcement |
+|---|---|---|
+| Simulation qubits | 20 | Fixed cap in the Qiskit adapter |
+| Statevector response qubits | 12 | `QW_MAX_STATEVECTOR_QUBITS`, before simulation |
+| Shots per request | 100,000 | `QW_MAX_SHOTS`, before sampling |
+| OpenQASM source characters | 256,000 | `QW_MAX_QASM_CHARACTERS`, before parsing |
 
-The qubit limit is a memory constraint, not an arbitrary one — see [Simulation.md](Simulation.md).
+The qubit limits constrain memory and response size — see
+[Simulation.md](Simulation.md#resource-limits).
 
-Limits are configuration, not constants in code, and are advertised through `/capabilities`.
+The originally proposed 1 MB request-body limit, 10,000-operation limit, and
+30-second simulation timeout are not implemented. `QW_MAX_QUBITS`,
+`QW_MAX_OPERATIONS`, and `QW_SIMULATION_TIMEOUT_SECONDS` are reserved settings,
+not enforced deployment controls. `/capabilities` is still proposed and does
+not advertise limits at runtime. [Deployment.md](Deployment.md) describes the
+current production setup without relying on these unimplemented protections.
 
 ---
 

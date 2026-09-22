@@ -2,7 +2,9 @@
 
 Python + FastAPI + Pydantic.
 
-**Status:** foundation only. Only `/api/v1/health` is implemented.
+**Status:** implemented through Milestone 5: analysis, simulation, OpenQASM
+import/export, and examples. See [API.md](../docs/API.md) for the HTTP contract
+and [Deployment.md](../docs/Deployment.md) for production setup on Render.
 
 ---
 

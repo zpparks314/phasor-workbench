@@ -85,8 +85,10 @@ probabilities.
 
 ### Not Yet
 
-Responsive layout for small screens and a public deployment are the rest of
-Milestone 5 — see the [Roadmap](docs/Roadmap.md).
+Public deployment and the remaining release verification are the rest of
+Milestone 5 — see the [Roadmap](docs/Roadmap.md). Repository deployment
+configuration is prepared; [Deployment.md](docs/Deployment.md) covers setup
+and operation once the hosting services are created.
 
 Two honest limits on OpenQASM today. Most Qiskit-*exported* QASM 2 is refused on
 import: `qelib1.inc` declares `u3`, `u2`, `u0`, `ch`, `crz`, `cu1`, `cu3` and
@@ -115,8 +117,8 @@ progress.**
 | Import / export | Built — JSON and OpenQASM 2.0, both directions |
 | Example circuits | Built — six, loaded through the import path |
 | Failure states | Built — storage, files and the backend report their own cause, and a render error shows a recovery screen rather than a blank page |
-| Deployment | **Not started** — Milestone 5 |
-| Tests | 919 frontend, 458 backend, 51 cross-language fixtures |
+| Deployment | Repository prepared for GitHub Pages + Render; public deployment not yet verified |
+| Tests | 923 frontend, 466 backend, 51 cross-language fixtures |
 | CI | Lint, format, types, tests, build, and binding freshness on every push |
 
 The HTTP API is eight endpoints:
@@ -190,7 +192,9 @@ docker compose up --build
 Frontend on `http://localhost:5173`, backend on `http://localhost:8000`. Both
 hot-reload from your working tree — source is bind-mounted, not baked in.
 
-Production images aren't included yet; they arrive with Deployment in Milestone 5.
+These are development images. Production uses GitHub Pages for the frontend and
+Render's native Python runtime for the backend; see
+[Deployment.md](docs/Deployment.md).
 
 ### Native Setup
 
@@ -296,6 +300,7 @@ you're touching.
 | [API.md](docs/API.md) | REST contract between frontend and backend |
 | [Simulation.md](docs/Simulation.md) | Simulation pipeline, backends, limits, correctness testing |
 | [Frontend.md](docs/Frontend.md) | Frontend structure, rendering decision, API client |
+| [Deployment.md](docs/Deployment.md) | GitHub Pages + Render setup, environment, DNS, verification and operation |
 | [decisions/](docs/decisions/) | Architecture Decision Records — why things are shaped the way they are |
 
 `Roadmap.md` is the maintained record of what's done and what's next; where it

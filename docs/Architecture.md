@@ -26,6 +26,18 @@ The Circuit Model is the center of the architecture.
 
 Every subsystem reads from or writes to the same circuit representation.
 
+## Production Deployment Boundary
+
+The production topology serves the static React/Vite frontend from GitHub Pages
+at `phasor.zacharyparks.site` and runs the FastAPI/Qiskit backend on Render.
+The browser calls the compute service over HTTPS through the existing REST API.
+This separates static delivery from Python execution without changing module
+ownership, the Circuit Model, or the simulator interface.
+
+The backend remains stateless; circuit persistence stays in the browser. Local
+development continues to use Vite's `/api` proxy. See
+[Deployment.md](Deployment.md) for configuration and operational instructions.
+
 ---
 
 # Frontend

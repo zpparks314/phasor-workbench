@@ -4,6 +4,9 @@ import { ApiError, request } from './client';
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
+  vi.resetModules();
 });
 
 function mockFetch(
@@ -13,6 +16,26 @@ function mockFetch(
 }
 
 describe('request', () => {
+  it.each([
+    [undefined, '/api/v1/health'],
+    ['', '/api/v1/health'],
+    ['https://api.example.test', 'https://api.example.test/api/v1/health'],
+    ['https://api.example.test/', 'https://api.example.test/api/v1/health'],
+  ])('routes requests with API base %s', async (base, expected) => {
+    vi.stubEnv('VITE_API_BASE_URL', base);
+    vi.resetModules();
+    const { request: configuredRequest } = await import('./client');
+    mockFetch({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({ status: 'ok' }),
+    });
+
+    await configuredRequest('/health');
+
+    expect(fetch).toHaveBeenCalledWith(expected, expect.any(Object));
+  });
+
   it('returns the parsed body on success', async () => {
     mockFetch({
       ok: true,

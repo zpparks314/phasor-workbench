@@ -2,7 +2,9 @@
 
 React + TypeScript + Vite + Tailwind.
 
-**Status:** foundation only. No circuit features are implemented.
+**Status:** editor, local persistence, file handling, and simulation UI are
+implemented through Milestone 5. See [Deployment.md](../docs/Deployment.md) for
+GitHub Pages production setup and build-time API configuration.
 
 ---
 

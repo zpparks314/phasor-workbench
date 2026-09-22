@@ -11,7 +11,7 @@ Milestone 1 (Foundation) closed on 2026-07-28, Milestone 2 (Circuit Model) on
 (Simulation MVP) on 2026-08-02.
 
 **Milestones 1–4 are closed.** The foundation, the Circuit Model, the editor and
-simulation all exist and are enforced by tests: 919 frontend and 458 backend,
+simulation all exist and are enforced by tests: 923 frontend and 466 backend,
 with 51 fixtures in `shared/fixtures/` holding the two language implementations
 to one specification.
 
@@ -20,6 +20,13 @@ handling, keyboard shortcuts and responsive layout are done; what remains is
 deployment and the documentation pass — plus the screen-reader check, which is
 not a task but an exit criterion, and which needs a person at the machine. See
 *Where to Pick Up*.
+
+**Deployment readiness prepared on 2026-09-22.** The repository now contains a
+manual GitHub Pages workflow and a native Python Render Blueprint. The actual
+Render service and URL, production configuration, DNS, and public smoke tests
+remain outstanding. [Deployment.md](Deployment.md) is the operational guide;
+normal CI and local validation require no production URL. This does not close
+the deployment task or the human screen-reader exit criterion.
 
 A user can build a circuit from empty in the browser, edit its parameters and
 measurement targets, save work that survives a refresh, open one of six built-in
@@ -211,9 +218,10 @@ generated-bindings staleness check. Only the aggregate `CI` check is required by
 branch protection, because matrix job names carry their version and requiring
 them directly would leave a new leg unprotected.
 
-Continuous *deployment* is deliberately absent. It belongs with **Deployment** in
-Milestone 5 and should consume the Dockerfiles rather than duplicate them; both
-are multi-stage so adding a `production` target is additive.
+Continuous *deployment* was deliberately absent at this milestone. The original
+plan was to consume the multi-stage Dockerfiles. Milestone 5's selected hosting
+now uses native GitHub Pages and Render builds, with publishing initially manual;
+see [Deployment.md](Deployment.md).
 
 Two findings live where they apply rather than here: the Windows bind-mount
 polling requirement in `compose.yaml`, and the repository admin bypass on branch
@@ -726,7 +734,7 @@ check ahead of them waits on a person at the machine:
 | Keyboard shortcuts | **Done** — `editor/shortcuts.ts`, `?` renders it |
 | Responsive layout | **Done** — one grid template, collapsed in two steps |
 | Documentation | Not started, and belongs last |
-| Deployment | Not started, and belongs last |
+| Deployment | Repository prepared; service creation, production configuration and public verification remain |
 
 `README.md` is not on that list because it is part of *Documentation*; it was
 pulled ahead deliberately and is current — see below.
@@ -758,9 +766,10 @@ about risk rather than blocking. The struck-through entries are kept because the
 4. ~~**Responsive layout**~~ — **done 2026-08-06**, and it settled the header
    question: six controls, not seven, because export became a format picker and
    a button. The shortcut reference cost nothing, being a collapsed disclosure.
-5. **Deployment**, still last — it consumes the Dockerfiles and should not be
-   built against a moving target. **This is next**, and with it the
-   documentation pass.
+5. **Deployment**, still last. Repository preparation is in place for GitHub
+   Pages and Render's native Python runtime; the existing Dockerfiles remain
+   for development. **Service creation and public verification are next**,
+   following [Deployment.md](Deployment.md).
 
 **Documentation last**, and unchanged in reasoning: it should describe what
 shipped, not what was planned. The pass is smaller than originally assumed —
@@ -772,6 +781,14 @@ ADR-0009 had been asked to record, and a stale count in this section. What
 remains for *Documentation* is whatever deployment itself adds.
 
 ### What Deployment Inherits
+
+**Update, 2026-09-22:** the survey below records the starting point. The chosen
+production topology now uses GitHub Pages plus Render, with an absolute backend
+origin, explicit CORS, and native builds rather than production Docker images.
+The existing `QW_` settings prefix is retained. Publishing is manual initially,
+with the transition to automatic deployment documented in Deployment.md. The
+public service is not yet verified; the earlier preference to consume Dockerfiles
+is superseded for this hosting choice.
 
 **Surveyed 2026-08-08, before starting.** None of this is built; it is what is
 already true, so the next session does not re-derive it.

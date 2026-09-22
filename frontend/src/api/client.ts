@@ -7,7 +7,10 @@
 
 import type { ApiErrorBody, ApiErrorCode, ApiErrorDetail } from './types';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(
+  /\/+$/,
+  '',
+);
 const API_PREFIX = '/api/v1';
 
 /**

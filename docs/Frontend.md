@@ -278,6 +278,13 @@ Structure:
 * `types.ts` — the API envelope from [API.md](API.md)
 * one module per resource group (`health.ts`, later `circuits.ts`, `simulations.ts`)
 
+`client.ts` constructs every API URL from the build-time `VITE_API_BASE_URL`,
+the `/api/v1` prefix, and the endpoint path. An absent or empty base keeps local
+requests relative so Vite can proxy them. A production base is the backend's
+HTTPS origin; trailing slashes are removed before adding the API prefix.
+GitHub Pages has no API proxy. Production configuration and the workflow's
+publishing-only URL check are documented in [Deployment.md](Deployment.md).
+
 ## Error Handling
 
 The backend's single error envelope is translated into an `ApiError` carrying

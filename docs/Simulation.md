@@ -208,15 +208,24 @@ Statevector memory grows exponentially. For `n` qubits, storing complex128 ampli
 | 26 | 1.1 GB |
 | 30 | 17 GB |
 
-The proposed default cap is **20 qubits**, with an absolute ceiling of 24.
+The Qiskit adapter enforces a **fixed 20-qubit cap** before simulation. The
+statevector endpoint separately enforces `QW_MAX_STATEVECTOR_QUBITS` (default
+12) before calling the adapter, to bound the JSON response. Sampling enforces
+`QW_MAX_SHOTS` (default 100,000). Exceeding these limits returns `413` with an
+explanation. See [API.md](API.md#limits).
 
-That is comfortably beyond what an educational circuit needs, and it keeps a single request from exhausting a container's memory.
+The settings `QW_MAX_QUBITS`, `QW_MAX_OPERATIONS`, and
+`QW_SIMULATION_TIMEOUT_SECONDS` are reserved but are **not currently enforced**
+by the request path. `/api/v1/capabilities` is still proposed. There is no
+enforced 30-second wall-clock budget or implemented simulation timeout response.
+The numeric caps do not bound aggregate memory or execution time under concurrent
+requests; they should not be treated as a guarantee that any hosting tier can
+handle every accepted workload.
 
-Limits are configuration, advertised through `/api/v1/capabilities`, and enforced during validation — before any allocation occurs.
-
-A circuit exceeding the cap must be rejected with a clear explanation of the exponential cost, not a generic failure. Explaining *why* 30 qubits is refused is itself educational.
-
-Simulations also carry a wall-clock budget, defaulting to 30 seconds, after which the request returns `504`.
+Production initially runs the existing simulator in the Render web process;
+there is no separate worker or queue. Hosting guidance and smoke tests live in
+[Deployment.md](Deployment.md). The simulator protocol remains unchanged so
+compute infrastructure can evolve independently as future milestones require.
 
 ---
 
@@ -228,7 +237,7 @@ Simulation failures map onto typed errors, never raw simulator exceptions:
 |---|---|
 | Circuit fails validation | `422` with per-violation detail |
 | Qubit count exceeds cap | `413` with the limit and the request's count |
-| Time budget exceeded | `504` |
+| Time budget exceeded | Not enforced yet; `504` remains proposed |
 | Backend process unavailable | `503` |
 | Unexpected adapter failure | `500`, logged with full context |
 

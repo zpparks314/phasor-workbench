@@ -1,0 +1,19 @@
+# Native Python deployment; development Dockerfiles and Compose stay unchanged.
+# Applying this Blueprint creates a service. See docs/Deployment.md first.
+services:
+  - type: web
+    name: phasor-workbench-api
+    runtime: python
+    branch: main
+    rootDir: backend
+    # Initial small-simulation evaluation. Review the tier before public release.
+    plan: free
+    autoDeployTrigger: 'off'
+    buildCommand: pip install ".[simulation]"
+    startCommand: uvicorn phasor_workbench.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: '3.14.3'
+      - key: QW_CORS_ORIGINS
+        value: '["https://phasor.zacharyparks.site"]'
