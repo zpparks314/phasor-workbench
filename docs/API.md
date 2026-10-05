@@ -49,7 +49,10 @@ qubit labels; they must not be emitted as Pydantic's `null` defaults. The browse
 validates saved documents against the shared JSON Schema, which rejects those
 nulls. Bypassing the serializer allowed a fetched example to render and simulate
 but made its saved copy unreadable after refresh. Endpoint regression tests cover
-both producers; backend acceptance alone did not detect this mismatch.
+both producers; backend acceptance alone did not detect this mismatch. The
+frontend client types both responses as `unknown` and loads them through
+`serialization/` before use, so a regression is refused when the circuit
+arrives rather than after it has been saved.
 
 ---
 

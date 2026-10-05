@@ -44,7 +44,13 @@ import {
   setParameters,
   setRegisterSize,
 } from '../state/edits';
-import { downloadCircuit, downloadQasm, importCircuitFile } from '../files';
+import {
+  describeBackendMismatch,
+  downloadCircuit,
+  downloadQasm,
+  importCircuitFile,
+  readCircuitDocument,
+} from '../files';
 import { fetchExample, type ExampleEntry } from '../api/examples';
 import { saveCircuit } from '../persistence';
 import { useCircuitStore } from '../state/useCircuitStore';
@@ -300,9 +306,9 @@ export function CircuitEditor({
    * arrived over the network rather than from a file, and nothing else.
    */
   async function loadExample(entry: ExampleEntry): Promise<void> {
-    let loaded;
+    let document: unknown;
     try {
-      loaded = await fetchExample(entry.id);
+      document = await fetchExample(entry.id);
     } catch {
       setFileError(
         `Could not load ${entry.name}: the backend could not be reached. ` +
@@ -311,8 +317,17 @@ export function CircuitEditor({
       return;
     }
 
+    const outcome = readCircuitDocument(document);
+    if (!outcome.ok) {
+      setFileError(
+        `Could not load ${entry.name}: ${describeBackendMismatch(outcome.violations)} ` +
+          'The circuit on the canvas is unchanged.',
+      );
+      return;
+    }
+
     setFileError(null);
-    store.apply(`Load ${entry.name}`, () => loaded);
+    store.apply(`Load ${entry.name}`, () => outcome.circuit);
   }
 
   const examples = useExamples();

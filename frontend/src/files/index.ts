@@ -79,7 +79,8 @@ export type ImportOutcome =
    * The file may be perfectly good; nothing could read it. Only OpenQASM
    * reaches this, since JSON is read locally -- and it is a separate outcome
    * because telling someone their file is wrong when the backend is merely
-   * down would send them off to fix nothing.
+   * down, or sent back a circuit this build refuses, would send them off to
+   * fix nothing.
    */
   | {
       readonly ok: false;
@@ -140,12 +141,42 @@ export function readCircuitFile(text: string): DocumentOutcome {
     };
   }
 
+  return readCircuitDocument(document);
+}
+
+/**
+ * Read a circuit document that arrived from anywhere outside this build.
+ *
+ * **The backend's own output comes through here too.** A circuit from OpenQASM
+ * import or the example catalogue was once taken on trust, and the backend sent
+ * optional fields as explicit `null`s the schema forbids: the editor displayed
+ * it, saved it, and then refused it on the next refresh. Checking on arrival
+ * moves that refusal to the moment it can still leave the canvas untouched.
+ */
+export function readCircuitDocument(document: unknown): DocumentOutcome {
   const result = loadCircuit(document);
   if (!result.ok) {
     return { ok: false, reason: 'unreadable', violations: result.violations };
   }
 
   return { ok: true, circuit: result.circuit, warnings: result.warnings };
+}
+
+/**
+ * Say why the backend's circuit was refused, for a user who did nothing wrong.
+ *
+ * Paths are included because the shape validator's messages mean nothing
+ * without them -- "must be string." -- and whoever reads this is most likely
+ * reporting a frontend and backend that have drifted apart.
+ */
+export function describeBackendMismatch(
+  violations: readonly Violation[],
+): string {
+  const problems = violations
+    .map(({ path, message }) => (path === '' ? message : `${path} ${message}`))
+    .join(' ');
+
+  return `The backend sent a circuit this version of the app cannot read: ${problems}`;
 }
 
 /**
@@ -282,8 +313,10 @@ export async function importCircuitFile(file: File): Promise<ImportOutcome> {
 }
 
 async function importQasmText(source: string): Promise<ImportOutcome> {
+  let document: unknown;
+
   try {
-    return { ok: true, circuit: await importQasm(source), warnings: [] };
+    document = await importQasm(source);
   } catch (error) {
     if (!(error instanceof ApiError)) {
       return {
@@ -334,4 +367,18 @@ async function importQasmText(source: string): Promise<ImportOutcome> {
       })),
     };
   }
+
+  const outcome = readCircuitDocument(document);
+  if (outcome.ok) return outcome;
+
+  /**
+   * The parser accepted the file, so its circuit failing the schema is the
+   * backend's fault. Reporting the violations as `unreadable` would tell the
+   * user to fix a file that is fine.
+   */
+  return {
+    ok: false,
+    reason: 'unreachable',
+    message: `${describeBackendMismatch(outcome.violations)} The file itself may be fine.`,
+  };
 }

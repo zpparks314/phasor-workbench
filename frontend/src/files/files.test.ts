@@ -347,6 +347,30 @@ describe('importing OpenQASM', () => {
     expect(outcome.violations[0]?.code).toBe('UNKNOWN_GATE_NAME');
   });
 
+  /**
+   * Regression: the backend once wrote optional fields as explicit `null`s,
+   * which this path accepted and the stored-circuit loader then refused on the
+   * next refresh. Import must reach the verdict refresh would.
+   */
+  it('refuses a parsed circuit the loader would refuse', async () => {
+    const circuit = readValid('bell_state.json').circuit;
+    const withNulls = {
+      ...circuit,
+      name: null,
+      qubits: circuit.qubits.map((qubit) => ({ ...qubit, label: null })),
+    };
+
+    const outcome = await withImportQasm(() => Promise.resolve(withNulls));
+
+    expect(loadCircuit(withNulls).ok).toBe(false);
+    expect(outcome.ok).toBe(false);
+    if (outcome.ok) return;
+    // The backend's mistake, not the user's file.
+    expect(outcome.reason).toBe('unreachable');
+    if (outcome.reason !== 'unreachable') return;
+    expect(outcome.message).toContain('qubits[0].label must be string.');
+  });
+
   it('separates an unreachable backend from an unreadable file', async () => {
     // The distinction the whole outcome type exists for: one asks the user to
     // change their file, the other asks nothing of them at all.
