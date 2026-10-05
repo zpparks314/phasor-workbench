@@ -1,18 +1,22 @@
 # Deployment
 
-**Status: backend deployed and verified; frontend publication pending.** The
-Render API is live at `https://phasor-workbench-api.onrender.com`. The intended
-frontend domain, `https://phasor.zacharyparks.site`, is not yet publicly
-reachable. This is the canonical guide for deploying and operating Phasor
-Workbench. Milestone 5 stays open until the complete public deployment and its
-exit criteria have been verified.
+**Status: frontend and backend deployed.** The public application is available
+at [phasor.zacharyparks.site](https://phasor.zacharyparks.site), hosted on GitHub
+Pages, with the API running on Render at
+`https://phasor-workbench-api.onrender.com`. This is the canonical guide for
+deploying and operating Phasor Workbench. Milestone 5 stays open until the
+remaining release verification and exit criteria have been completed.
 
 The setup order is deliberate:
 
 1. Prepare and validate the repository without a Render URL. **Complete.**
 2. Create and verify the Render backend. **Complete.**
-3. Configure and deploy the production frontend, then verify the complete site.
-   **Pending.**
+3. Configure and deploy the production frontend. **Complete**, confirmed by the
+   maintainer; the original publication date is not recorded here.
+4. Verify the complete public site against the checklist below. **Outstanding:**
+   frontend publication alone does not establish that every smoke test passed.
+
+The setup instructions below remain the procedure for reproducing the deployment.
 
 Normal CI, tests, and local builds do not require a production URL. Only the
 production Pages workflow requires one. No secrets belong in committed files.
@@ -84,15 +88,17 @@ prefix is preserved for compatibility.
 The Render service builds and starts from the reviewed service configuration.
 Its build installs the backend package with the `simulation` extra, its start
 command binds Uvicorn to Render's assigned port, and Render checks
-`/api/v1/health`. Render automatic deployment from `main` remains disabled for
-the initial release.
+`/api/v1/health`. The committed `render.yaml` disables automatic deployment from
+`main`; changes made separately in the Render dashboard must be reconciled with
+that configuration.
 
 The GitHub Pages workflow validates the production API origin, installs the
 locked frontend dependencies, runs frontend linting, formatting, type checking
 and tests, builds the static site, uploads `frontend/dist`, and publishes it
-through GitHub Pages. Publication is initially started with `workflow_dispatch`.
-The documented trigger change enables deployment from `main` after production
-has been verified.
+through GitHub Pages. The committed workflow starts publication with
+`workflow_dispatch`. The documented trigger change can enable deployment from
+`main` after production has been verified; publication does not imply that this
+change has been made.
 
 ### Manual infrastructure configuration
 
@@ -128,7 +134,7 @@ entered manually if not using a Blueprint:
 | Health check path | `/api/v1/health` |
 | `PYTHON_VERSION` | `3.14.3`, explicitly pinned in `render.yaml` |
 | `QW_CORS_ORIGINS` | `["https://phasor.zacharyparks.site"]` |
-| Automatic deployment | Off initially (`autoDeployTrigger: off`) |
+| Automatic deployment | Off in committed configuration (`autoDeployTrigger: off`) |
 
 The build installs the actual package from `backend/pyproject.toml`, including
 Qiskit and NumPy, without development tools. Its wheel contains the generated
@@ -177,7 +183,7 @@ protections. See [Simulation.md](Simulation.md#resource-limits) and
 
 [deploy-pages.yml](../.github/workflows/deploy-pages.yml) is separate from
 [ci.yml](../.github/workflows/ci.yml). CI and its required aggregate `CI` check
-remain unchanged. The Pages workflow initially runs only on manual dispatch,
+remain unchanged. The committed Pages workflow runs only on manual dispatch,
 and its build job accepts only `main`.
 
 After the backend is running:
@@ -210,8 +216,8 @@ deployments configure the custom domain in repository settings; a committed
 
 ### Enable automatic deployment after verification
 
-Once production passes the smoke tests, add a `push` trigger alongside
-`workflow_dispatch` in `deploy-pages.yml`:
+To enable automatic frontend publication after production passes the smoke tests,
+add a `push` trigger alongside `workflow_dispatch` in `deploy-pages.yml`:
 
 ```yaml
 on:
@@ -245,6 +251,12 @@ GitHub documents the required relationship and setup order in
 [Managing a custom domain](https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site/managing-a-custom-domain-for-your-github-pages-site).
 
 ## Deployment verification
+
+The maintainer has confirmed that the frontend is live on GitHub Pages at the
+public domain. The September 22 backend verification is recorded above. Results
+for the complete public checklist below have not yet been recorded; keep this
+separate from publication status and record the date and outcome when each check
+is performed.
 
 Run these against `https://phasor.zacharyparks.site` and
 `https://phasor-workbench-api.onrender.com`, not just a local dev server:

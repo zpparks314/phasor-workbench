@@ -29,8 +29,9 @@ Built by Zachary Parks ([zpparks314](https://github.com/zpparks314)).
 
 ## Try It
 
-There's no hosted instance yet — public deployment is the current milestone. To
-run it locally, [Docker](#docker) is one command:
+Try the [live demo](https://phasor.zacharyparks.site). The frontend is hosted on
+GitHub Pages, with the backend API running on Render. To run it locally,
+[Docker](#docker) is one command:
 
 ```bash
 docker compose up --build
@@ -85,10 +86,11 @@ probabilities.
 
 ### Not Yet
 
-Public deployment and the remaining release verification are the rest of
-Milestone 5 — see the [Roadmap](docs/Roadmap.md). Repository deployment
-configuration is prepared; [Deployment.md](docs/Deployment.md) covers setup
-and operation once the hosting services are created.
+The public deployment is live; remaining release verification is tracked in
+Milestone 5 — see the [Roadmap](docs/Roadmap.md). This includes public smoke tests,
+human screen-reader testing, and resolution or documented deferral of the canvas
+connector issues. [Deployment.md](docs/Deployment.md) covers deployment and
+operation.
 
 Two honest limits on OpenQASM today. Most Qiskit-*exported* QASM 2 is refused on
 import: `qelib1.inc` declares `u3`, `u2`, `u0`, `ch`, `crz`, `cu1`, `cu3` and
@@ -117,7 +119,7 @@ progress.**
 | Import / export | Built — JSON and OpenQASM 2.0, both directions |
 | Example circuits | Built — six, loaded through the import path |
 | Failure states | Built — storage, files and the backend report their own cause, and a render error shows a recovery screen rather than a blank page |
-| Deployment | Repository prepared for GitHub Pages + Render; public deployment not yet verified |
+| Deployment | Live — GitHub Pages frontend and Render backend; remaining release verification tracked in the Roadmap |
 | Tests | 923 frontend, 466 backend, 51 cross-language fixtures |
 | CI | Lint, format, types, tests, build, and binding freshness on every push |
 

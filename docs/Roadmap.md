@@ -2,9 +2,9 @@
 
 ## Project Status
 
-**Current Phase:** Release preparation
+**Current Phase:** Public deployment live; release verification remaining
 
-**Current Milestone:** Milestone 5 — prepare the project for public deployment.
+**Current Milestone:** Milestone 5 — complete verification of the first public release.
 
 Milestone 1 (Foundation) closed on 2026-07-28, Milestone 2 (Circuit Model) on
 2026-07-30, Milestone 3 (Circuit Editor MVP) on 2026-08-01, and Milestone 4
@@ -16,18 +16,21 @@ with 51 fixtures in `shared/fixtures/` holding the two language implementations
 to one specification.
 
 **Milestone 5 is nearly closed.** Import, export, example circuits, error
-handling, keyboard shortcuts and responsive layout are done; what remains is
-deployment and the documentation pass — plus the screen-reader check, which is
-not a task but an exit criterion, and which needs a person at the machine. See
-*Where to Pick Up*.
+handling, keyboard shortcuts, responsive layout and public deployment are done.
+Public smoke tests, the human screen-reader check, and fixes or documented
+deferrals for the connector issues remain. The deployment documentation has been
+updated; the final documentation pass must incorporate the verification results.
+See *Where to Pick Up*.
 
-**Deployment advanced on 2026-09-22.** The Render API is live at
+**The public deployment is live.** The frontend is hosted on GitHub Pages at
+[phasor.zacharyparks.site](https://phasor.zacharyparks.site), as confirmed by the
+maintainer. The Render API is live at
 `https://phasor-workbench-api.onrender.com`; health, simulation, production CORS,
-and rejection of an unlisted origin have been verified. The repository contains
-a manual GitHub Pages workflow and the native Python Render configuration. Pages
-configuration, DNS, frontend publication, and complete public smoke tests remain
-outstanding. [Deployment.md](Deployment.md) is the operational guide. This does
-not close the deployment task or the human screen-reader exit criterion.
+and rejection of an unlisted origin were verified on 2026-09-22. The repository
+contains a manual GitHub Pages workflow and the native Python Render
+configuration. Publication is complete; results for the complete public smoke
+tests remain to be recorded. [Deployment.md](Deployment.md) is the operational
+guide. Publication does not close the remaining release exit criteria.
 
 A user can build a circuit from empty in the browser, edit its parameters and
 measurement targets, save work that survives a refresh, open one of six built-in
@@ -53,8 +56,9 @@ reasoning. Nothing is outstanding.
 
 # Open Issues
 
-Everything still outstanding, in one place. None of it blocks Milestone 5, and
-the first two are the ones worth clearing during it.
+Known issues and verification gaps are recorded here. The screen-reader check
+and resolution or documented deferral of the connector defects are Milestone 5
+exit criteria; deployment verification is tracked in that milestone below.
 
 **The canvas grid's screen-reader behaviour is unverified.** The markup follows
 the composite-widget pattern and the tests assert roles and names, but SVG
@@ -515,8 +519,11 @@ Prepare the project for public deployment.
 * [x] Example circuits — `examples/` and `GET /api/v1/examples`, authored as
   OpenQASM and read through the importer, with an `ExamplePicker` beside the
   structure controls
-* [ ] Documentation
-* [ ] Deployment
+* [ ] Documentation — deployment status updated; incorporate the remaining
+  release-verification results before closing the final pass
+* [x] Deployment publication — GitHub Pages frontend and Render API are live
+* [ ] Public deployment verification — complete and record the smoke tests in
+  [Deployment.md](Deployment.md)
 
 ### Exit Criteria
 
@@ -636,8 +643,13 @@ do it *before* starting was left here.
   Qiskit-3.14-wheels claim, and carried a *Current Status* table with four rows
   stranded below the prose that closed it. Rewritten for a human reader first:
   what works today in concrete terms, then status, then setup.
-* [ ] Both Dockerfiles gain a `production` target, additively as they were built
-  for, and the deployed application loads in a browser.
+* [ ] The production build and start configuration is verified, and the deployed
+  application passes the public browser smoke tests in `Deployment.md`.
+  **Criterion revised after deployment:** GitHub Pages and Render use native
+  builds, as recorded in the 2026-09-22 hosting decision below. Production Docker
+  targets are therefore no longer required; the existing Dockerfiles remain
+  development tools. Publication is complete, but full verification is not yet
+  recorded.
 * [ ] **The canvas grid has been driven with a real screen reader**, and what it
   actually announced is recorded in `UI.md` beside the markup that section
   describes. Pass or fail, the recorded result is the criterion.
@@ -734,8 +746,8 @@ check ahead of them waits on a person at the machine:
 | Error handling | **Done** — `frontend/src/components/`, root boundary |
 | Keyboard shortcuts | **Done** — `editor/shortcuts.ts`, `?` renders it |
 | Responsive layout | **Done** — one grid template, collapsed in two steps |
-| Documentation | Not started, and belongs last |
-| Deployment | Render backend verified; Pages configuration, DNS, frontend publication and public verification remain |
+| Documentation | Deployment status updated; final pass awaits release-verification results |
+| Deployment | Live — GitHub Pages frontend and Render API; complete public verification remains |
 
 `README.md` is not on that list because it is part of *Documentation*; it was
 pulled ahead deliberately and is current — see below.
@@ -745,18 +757,19 @@ then export, then example circuits~~ — **all done**, and the premise held each
 time: `serialization/` never needed a change, and each feature reused the surface
 the one before it built.
 
-Two are left — the screen-reader check and deployment — and the order below is
-about risk rather than blocking. The struck-through entries are kept because the
-*reasoning* for taking them out of order is the part worth reading:
+What remains is public release verification, the screen-reader check, connector
+fixes or documented deferrals with tests, and the final documentation pass. The
+order below is about risk rather than blocking. The struck-through entries are
+kept because the *reasoning* for taking them out of order is the part worth reading:
 
 1. **The screen-reader check first**, because it is the only item that can
    invalidate work already done. *Open Issues* has carried it through four
    milestones, and two features have already steered around it. If the composite
-   grid turns out to announce badly, the fix touches the canvas — and every
-   remaining task in this milestone is layout and packaging on top of that
-   canvas. Doing it last means discovering it after building on it. It needs a
-   person with NVDA at the machine; see above for why the 2026-08-05 attempt
-   could not stand in for that.
+   grid turns out to announce badly, the fix touches the canvas. Check it before
+   final public verification so any resulting changes are covered. It needs a
+   person with a real screen reader at the machine; see above for why the
+   2026-08-05 attempt could not stand in for that. Record what it announces in
+   `UI.md`, as required by the exit criterion.
 2. ~~**Error handling**~~ — **done 2026-08-05**, and taken out of order for the
    reason above. It touched no canvas markup, so it cost the screen-reader check
    nothing.
@@ -767,11 +780,12 @@ about risk rather than blocking. The struck-through entries are kept because the
 4. ~~**Responsive layout**~~ — **done 2026-08-06**, and it settled the header
    question: six controls, not seven, because export became a format picker and
    a button. The shortcut reference cost nothing, being a collapsed disclosure.
-5. **Deployment**, still last. The Render backend is live and verified;
-   repository preparation is in place for GitHub Pages, and the existing
-   Dockerfiles remain for development. **Pages configuration, DNS, frontend
-   publication and public verification are next**, following
-   [Deployment.md](Deployment.md).
+5. **Connector defects:** fix each one, or record its deferral rationale and add
+   a test pinning current behaviour, as required by the exit criteria.
+6. **Public deployment verification:** publication on GitHub Pages and Render is
+   complete. Run and record the complete public smoke tests in
+   [Deployment.md](Deployment.md). Keep the existing September 22 backend checks
+   distinct from this end-to-end verification.
 
 **Documentation last**, and unchanged in reasoning: it should describe what
 shipped, not what was planned. The pass is smaller than originally assumed —
@@ -780,7 +794,9 @@ the README in the change that introduced it, which is the project's rule. A
 pre-deployment audit on 2026-08-08 found four stale items and fixed them: two
 status lines still saying "Milestone 4", the generators-to-Milestone-7 move that
 ADR-0009 had been asked to record, and a stale count in this section. What
-remains for *Documentation* is whatever deployment itself adds.
+remains for *Documentation* is the final pass incorporating the public smoke-test,
+screen-reader and connector-resolution results. Hosting and publication status
+have now been updated.
 
 ### What Deployment Inherits
 
@@ -789,11 +805,18 @@ production topology now uses GitHub Pages plus Render, with an absolute backend
 origin, explicit CORS, and native builds rather than production Docker images.
 The existing `QW_` settings prefix is retained. Publishing is manual initially,
 with the transition to automatic deployment documented in Deployment.md. The
-Render backend is verified, but the public frontend is not; the earlier
-preference to consume Dockerfiles is superseded for this hosting choice.
+Render backend was verified at that point, while frontend publication was still
+pending. The earlier preference to consume Dockerfiles is superseded for this
+hosting choice.
 
-**Surveyed 2026-08-08, before starting.** None of this is built; it is what is
-already true, so the next session does not re-derive it.
+**After publication:** the maintainer has confirmed that the GitHub Pages
+frontend is live at the public domain. Complete public verification remains to
+be recorded. The survey below is historical, not a list of deployment work still
+to perform; its Docker and routing alternatives are superseded by the topology
+above. Automatic deployment has not been enabled in the committed configuration.
+
+**Historical survey, 2026-08-08, before starting.** The following records the
+starting conditions and alternatives considered then, not current release status.
 
 **Both Dockerfiles are multi-stage and have only a `development` target.** That
 was deliberate from Milestone 1 — "adding a `production` target is additive
@@ -897,13 +920,14 @@ than estimated.
 The rest of *Documentation* still belongs at the end. Import, export and examples
 each updated `API.md`, `UI.md`, `ProjectStructure.md` and the `README` in the same
 change that introduced them, which is the project's rule and leaves less for that
-task than the original plan assumed — what remains is chiefly whatever deployment
-adds, plus a pass for anything the last four tasks contradict.
+task than the original plan assumed. Deployment status is now documented; what
+remains is the final verification record and a pass for contradictions with the
+completed release work.
 
-**Two things already prepared for this milestone.** Both Dockerfiles are
-multi-stage, so adding a `production` target is additive rather than a rewrite.
-And the three-column grid was built so that collapsing it for small screens is a
-change to the grid rather than to the components.
+**Two preparations made before this milestone.** Both Dockerfiles were
+multi-stage so a production target could be added; the eventual native hosting
+choice made that unnecessary. The three-column grid was built so that collapsing
+it for small screens was a change to the grid rather than to the components.
 
 **`docs/API.md`'s deferred list has turned over.** QASM import, QASM export and
 examples were on it and are now built sections. What sits there instead is
