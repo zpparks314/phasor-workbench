@@ -45,7 +45,9 @@ specification.
 | `docs/API.md`, `docs/Simulation.md` | before touching endpoints or the simulator seam |
 | `docs/decisions/` | when a decision looks arbitrary — the reasoning is there |
 
-Milestones 1–4 are closed, and **Milestone 5 has one task left: deployment.**
+Milestones 1–4 are closed. Consult `docs/Roadmap.md` for the current milestone and
+remaining release criteria, and `docs/Deployment.md` for production hosting and
+operations.
 `API.md` and `Simulation.md` were drafts through Milestone 3 and now describe
 built behaviour; each still ends with open questions that are genuinely open.
 

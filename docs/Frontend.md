@@ -1,7 +1,9 @@
 # Frontend
 
-**Status:** Implemented through Milestone 5, except deployment. Editor and
-component design are specified in [UI.md](UI.md) and
+**Status:** Editor functionality is implemented through Milestone 5, and the
+frontend is deployed on GitHub Pages. Remaining release criteria are tracked in
+[Roadmap.md](Roadmap.md). Editor and component design are specified in
+[UI.md](UI.md) and
 [ADR-0007](decisions/ADR0007_EditingModel.md); this document covers structure,
 boundaries and the rules that keep them.
 
