@@ -181,6 +181,19 @@ class TestQasmImport:
         assert analysis.json()["qubitCount"] == 2
         assert analysis.json()["gateCount"] == 2
 
+    def test_omits_absent_optional_fields_for_frontend_persistence(
+        self, client: TestClient
+    ) -> None:
+        response = client.post(IMPORT_QASM, json={"source": QASM_BELL})
+        assert response.status_code == 200
+        circuit = response.json()["circuit"]
+
+        assert "name" not in circuit
+        assert "metadata" not in circuit
+        assert all("label" not in qubit for qubit in circuit["qubits"])
+        assert circuit["classicalRegisters"][0]["label"] == "c"
+        assert len(circuit["operations"]) == 4
+
     def test_source_that_cannot_be_read_is_malformed_not_invalid(
         self, client: TestClient
     ) -> None:
