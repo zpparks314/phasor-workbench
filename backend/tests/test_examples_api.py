@@ -62,6 +62,25 @@ class TestCatalogue:
 
 
 class TestOneExample:
+    def test_omits_absent_optional_fields_for_frontend_persistence(
+        self, client: TestClient
+    ) -> None:
+        """Pydantic accepts null defaults that the browser's schema rejects."""
+        for entry in client.get(EXAMPLES).json()["examples"]:
+            response = client.get(f"{EXAMPLES}/{entry['id']}")
+            assert response.status_code == 200
+            circuit = response.json()["circuit"]
+
+            assert "name" not in circuit
+            assert "metadata" not in circuit
+            assert all("label" not in qubit for qubit in circuit["qubits"])
+            # Present values and the operations must survive serialization too.
+            assert len(circuit["operations"]) == entry["operationCount"]
+            assert all(
+                isinstance(register["label"], str)
+                for register in circuit["classicalRegisters"]
+            )
+
     def test_returns_a_circuit_the_other_endpoints_accept(
         self, client: TestClient
     ) -> None:

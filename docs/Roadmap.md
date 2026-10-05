@@ -11,7 +11,7 @@ Milestone 1 (Foundation) closed on 2026-07-28, Milestone 2 (Circuit Model) on
 (Simulation MVP) on 2026-08-02.
 
 **Milestones 1–4 are closed.** The foundation, the Circuit Model, the editor and
-simulation all exist and are enforced by tests: 923 frontend and 466 backend,
+simulation all exist and are enforced by tests: 923 frontend and 468 backend,
 with 51 fixtures in `shared/fixtures/` holding the two language implementations
 to one specification.
 
@@ -59,6 +59,19 @@ reasoning. Nothing is outstanding.
 Known issues and verification gaps are recorded here. The screen-reader check
 and resolution or documented deferral of the connector defects are Milestone 5
 exit criteria; deployment verification is tracked in that milestone below.
+
+**Example save/reload defect found during public smoke testing.** The example and
+OpenQASM-import endpoints bypassed the circuit serializer and returned absent
+optional fields as `null`. Those documents rendered but failed the browser's
+schema validation after saving and refreshing. Both endpoints now use
+`dump_circuit`, with regression tests for their response shape. A local browser
+check reproduced the warning before the fix and verified that a newly loaded Bell
+example survived Save → Refresh afterwards, with all five operations, depth 3,
+and equal `00`/`11` probabilities restored. The corrected backend must be deployed
+before repeating the public check. Existing saved
+documents are not rewritten by this fix: an unchanged example can be loaded and
+saved again after deployment; preserve any edited saved document before replacing
+it so its work can be recovered.
 
 **The canvas grid's screen-reader behaviour is unverified.** The markup follows
 the composite-widget pattern and the tests assert roles and names, but SVG

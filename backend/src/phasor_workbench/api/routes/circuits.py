@@ -23,6 +23,7 @@ from ...analysis import analyze_circuit
 from ...config import settings
 from ...exporters.qasm import export_qasm
 from ...importers.qasm import QasmError, QasmProblem, parse_qasm
+from ...serialization import dump_circuit
 from ..documents import read_circuit
 from ..errors import ApiError, ErrorCode, ErrorDetail
 
@@ -129,9 +130,7 @@ def post_import_qasm(request: QasmImportRequest) -> CircuitDocumentResponse:
     if result.problems:
         raise unreadable_qasm(result.problems)
 
-    return CircuitDocumentResponse(
-        circuit=read_circuit(result.document).model_dump(by_alias=True, mode="json")
-    )
+    return CircuitDocumentResponse(circuit=dump_circuit(read_circuit(result.document)))
 
 
 class QasmExportResponse(BaseModel):

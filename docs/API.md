@@ -43,6 +43,14 @@ This keeps the backend trivially horizontally scalable and removes persistence f
 
 **Methods:** analysis and simulation use `POST` despite being read-only, because the circuit is too large to encode in a query string.
 
+**Circuit responses:** examples and OpenQASM import use `serialization.dump_circuit`
+to produce wire documents. Absent optional fields are omitted, including nested
+qubit labels; they must not be emitted as Pydantic's `null` defaults. The browser
+validates saved documents against the shared JSON Schema, which rejects those
+nulls. Bypassing the serializer allowed a fetched example to render and simulate
+but made its saved copy unreadable after refresh. Endpoint regression tests cover
+both producers; backend acceptance alone did not detect this mismatch.
+
 ---
 
 # Error Format

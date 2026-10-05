@@ -21,6 +21,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel, ConfigDict, Field
 
 from ...examples import catalogue, find
+from ...serialization import dump_circuit
 from ..documents import read_circuit
 from ..errors import ApiError, ErrorCode
 
@@ -101,6 +102,4 @@ def get_example(identifier: str) -> ExampleCircuitResponse:
 
     circuit = read_circuit(example.document())
 
-    return ExampleCircuitResponse(
-        circuit=circuit.model_dump(by_alias=True, mode="json")
-    )
+    return ExampleCircuitResponse(circuit=dump_circuit(circuit))
