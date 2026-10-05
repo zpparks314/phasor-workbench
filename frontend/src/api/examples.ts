@@ -18,7 +18,6 @@
  * keeps transport-failure-to-user-message in one place.
  */
 
-import type { Circuit } from '../model/circuit';
 import { ApiError, request } from './client';
 
 const USE_MOCK = import.meta.env.VITE_USE_MOCK_API === 'true';
@@ -42,8 +41,9 @@ interface CatalogueResponse {
   readonly examples: readonly ExampleEntry[];
 }
 
+/** `unknown` for the reason `qasm.ts` gives: nothing here checked it. */
 interface CircuitResponse {
-  readonly circuit: Circuit;
+  readonly circuit: unknown;
 }
 
 function unavailable(): ApiError {
@@ -74,7 +74,7 @@ export async function fetchExamples(
 export async function fetchExample(
   id: string,
   signal?: AbortSignal,
-): Promise<Circuit> {
+): Promise<unknown> {
   if (USE_MOCK) throw unavailable();
 
   const response = await request<CircuitResponse>(

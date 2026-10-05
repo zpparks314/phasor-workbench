@@ -11,7 +11,7 @@ Milestone 1 (Foundation) closed on 2026-07-28, Milestone 2 (Circuit Model) on
 (Simulation MVP) on 2026-08-02.
 
 **Milestones 1–4 are closed.** The foundation, the Circuit Model, the editor and
-simulation all exist and are enforced by tests: 923 frontend and 468 backend,
+simulation all exist and are enforced by tests: 925 frontend and 468 backend,
 with 51 fixtures in `shared/fixtures/` holding the two language implementations
 to one specification.
 
@@ -64,7 +64,10 @@ exit criteria; deployment verification is tracked in that milestone below.
 OpenQASM-import endpoints bypassed the circuit serializer and returned absent
 optional fields as `null`. Those documents rendered but failed the browser's
 schema validation after saving and refreshing. Both endpoints now use
-`dump_circuit`, with regression tests for their response shape. A local browser
+`dump_circuit`, with regression tests for their response shape. The frontend also
+now puts both responses through the same loader as a stored document, so a future
+mismatch is refused on arrival with the canvas unchanged rather than surfacing
+only after a save and refresh. A local browser
 check reproduced the warning before the fix and verified that a newly loaded Bell
 example survived Save → Refresh afterwards, with all five operations, depth 3,
 and equal `00`/`11` probabilities restored. The corrected backend must be deployed

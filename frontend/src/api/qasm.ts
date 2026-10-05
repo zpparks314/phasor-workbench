@@ -21,8 +21,13 @@ import { ApiError, request } from './client';
 
 const USE_MOCK = import.meta.env.VITE_USE_MOCK_API === 'true';
 
+/**
+ * `unknown`, not `Circuit`: nothing here checked it. Typing the response as a
+ * circuit let the editor apply one the loader would refuse, so the caller is
+ * made to put it through `serialization/` before it can use it.
+ */
 interface ImportResponse {
-  readonly circuit: Circuit;
+  readonly circuit: unknown;
 }
 
 interface ExportResponse {
@@ -32,7 +37,7 @@ interface ExportResponse {
 export async function importQasm(
   source: string,
   signal?: AbortSignal,
-): Promise<Circuit> {
+): Promise<unknown> {
   /**
    * There is deliberately no mock.
    *

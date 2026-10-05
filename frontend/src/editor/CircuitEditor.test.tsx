@@ -1769,6 +1769,29 @@ describe('loading an example', () => {
     expect(alert).toHaveTextContent(/circuit on the canvas is unchanged/);
     expect(editor.status()).toHaveTextContent('0 operations');
   });
+
+  /**
+   * Regression: the backend once sent optional fields as explicit `null`s. The
+   * example loaded and saved, and the next refresh refused the saved copy. It
+   * has to be refused here, while the canvas can still be left alone.
+   */
+  it('refuses an example the loader would refuse', async () => {
+    vi.mocked(fetchExamples).mockResolvedValue(catalogue);
+    vi.mocked(fetchExample).mockResolvedValue({
+      ...bell,
+      qubits: bell.qubits.map((qubit) => ({ ...qubit, label: null })),
+    });
+
+    const editor = open(circuitWith(3));
+    await screen.findByRole('option', { name: 'Bell State' });
+
+    fireEvent.click(screen.getByRole('button', { name: /^Load Bell State/ }));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent(/qubits\[0\]\.label must be string/);
+    expect(alert).toHaveTextContent(/circuit on the canvas is unchanged/);
+    expect(editor.status()).toHaveTextContent('0 operations');
+  });
 });
 
 /**

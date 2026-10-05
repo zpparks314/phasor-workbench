@@ -229,7 +229,11 @@ implementation module for module and is held to it by the fixtures in
 The frontend validates for fast editor feedback. For circuits it *builds*, that
 means **semantic validation only** — the editor constructs them through its own
 code, so they are shape-valid by construction. Shape validation applies where a
-circuit arrives from outside: `serialization/`, and later import.
+circuit arrives from outside: `serialization/`, file import, and **circuits the
+backend returns** — OpenQASM import and the example catalogue. `api/` types those
+responses as `unknown` so they cannot be applied unchecked; `files/`'s
+`readCircuitDocument` is the one entry point, and a refusal there is reported as
+the backend's fault rather than the user's.
 
 That changes the first time the frontend reads a circuit it did not build —
 Milestone 3's local save. Deferred deliberately, per ADR-0005 section 6, so the
