@@ -328,7 +328,8 @@ are different directories.
 
 **Do not run `npm audit fix --force`.** It installs a breaking ESLint major.
 Plain `npm audit fix` is fine and is what cleared the findings on 2026-08-02 —
-`npm audit` now reports zero. The deferral note that used to sit here outlived
+The 2026-08-02 audit reported zero findings; rerun `npm audit` for current
+dependency status. The deferral note that used to sit here outlived
 its premise by some margin, which is the *Rules That Outlive Any Milestone*
 lesson about dependency claims, arriving on schedule.
 

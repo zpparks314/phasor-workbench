@@ -43,11 +43,11 @@ Validation
 
 ↓
 
-Internal Representation
+Circuit passed through SimulatorBackend protocol
 
 ↓
 
-Simulation Backend
+Qiskit adapter (temporary QuantumCircuit)
 
 ↓
 
@@ -277,6 +277,6 @@ Tolerances are defined once and shared. Floating-point comparison must never use
 
 # Open Questions
 
-1. Does simulation run in-process, or in a separate worker with its own resource limits? The latter is safer for enforcing timeouts but adds infrastructure in Milestone 4.
-2. Should mid-circuit measurement be supported at MVP, or deferred? This is also open in [CircuitModel.md](CircuitModel.md) and should be answered once for both.
+1. When should the current in-process simulation move to a worker with enforceable resource limits? There is no wall-clock timeout today; worker isolation remains a future infrastructure decision.
+2. How should mid-circuit measurement and classical control extend the model? Terminal measurement is settled for the MVP; Milestone 6 requires new ADRs before changing it.
 3. Should the statevector endpoint support returning intermediate states, per the open question in [API.md](API.md)? It would materially serve the educational goal but affects the backend interface.

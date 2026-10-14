@@ -520,13 +520,18 @@ current production setup without relying on these unimplemented protections.
 
 # Mocking
 
-Architecture.md requires the frontend to remain functional when the backend is unavailable.
+Mocks are an explicit frontend development mode (`VITE_USE_MOCK_API=true`),
+not an automatic fallback when production requests fail. Editing, local save,
+and JSON files remain available without the backend; network failures are
+reported by the affected panels.
 
-To support this, every endpoint above must have a recorded mock response committed alongside the API client.
+Analysis mocks compute metrics using the existing cycle derivation. Simulation
+mocks return recorded Bell results, not results for the current circuit. QASM
+conversion and example loading report unavailability in mock mode; health still
+uses the network. See [Frontend.md](Frontend.md#mocking).
 
-Mocks are generated from real backend responses and validated against the same schema in CI, so they cannot silently drift from the live contract.
-
-This also lets frontend work proceed in Milestone 3 before the backend exists.
+OpenAPI conformance tests for recorded responses remain future work:
+`tests/contract/` is currently a placeholder, not an active CI guarantee.
 
 ---
 

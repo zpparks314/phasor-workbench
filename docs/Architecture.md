@@ -4,7 +4,7 @@
 
 Phasor Workbench consists of independent modules that communicate through well-defined interfaces.
 
-The application is divided into three primary layers:
+The application is divided into four conceptual layers:
 
 ```text
 Frontend
@@ -79,6 +79,7 @@ Every circuit consists of:
 * qubits
 * gates
 * measurements
+* barriers
 * classical registers
 * metadata
 
@@ -147,7 +148,9 @@ Each module should expose a clear public interface.
 
 Avoid cross-module implementation dependencies.
 
-**Nothing under Shared executes.** It holds the schema, the specification data
+**Shared is not a runtime service.** Its generator executes at development/build
+time; application runtime code lives in the consuming projects. Shared holds the
+schema, the specification data
 (gate signatures, violation codes, the current model version), and the fixtures
 both projects test against. Validation *rules* are specified there as data;
 validation itself is implemented in each project. Likewise Shared defines the
@@ -198,11 +201,11 @@ Validation
 
 ↓
 
-Internal Representation
+Circuit passed through SimulatorBackend protocol
 
 ↓
 
-Simulation Backend
+Qiskit adapter (temporary QuantumCircuit)
 
 ↓
 
@@ -216,7 +219,12 @@ Result Formatter
 
 API Response
 
-The simulation backend should eventually support multiple implementations.
+The protocol consumes the canonical `Circuit`; there is no separate
+simulator-neutral internal representation. Only the Qiskit adapter imports
+Qiskit. See [Simulation.md](Simulation.md) for the reasoning and typed results.
+
+Qiskit is the only implemented backend. The protocol is intended to support
+additional implementations.
 
 Examples:
 
@@ -281,7 +289,13 @@ Test categories include:
 * serialization tests
 * simulation correctness tests
 
-The frontend should remain functional even when the simulation backend is unavailable by using mock API responses.
+Editing, validation, local persistence, and JSON file handling remain usable
+when the backend is unavailable. Backend-dependent panels report failures;
+production does not silently substitute mock results.
+
+Explicit development mode (`VITE_USE_MOCK_API=true`) provides computed analysis
+and recorded simulation fixtures. QASM conversion and examples require the real
+backend. See [Frontend.md](Frontend.md#mocking).
 
 ---
 

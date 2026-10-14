@@ -120,7 +120,7 @@ progress.**
 | Example circuits | Built — six, loaded through the import path |
 | Failure states | Built — storage, files and the backend report their own cause, and a render error shows a recovery screen rather than a blank page |
 | Deployment | Live — GitHub Pages frontend and Render backend; remaining release verification tracked in the Roadmap |
-| Tests | 923 frontend, 468 backend, 51 cross-language fixtures |
+| Tests | 925 frontend, 468 backend (verified 2026-10-14), 51 cross-language fixtures |
 | CI | Lint, format, types, tests, build, and binding freshness on every push |
 
 The HTTP API is eight endpoints:
@@ -236,15 +236,23 @@ Runs on `http://localhost:5173` and proxies `/api` to the backend.
 ### Running the Checks
 
 ```bash
+# Run this sequence from the repository root with the backend venv activated.
 # Backend
 cd backend && pytest && ruff check . && ruff format --check . && mypy
 
 # Frontend
-cd frontend && npm test && npm run lint && npm run format:check && npm run typecheck
+cd ../frontend && npm test && npm run lint && npm run format:check && npm run typecheck && npm run build
 
 # Shared model -- fails if the generated bindings no longer match their sources
-python shared/generate_bindings.py --check
+cd ..
+backend/.venv/Scripts/python shared/generate_bindings.py --check  # Windows
+# backend/.venv/bin/python shared/generate_bindings.py --check    # macOS / Linux
 ```
+
+After the automated checks, start the application and load it in a browser;
+a successful build alone does not establish that the page starts.
+See [Deployment.md](docs/Deployment.md) for
+the separate public release smoke tests.
 
 The `--check` variants are what CI runs. The rewriting variants (`ruff format`,
 `npm run format`) pass silently by fixing the problem, so a green local run
