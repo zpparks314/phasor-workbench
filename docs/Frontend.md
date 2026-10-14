@@ -320,8 +320,9 @@ first one that did found it immediately.
 
 ## Mocking
 
-Architecture.md requires the frontend to stay functional when the backend is
-unavailable.
+Editing, local persistence, validation, and JSON file handling work without
+the backend. Backend-dependent panels report network failures; mocks are an
+explicit development choice, not production outage recovery.
 
 `VITE_USE_MOCK_API` switches the client away from the network. It landed on
 2026-08-02 with `/circuits/analyze`, the first circuit endpoint — as this section
@@ -334,8 +335,9 @@ than a preference.** This section previously described recorded responses only.
 
 * **A response the frontend cannot derive is recorded.** A statevector has to
   come from somewhere; a recording is honest about being a fixture, and
-  validating it against the backend's OpenAPI schema in `tests/contract/` is what
-  stops it drifting. This is still the plan for the simulation endpoints.
+  OpenAPI conformance tests in `tests/contract/` remain planned, not an
+  implemented CI check. Simulation recordings are development fixtures, not
+  computed answers for the current circuit.
 * **A response that is a pure function of the request is computed.**
   `/circuits/analyze` is one: counts and a depth, entirely determined by the
   circuit posted. A recording would answer every circuit with one circuit's
@@ -345,8 +347,11 @@ than a preference.** This section previously described recorded responses only.
 
 The computed mock introduces no second implementation of anything: depth comes
 from the same `deriveCycles` the canvas calls, and only the counting — a filter
-and a length — lives in the mock. When the backend is reachable it is the sole
-source of these numbers.
+and a length — lives in the mock. With mock mode disabled, the backend is the
+source of these numbers; network failures are reported rather than substituted.
+
+QASM conversion and examples deliberately have no mocks and report that the
+backend is required. The health request still uses the network.
 
 **The simulation endpoints take the recorded branch**, which is that rule
 working rather than an exception to it. The frontend cannot derive a statevector
@@ -376,10 +381,9 @@ empty and error states, and the visual language.
 
 What UI.md still defers, and why:
 
-* **results panel and visualization placement** — Milestone 4. The three-column
-  grid reserves the space; nothing else about them is designed, because designing
-  a results panel before results exist is the speculation that kept UI.md empty
-  through two milestones.
+* **phase-aware and per-cycle visualizations** — Milestone 7. The final-state
+  probability and sampling results panel is already built (Milestone 4); Bloch
+  spheres, phase display, and a state evolution timeline remain planned.
 * ~~**responsive and small-screen layout**~~ — **built** 2026-08-06. The claim
   above that the three-column grid was built so collapsing it is a change to the
   grid rather than the components held: `CircuitEditor`'s one grid template gained
