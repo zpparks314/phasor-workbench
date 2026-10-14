@@ -65,6 +65,86 @@ describe('wires and lanes', () => {
 });
 
 describe('columns come from the derivation', () => {
+  it('gives crossing connectors separate drawing slots in one cycle', () => {
+    const outer = insertOperation(
+      circuitWith(5),
+      gate('outer', 'cx', ['q_4'], ['q_0']),
+      0,
+    );
+    const circuit = insertOperation(
+      outer,
+      gate('inner', 'cx', ['q_3'], ['q_2']),
+      1,
+    );
+    const decomposition = deriveCycles(circuit);
+    const layout = layoutCircuit(circuit, decomposition);
+
+    expect(decomposition.depth).toBe(1);
+    expect(layout.columns[0]?.expanded).toBe(true);
+    expect(layout.columns[0]?.width).toBe(2 * DEFAULT_METRICS.column);
+    expect(layout.operations[0]?.x).toBeLessThan(layout.operations[1]?.x ?? 0);
+    const crossedTarget = layout.wires[3]?.y ?? 0;
+    expect(
+      layout.operations[0]?.connector.some(
+        (segment) =>
+          segment.y2 === crossedTarget - DEFAULT_METRICS.crossingGap / 2,
+      ),
+    ).toBe(true);
+    expect(layout.columns[1]?.start).toBe(
+      DEFAULT_METRICS.gutter + 2 * DEFAULT_METRICS.column,
+    );
+  });
+
+  it('puts the longer connector on the left regardless of list order', () => {
+    const inner = insertOperation(
+      circuitWith(5),
+      gate('inner', 'cx', ['q_3'], ['q_2']),
+      0,
+    );
+    const circuit = insertOperation(
+      inner,
+      gate('outer', 'cx', ['q_4'], ['q_0']),
+      1,
+    );
+    const layout = layoutOf(circuit);
+    const xOf = (id: string): number | undefined =>
+      layout.operations.find((operation) => operation.operationId === id)?.x;
+
+    expect(layout.depth).toBe(1);
+    expect(xOf('outer')).toBeLessThan(xOf('inner') ?? 0);
+  });
+
+  it('keeps a single-qubit gate aligned with a spanning connector', () => {
+    const spanning = insertOperation(
+      circuitWith(4),
+      gate('outer', 'cx', ['q_3'], ['q_0']),
+      0,
+    );
+    const circuit = insertOperation(spanning, gate('middle', 'x', ['q_2']), 1);
+    const layout = layoutOf(circuit);
+
+    expect(layout.columns[0]?.expanded).toBe(false);
+    expect(layout.operations[0]?.x).toBe(layout.operations[1]?.x);
+    expect(layout.operations[0]?.connector).toHaveLength(3);
+  });
+
+  it('moves a trailing barrier with an expanded cycle boundary', () => {
+    const outer = insertOperation(
+      circuitWith(5),
+      gate('outer', 'cx', ['q_4'], ['q_0']),
+      0,
+    );
+    const inner = insertOperation(
+      outer,
+      gate('inner', 'cx', ['q_3'], ['q_2']),
+      1,
+    );
+    const circuit = insertOperation(inner, barrier('barrier', ['q_0']), 2);
+    const layout = layoutOf(circuit);
+
+    expect(layout.barriers[0]?.x).toBe(layout.columns[1]?.start);
+  });
+
   it('places independent operations in the same column', () => {
     const circuit = insertOperation(
       insertOperation(circuitWith(2), gate('op_0', 'h', ['q_0']), 0),

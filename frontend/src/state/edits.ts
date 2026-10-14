@@ -346,6 +346,42 @@ export function retargetOperation(
   return { ...circuit, operations };
 }
 
+/** Shift every qubit of a multi-qubit gate by the same number of wire lanes. */
+export function translateGate(
+  circuit: Circuit,
+  operationId: string,
+  laneOffset: number,
+): Circuit {
+  const { operation, index } = locate(circuit, operationId);
+  if (operation.kind !== 'gate' || !Number.isInteger(laneOffset)) {
+    throw new Error(
+      `Operation ${operationId} cannot be translated by ${String(laneOffset)} lanes.`,
+    );
+  }
+  if (laneOffset === 0) return circuit;
+
+  const wires = [...circuit.qubits].sort((a, b) => a.index - b.index);
+  const position = new Map(wires.map((wire, at) => [wire.id, at]));
+  const ids = [...operation.targets, ...(operation.controls ?? [])];
+  const shifted = ids.map((id) => {
+    const at = position.get(id);
+    return at === undefined ? undefined : wires[at + laneOffset]?.id;
+  });
+  if (shifted.some((id) => id === undefined)) return circuit;
+
+  const translated = (id: string): string => {
+    const at = position.get(id);
+    return wires[(at ?? -1) + laneOffset]?.id ?? id;
+  };
+  const operations = [...circuit.operations];
+  operations[index] = {
+    ...operation,
+    targets: operation.targets.map(translated) as [string, ...string[]],
+    controls: (operation.controls ?? []).map(translated),
+  };
+  return { ...circuit, operations };
+}
+
 /** Whether `retargetOperation` accepts this operation. */
 export function isRetargetable(operation: Operation): boolean {
   const controls = operation.kind === 'gate' ? (operation.controls ?? []) : [];

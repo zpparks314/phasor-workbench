@@ -225,6 +225,18 @@ There are **two gap widths, and the difference is semantic**:
 Which one applies is derived from the model: the layout asks whether anything
 occupies that qubit in that cycle. It is not inferred from geometry.
 
+When connectors in one cycle have overlapping vertical spans, the renderer gives
+them separate horizontal drawing slots inside one wider cycle band. This includes
+a connector passing another gate's control dot: their spans meet at that dot, so
+they receive different x positions. The longest connector takes the leftmost
+available slot; equal spans retain their derived order. The cycle index, depth, and operation order
+do not change. A single-qubit gate sharing a cycle with one spanning connector
+stays aligned with it, and the connector retains glyph clearance at that wire.
+Clearance is based on glyphs in the *same drawing slot*; a glyph shifted to a
+different slot calls for the ordinary empty-wire gap. Expanded cycles always
+carry a faint shared band, even when cycle numbers are hidden. The band has no
+vertical boundary line, so it cannot be mistaken for a barrier.
+
 **Connectors are a single layer beneath every glyph**, not drawn per operation.
 Ordering them per operation makes the result depend on document order, so
 whichever gate happened to render last drew its line across the other.
@@ -368,8 +380,8 @@ strip report, and the exception is narrow enough to state precisely: a `cx`
 controlled by its own target is a `QUBIT_REUSED_IN_OPERATION` violation that
 *nothing in the edit vocabulary can repair*. `retargetOperation` refuses a
 multi-qubit operation by design — which of its qubits a retarget meant is
-ambiguous — and moving one only changes its column, so the user would be left
-with an operation they can only delete. ADR-0007 §7's "edits do not validate"
+ambiguous — and rigid translation preserves the duplicate assignment, so the
+user would be left with an operation they can only delete. ADR-0007 §7's "edits do not validate"
 governs invalid states the user can edit their way out of; this is not one.
 The pending overlay draws the taken wires, so the refusal is visible rather than
 a click that does nothing for no stated reason.
@@ -391,10 +403,14 @@ a beginning and an end, while each key press is a complete action and deserves i
 own undo step.
 
 Moving combines two changes that a single gesture happens to express — a
-different wire is `retargetOperation`, a different column is `moveOperation`.
-**A multi-qubit operation only does the second.** Which of its qubits a drag to
-another wire meant to move is ambiguous, and guessing would produce a circuit
-nobody asked for.
+different wire and a different position in the operation list. A single-qubit
+operation uses `retargetOperation` for the wire; a multi-qubit gate uses
+`translateGate` to shift every target and control by the same number of lanes.
+The anchor picked up stays under the pointer, including when it is a control.
+Translation past the first or last wire is refused. A translated gate dropped
+onto a cycle with an operation using one of its new wires follows that existing
+operation, so it may derive into the next cycle. Each keyboard vertical nudge
+also translates the entire gate. Barriers only change their list position.
 
 **Remove** — select and press `Delete` or `Backspace`, or click the `×` that
 appears on the selection. The `×` is `aria-hidden`: it is a redundant mouse path
