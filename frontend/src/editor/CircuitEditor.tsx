@@ -40,6 +40,7 @@ import {
   removeOperation,
   removeQubit,
   retargetOperation,
+  translateGate,
   setClassicalTarget,
   setParameters,
   setRegisterSize,
@@ -75,7 +76,7 @@ import { ShortcutReference } from './ShortcutReference';
 import { isTypingTarget, resolveShortcut } from './shortcuts';
 import { StructureControls } from './StructureControls';
 import { ViewControls } from './ViewControls';
-import { columnCenter, layoutCircuit, pendingConnector } from './layout';
+import { layoutCircuit, pendingConnector } from './layout';
 import { isGateName, type PaletteItem } from './palette';
 import {
   assignQubit,
@@ -111,6 +112,7 @@ export function CircuitEditor({
   const [armed, setArmed] = useState<PaletteItem | null>(null);
   const [cursor, setCursor] = useState<CellPosition>({ row: 0, column: 0 });
   const [dragging, setDragging] = useState<string | null>(null);
+  const dragAnchorOffset = useRef(0);
   const [settle, setSettle] = useState<Settle | null>(null);
 
   /**
@@ -406,7 +408,7 @@ export function CircuitEditor({
 
     return {
       name: pending.name,
-      x: columnCenter(pending.column, layout.metrics),
+      x: layout.columns[pending.column]?.center ?? layout.metrics.gutter,
       anchors,
       connector: pendingConnector(anchors, layout),
       nextRole: nextRole(pending),
@@ -542,11 +544,8 @@ export function CircuitEditor({
   /**
    * Move an operation to a cell.
    *
-   * Two changes a single gesture combines: `retargetOperation` moves it to
-   * another wire, `moveOperation` changes its position in the canonical list.
-   * A multi-qubit operation only does the second -- which of its qubits a drag
-   * meant to move is ambiguous, and guessing would produce a circuit nobody
-   * asked for.
+   * A multi-qubit gate translates all its anchors by the same number of lanes.
+   * The picked anchor stays under the pointer, whether it was a target or control.
    */
   function moveTo(
     operationId: string,
@@ -559,26 +558,35 @@ export function CircuitEditor({
     const wire = layout.wires[cell.row]?.qubitId;
     if (operation === undefined || wire === undefined) return;
 
-    const retarget =
-      isRetargetable(operation) && !operation.targets.includes(wire);
-
-    // Every qubit it uses, not just its target: a cx occupies its control wire
-    // too, and an index computed from the target alone can place it before an
-    // operation on the control that it has to follow.
-    const qubitIds = retarget ? [wire] : qubitsOf(operation);
+    const multiGate =
+      operation.kind === 'gate' && qubitsOf(operation).length > 1;
+    const targetRow = layout.wires.findIndex(
+      (candidate) => candidate.qubitId === operation.targets[0],
+    );
+    const laneOffset = multiGate
+      ? cell.row - (drag ? dragAnchorOffset.current : 0) - targetRow
+      : 0;
 
     store.apply(
       `Move ${describeOperation(operation)}`,
       (current) => {
-        const index = moveDestinationIndex(
-          current,
-          operationId,
-          qubitIds,
-          cell.column,
+        const retargeted = multiGate
+          ? translateGate(current, operationId, laneOffset)
+          : isRetargetable(operation) && !operation.targets.includes(wire)
+            ? retargetOperation(current, operationId, wire)
+            : current;
+        if (multiGate && laneOffset !== 0 && retargeted === current)
+          return current;
+        const moved = retargeted.operations.find(
+          (candidate) => candidate.id === operationId,
         );
-        const retargeted = retarget
-          ? retargetOperation(current, operationId, wire)
-          : current;
+        if (moved === undefined) return current;
+        const index = moveDestinationIndex(
+          retargeted,
+          operationId,
+          qubitsOf(moved),
+          cell.column + (multiGate && laneOffset !== 0 ? 1 : 0),
+        );
         return moveOperation(retargeted, operationId, index);
       },
       drag ? { coalescingKey: `move:${operationId}` } : {},
@@ -640,8 +648,15 @@ export function CircuitEditor({
    * Ignored while a palette gate is armed -- a press on an occupied cell then
    * means "place here", not "pick that up".
    */
-  function pickUp(operationId: string): void {
+  function pickUp(operationId: string, row?: number): void {
     if (armed !== null) return;
+    const operation = circuit.operations.find(
+      (candidate) => candidate.id === operationId,
+    );
+    const targetRow = layout.wires.findIndex(
+      (wire) => wire.qubitId === operation?.targets[0],
+    );
+    dragAnchorOffset.current = row === undefined ? 0 : row - targetRow;
     store.select(operationId);
     setDragging(operationId);
   }
@@ -687,6 +702,7 @@ export function CircuitEditor({
     const from = requested.current;
 
     setDragging(null);
+    dragAnchorOffset.current = 0;
     requested.current = null;
     store.endCoalescing();
     if (from !== null) scheduleSettle(operationId, from);

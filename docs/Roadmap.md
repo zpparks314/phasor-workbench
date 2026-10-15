@@ -94,21 +94,13 @@ around it — the cycle labels are `aria-hidden` rather than a `columnheader` ro
 precisely so they would not add a row to a model nobody has tested. **A public
 release is the point to test this with real assistive technology.**
 
-**Two connector defects in `editor/layout.ts`**, both reachable since multi-qubit
-placement landed, and neither a placement bug. Both need a circuit where two
-multi-qubit gates share a cycle without sharing a wire, e.g. `cx(q0, q3)` beside
-`cx(q1, q2)`:
-
-1. `occupancyByCycle` records an operation's `targets` but not its `controls`,
-   so a connector crossing another operation's **control dot** gets the 12px
-   empty-wire gap instead of glyph clearance. With `control: 5` that leaves about
-   a pixel between line and dot — reading as contact, which is exactly what UI.md
-   calls the gap semantically load-bearing to prevent. The one-line fix is wrong
-   on its own: `glyphClearance` is sized for a 40px box and far too wide for a
-   10px dot, so this wants a third clearance value.
-2. Two connectors in one cycle land on the **same x**, nested or overlapping,
-   with nothing to distinguish them. No cheap fix; the usual answers are
-   splitting the cycle or offsetting one line, and both are design decisions.
+**Connector layout is under local verification.** Overlapping connector spans
+within one derived cycle now receive separate drawing slots in a wider cycle
+band. This also separates a connector from another gate's control dot; a
+single-qubit gate beside one connector remains aligned with it. The cycle's
+logical depth is unchanged. Regression tests cover the overlapping-CX case and
+pointer access through the widened cell. Complete the browser check and confirm
+the resulting visual grouping before closing the release criterion below.
 
 **An operation whose every qubit reference dangles is not drawn**, so the
 problems strip is the only route to it. That is why the strip selects by path.

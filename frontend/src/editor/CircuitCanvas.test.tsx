@@ -266,6 +266,31 @@ describe('rendering', () => {
     expect(layout.depth).toBe(1);
   });
 
+  it('keeps an expanded cycle reachable through its full-width cells', () => {
+    const outer = insertOperation(
+      circuitWith(5),
+      gate('outer', 'cx', ['q_4'], ['q_0']),
+      0,
+    );
+    const circuit = insertOperation(
+      outer,
+      gate('inner', 'cx', ['q_3'], ['q_2']),
+      1,
+    );
+    const { container, props, layout } = draw(circuit);
+    const cell = screen.getByRole('gridcell', { name: 'q3, cycle 0, cx' });
+
+    expect(cell).toHaveAttribute('width', String(layout.columns[0]?.width));
+    expect(layout.columns[0]?.expanded).toBe(true);
+    expect(
+      container.querySelector('svg rect.fill-surface-raised'),
+    ).not.toBeNull();
+    fireEvent.pointerDown(cell);
+    fireEvent.click(cell);
+    expect(props.onPickUp).toHaveBeenCalledWith('inner', 3);
+    expect(props.onActivate).toHaveBeenCalledWith({ row: 3, column: 0 });
+  });
+
   /**
    * UI.md: a circuit with no qubits shows a prompt, never a blank rectangle.
    *
@@ -582,7 +607,7 @@ describe('drag and nudge', () => {
       screen.getByRole('gridcell', { name: 'q0, cycle 0, h' }),
     );
 
-    expect(props.onPickUp).toHaveBeenCalledWith('op_0');
+    expect(props.onPickUp).toHaveBeenCalledWith('op_0', 0);
   });
 
   it('picks up nothing from an empty cell', () => {

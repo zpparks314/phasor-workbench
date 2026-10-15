@@ -13,6 +13,7 @@ import {
   removeQubit,
   renameCircuit,
   retargetOperation,
+  translateGate,
   setClassicalTarget,
   setParameters,
   setRegisterSize,
@@ -382,6 +383,31 @@ describe('retargetOperation', () => {
     expect(isRetargetable(controlled)).toBe(false);
     expect(isRetargetable(spanning)).toBe(false);
     expect(isRetargetable(barrier('op_3', ['q_0', 'q_1']))).toBe(false);
+  });
+});
+
+describe('translateGate', () => {
+  it('moves targets and controls together while preserving identity', () => {
+    const circuit = insertOperation(
+      circuitWith(5),
+      gate('inner', 'cx', ['q_3'], ['q_2']),
+      0,
+    );
+    expect(translateGate(circuit, 'inner', -1).operations[0]).toMatchObject({
+      id: 'inner',
+      targets: ['q_2'],
+      controls: ['q_1'],
+    });
+    expect(circuit.operations[0]?.targets).toEqual(['q_3']);
+  });
+
+  it('refuses a translation that would move any anchor beyond the wires', () => {
+    const circuit = insertOperation(
+      circuitWith(5),
+      gate('inner', 'cx', ['q_3'], ['q_2']),
+      0,
+    );
+    expect(translateGate(circuit, 'inner', 2)).toBe(circuit);
   });
 });
 

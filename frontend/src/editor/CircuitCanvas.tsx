@@ -34,7 +34,7 @@ import type {
   Segment,
   WireLayout,
 } from './layout';
-import { columnCenter } from './layout';
+import { layoutColumnCenter } from './layout';
 import { targetGlyph, type TargetGlyph } from './glyphs';
 import { resolveShortcut } from './shortcuts';
 
@@ -85,7 +85,7 @@ export interface CircuitCanvasProps {
   readonly onSelectOperation: (operationId: string) => void;
   readonly onRemoveSelection: () => void;
   readonly onCancel: () => void;
-  readonly onPickUp: (operationId: string) => void;
+  readonly onPickUp: (operationId: string, row?: number) => void;
   readonly onDropDrag: () => void;
   readonly onNudgeSelection: (rows: number, columns: number) => void;
   readonly onUndo: () => void;
@@ -117,7 +117,7 @@ export function CircuitCanvas({
   onCycleBarriers,
   onSave,
 }: CircuitCanvasProps): React.JSX.Element {
-  const { lane, column: columnWidth } = layout.metrics;
+  const { lane } = layout.metrics;
 
   /**
    * The cursor is clamped on read, not stored clamped.
@@ -248,7 +248,7 @@ export function CircuitCanvas({
         viewBox={`0 0 ${String(layout.width)} ${String(layout.height)}`}
         className="text-ink"
       >
-        {showCycleLabels && <CycleLabels layout={layout} />}
+        <CycleLabels layout={layout} showNumbers={showCycleLabels} />
 
         <g role="none">
           {layout.wires.map((wire) => (
@@ -337,7 +337,7 @@ export function CircuitCanvas({
           */}
           {armed === 'barrier' && layout.wires.length > 0 && (
             <BarrierPreview
-              x={layout.metrics.gutter + active.column * layout.metrics.column}
+              x={layout.columns[active.column]?.start ?? layout.metrics.gutter}
               wires={layout.wires}
               reach={layout.metrics.lane * 0.4}
             />
@@ -349,7 +349,8 @@ export function CircuitCanvas({
               <Preview
                 x={
                   pending === null
-                    ? columnCenter(active.column, layout.metrics)
+                    ? (layout.columns[active.column]?.center ??
+                      layout.metrics.gutter)
                     : pending.x
                 }
                 y={layout.wires[active.row]?.y ?? 0}
@@ -384,9 +385,9 @@ export function CircuitCanvas({
                   content.operationId !== undefined &&
                   content.operationId === selection
                 }
-                x={columnCenter(column, layout.metrics) - columnWidth / 2}
+                x={layout.columns[column]?.start ?? layout.metrics.gutter}
                 y={wire.y - lane / 2}
-                width={columnWidth}
+                width={layout.columns[column]?.width ?? layout.metrics.column}
                 height={lane}
                 className={[
                   isCursor(active, row, column)
@@ -396,7 +397,7 @@ export function CircuitCanvas({
                 ].join(' ')}
                 onPointerDown={() => {
                   if (content.operationId !== undefined) {
-                    onPickUp(content.operationId);
+                    onPickUp(content.operationId, row);
                   }
                 }}
                 onPointerEnter={() => {
@@ -598,7 +599,7 @@ function settleOffset(
   layout: CircuitLayout,
 ): number {
   if (settle === null || settle.operationId !== operationId) return 0;
-  return columnCenter(settle.fromColumn, layout.metrics) - x;
+  return layoutColumnCenter(layout, settle.fromColumn) - x;
 }
 
 /** Applies the settle animation, remounting per nonce so it replays. */
@@ -1180,8 +1181,10 @@ function PendingPlacement({
  */
 function CycleLabels({
   layout,
+  showNumbers,
 }: {
   readonly layout: CircuitLayout;
+  readonly showNumbers: boolean;
 }): React.JSX.Element {
   const { metrics } = layout;
 
@@ -1206,30 +1209,36 @@ function CycleLabels({
         token also means dark mode is already handled, where it lands slightly
         lighter than the surface instead of slightly darker.
       */}
-      {Array.from({ length: layout.depth }, (_, cycle) => cycle)
-        .filter((cycle) => cycle % 2 === 0)
-        .map((cycle) => (
+      {layout.columns
+        .slice(0, layout.depth)
+        .map((column, cycle) => ({ column, cycle }))
+        .filter(
+          ({ column, cycle }) =>
+            column.expanded || (showNumbers && cycle % 2 === 0),
+        )
+        .map(({ column, cycle }) => (
           <rect
             key={cycle}
-            x={columnCenter(cycle, metrics) - metrics.column / 2}
+            x={column.start}
             y={BAND_TOP}
-            width={metrics.column}
+            width={column.width}
             height={Math.max(0, layout.height - metrics.padding - BAND_TOP)}
             className="fill-surface-raised"
           />
         ))}
 
-      {Array.from({ length: layout.depth }, (_, cycle) => (
-        <text
-          key={cycle}
-          x={columnCenter(cycle, metrics)}
-          y={16}
-          textAnchor="middle"
-          className="fill-ink-muted font-mono text-[11px] tabular-nums"
-        >
-          {cycle}
-        </text>
-      ))}
+      {showNumbers &&
+        Array.from({ length: layout.depth }, (_, cycle) => (
+          <text
+            key={cycle}
+            x={layout.columns[cycle]?.center ?? metrics.gutter}
+            y={16}
+            textAnchor="middle"
+            className="fill-ink-muted font-mono text-[11px] tabular-nums"
+          >
+            {cycle}
+          </text>
+        ))}
     </g>
   );
 }

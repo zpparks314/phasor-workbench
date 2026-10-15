@@ -538,8 +538,7 @@ describe('moving a gate', () => {
     expect(editor.cell('q1, cycle 2, cx')).toBeInTheDocument();
   });
 
-  /** Which qubit of a cx a drag meant to move is ambiguous, so it only reorders. */
-  it('does not retarget a multi-qubit gate, only repositions it', () => {
+  it('translates a multi-qubit gate when dragged by its target', () => {
     const controlled = insertOperation(
       circuitWith(3),
       gate('op_0', 'cy', ['q_1'], ['q_0']),
@@ -551,10 +550,42 @@ describe('moving a gate', () => {
     fireEvent.pointerEnter(editor.cell('q2, cycle 1, empty'));
     fireEvent.pointerUp(editor.grid());
 
-    // Still on q1: a drag cannot say which of its qubits to move.
     expect(
-      screen.getByRole('gridcell', { name: /^q1, cycle \d+, cy$/ }),
+      screen.getByRole('gridcell', { name: /^q2, cycle \d+, cy$/ }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole('gridcell', { name: /^q1, cycle \d+, cy control$/ }),
+    ).toBeInTheDocument();
+  });
+
+  it('moves the inner CX within a widened cycle, then onto the outer control', () => {
+    const outer = insertOperation(
+      circuitWith(5),
+      gate('outer', 'cx', ['q_4'], ['q_0']),
+      0,
+    );
+    const circuit = insertOperation(
+      outer,
+      gate('inner', 'cx', ['q_3'], ['q_2']),
+      1,
+    );
+    const editor = open(circuit);
+
+    editor.pickUp('q3, cycle 0, cx');
+    fireEvent.pointerEnter(editor.cell('q2, cycle 0, cx control'));
+    fireEvent.pointerUp(editor.grid());
+    expect(editor.cell('q2, cycle 0, cx')).toBeInTheDocument();
+    expect(editor.cell('q1, cycle 0, cx control')).toBeInTheDocument();
+    expect(editor.status()).toHaveTextContent('Depth 1');
+
+    editor.undo();
+    editor.pickUp('q3, cycle 0, cx');
+    fireEvent.pointerEnter(editor.cell('q1, cycle 0, empty'));
+    fireEvent.pointerUp(editor.grid());
+    expect(editor.cell('q4, cycle 0, cx')).toBeInTheDocument();
+    expect(editor.cell('q1, cycle 1, cx')).toBeInTheDocument();
+    expect(editor.cell('q0, cycle 1, cx control')).toBeInTheDocument();
+    expect(editor.status()).toHaveTextContent('Depth 2');
   });
 
   /**

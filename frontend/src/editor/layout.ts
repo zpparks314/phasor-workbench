@@ -147,12 +147,21 @@ export interface CircuitLayout {
    * would be the one placement the editor could not express.
    */
   readonly columnCount: number;
+  /** Drawing bounds for each cycle, followed by the empty placement column. */
+  readonly columns: readonly ColumnLayout[];
   readonly wires: readonly WireLayout[];
   readonly registers: readonly RegisterLaneLayout[];
   readonly operations: readonly (GateLayout | MeasurementLayout)[];
   readonly barriers: readonly BarrierLayout[];
   /** Where the wires stop: one half-column past the last cycle. */
   readonly wireEnd: number;
+}
+
+export interface ColumnLayout {
+  readonly start: number;
+  readonly width: number;
+  readonly center: number;
+  readonly expanded: boolean;
 }
 
 export function layoutCircuit(
@@ -167,7 +176,13 @@ export function layoutCircuit(
     ...registers.map((lane): [string, number] => [lane.registerId, lane.y]),
   ]);
   const columnOf = columnsByOperation(decomposition);
-  const occupancy = occupancyByCycle(circuit, decomposition);
+  const { columns, slotOf } = layoutColumns(
+    circuit,
+    decomposition,
+    laneOf,
+    metrics,
+  );
+  const occupancy = occupancyByCycle(circuit, decomposition, slotOf);
 
   const operations = circuit.operations
     .flatMap((operation) =>
@@ -179,24 +194,27 @@ export function layoutCircuit(
         registers,
         occupancy,
         metrics,
+        columns,
+        slotOf,
       ),
     )
     .filter((layout) => layout.anchors.length > 0);
 
   const barriers = decomposition.barriers.map((placement) => ({
     operationId: placement.operationId,
-    x: metrics.gutter + placement.beforeCycle * metrics.column,
+    x: columns[placement.beforeCycle]?.start ?? metrics.gutter,
     segments: barrierSegments(placement.qubits, wires, metrics),
   }));
 
   const columnCount = decomposition.depth + 1;
   const lastLane = registers.at(-1)?.y ?? wires.at(-1)?.y ?? metrics.padding;
-  const end = metrics.gutter + (columnCount + 0.5) * metrics.column;
+  const end = (columns.at(-1)?.start ?? metrics.gutter) + 1.5 * metrics.column;
 
   return {
     metrics,
     depth: decomposition.depth,
     columnCount,
+    columns,
     width: end,
     height: lastLane + metrics.lane / 2 + metrics.padding,
     wireEnd: end,
@@ -207,9 +225,98 @@ export function layoutCircuit(
   };
 }
 
+/** Separate vertical connector spans within a cycle without changing its depth. */
+function layoutColumns(
+  circuit: Circuit,
+  decomposition: Decomposition,
+  laneOf: ReadonlyMap<string, number>,
+  metrics: LayoutMetrics,
+): { columns: ColumnLayout[]; slotOf: Map<string, number> } {
+  const byId = new Map(
+    circuit.operations.map((operation) => [operation.id, operation]),
+  );
+  const slotOf = new Map<string, number>();
+  let start = metrics.gutter;
+  const columns = decomposition.cycles.map((cycle) => {
+    const assigned: { low: number; high: number; slot: number }[] = [];
+    let slotCount = 1;
+    // Put the longest connector on the left; it remains easy to follow when
+    // shorter connectors nest inside it. Equal spans retain decomposition order.
+    const ordered = cycle
+      .map((id, index) => {
+        const operation = byId.get(id);
+        const ys =
+          operation === undefined
+            ? []
+            : resolveAnchors(operation, laneOf).map((anchor) => anchor.y);
+        if (operation?.kind === 'measurement') {
+          const registerY = laneOf.get(operation.classicalTarget.register);
+          if (registerY !== undefined) ys.push(registerY);
+        }
+        return {
+          id,
+          index,
+          ys,
+          span: ys.length < 2 ? 0 : Math.max(...ys) - Math.min(...ys),
+        };
+      })
+      .sort((a, b) => b.span - a.span || a.index - b.index);
+    for (const { id, ys } of ordered) {
+      const operation = byId.get(id);
+      if (operation === undefined) continue;
+      if (ys.length < 2) {
+        slotOf.set(id, 0);
+        continue;
+      }
+      const low = Math.min(...ys);
+      const high = Math.max(...ys);
+      const used = new Set(
+        assigned
+          .filter((other) => low <= other.high && other.low <= high)
+          .map((other) => other.slot),
+      );
+      let slot = 0;
+      while (used.has(slot)) slot++;
+      assigned.push({ low, high, slot });
+      slotOf.set(id, slot);
+      slotCount = Math.max(slotCount, slot + 1);
+    }
+    const width = slotCount * metrics.column;
+    const column = {
+      start,
+      width,
+      center: start + width / 2,
+      expanded: slotCount > 1,
+    };
+    start += width;
+    return column;
+  });
+  columns.push({
+    start,
+    width: metrics.column,
+    center: start + metrics.column / 2,
+    expanded: false,
+  });
+  return { columns, slotOf };
+}
+
 /** Centre of a cycle's column. */
 export function columnCenter(cycle: number, metrics: LayoutMetrics): number {
   return metrics.gutter + (cycle + 0.5) * metrics.column;
+}
+
+/** A requested drop may be beyond the currently offered empty column. */
+export function layoutColumnCenter(
+  layout: CircuitLayout,
+  cycle: number,
+): number {
+  const column = layout.columns[cycle];
+  if (column !== undefined) return column.center;
+  const last = layout.columns.at(-1);
+  return (
+    (last?.center ?? columnCenter(0, layout.metrics)) +
+    (cycle - layout.columnCount + 1) * layout.metrics.column
+  );
 }
 
 /**
@@ -285,18 +392,24 @@ function layoutOperation(
   laneOf: ReadonlyMap<string, number>,
   wires: readonly WireLayout[],
   registers: readonly RegisterLaneLayout[],
-  occupancy: ReadonlyMap<number, ReadonlySet<string>>,
+  occupancy: ReadonlyMap<number, ReadonlyMap<number, ReadonlySet<string>>>,
   metrics: LayoutMetrics,
+  columns: readonly ColumnLayout[],
+  slotOf: ReadonlyMap<string, number>,
 ): (GateLayout | MeasurementLayout)[] {
   if (operation.kind === 'barrier') return [];
 
   const cycle = columnOf.get(operation.id);
   if (cycle === undefined) return [];
-  const x = columnCenter(cycle, metrics);
+  const x =
+    (columns[cycle]?.start ?? metrics.gutter) +
+    ((slotOf.get(operation.id) ?? 0) + 0.5) * metrics.column;
 
   const anchors = resolveAnchors(operation, laneOf);
   if (anchors.length === 0) return [];
-  const occupied = occupancy.get(cycle) ?? new Set<string>();
+  const occupied =
+    occupancy.get(cycle)?.get(slotOf.get(operation.id) ?? 0) ??
+    new Set<string>();
 
   if (operation.kind === 'measurement') {
     const registerY = laneOf.get(operation.classicalTarget.register);
@@ -433,21 +546,25 @@ function connectorFor(
 function occupancyByCycle(
   circuit: Circuit,
   decomposition: Decomposition,
-): Map<number, Set<string>> {
+  slotOf: ReadonlyMap<string, number>,
+): Map<number, Map<number, Set<string>>> {
   const byOperation = new Map(
     circuit.operations.map((operation) => [operation.id, operation]),
   );
-  const occupancy = new Map<number, Set<string>>();
+  const occupancy = new Map<number, Map<number, Set<string>>>();
 
   decomposition.cycles.forEach((cycle, index) => {
-    const qubits = new Set<string>();
+    const slots = new Map<number, Set<string>>();
     for (const id of cycle) {
       const operation = byOperation.get(id);
       if (operation !== undefined) {
+        const slot = slotOf.get(id) ?? 0;
+        const qubits = slots.get(slot) ?? new Set<string>();
         for (const target of operation.targets) qubits.add(target);
+        slots.set(slot, qubits);
       }
     }
-    occupancy.set(index, qubits);
+    occupancy.set(index, slots);
   });
 
   return occupancy;
