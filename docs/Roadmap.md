@@ -50,9 +50,19 @@ specification** — `CircuitModel.md` for the model, `UI.md` for the editor,
 `API.md` for endpoints, `Simulation.md` for the simulator seam.
 
 **Decisions Made** records every question this project has settled, with the
-reasoning. Nothing is outstanding.
+reasoning. Current release verification gaps are listed below; future milestone
+design questions remain in their respective sections.
 
 ---
+
+## Verification snapshot — 2026-10-14
+
+At source commit `403b4f0`, 925 frontend tests and 468 backend tests passed
+locally; 51 shared fixtures were present. This was a documentation/status review,
+not a complete lint, format, type, binding, build, Docker, or browser verification.
+Public URLs could not be inspected through the web tool, so no fresh production
+health result or deployment revision is asserted. See Deployment.md for the
+verification ledger and remaining public checks.
 
 # Open Issues
 
@@ -97,13 +107,25 @@ problems strip is the only route to it. That is why the strip selects by path.
 
 **Sampling a circuit with more than one classical register is refused.** Qiskit
 reports a separate count dictionary per register and does not correlate them, so
-joining would fabricate a measurement it never made. Every circuit the editor
-currently produces has one register. A missing feature, not a wrong result.
+joining those marginal dictionaries would fabricate correlations. The editor can
+create multiple registers, so this limit can affect authored circuits as well as
+imported ones. It is a limitation of the current adapter's extraction path, not a
+general impossibility of sampling multiple registers.
 
 **`register` generates as `register_` in Python**, aliased back to `register` on
 the wire. Cosmetic, and confined to the Python API.
 
-**`main` carries one red CI run, and it is not a code failure.** The run for
+**React `act` warnings remain in the frontend suite.** The 2026-10-14 run
+passed all 925 tests but emitted warnings from `useAnalysis.test.ts` and
+`CircuitEditor.test.tsx` shortcut-reference tests. The earlier inventory of
+three warnings was incomplete for this run; these should be cleaned up without
+suppressing warnings globally.
+
+---
+
+# Resolved Incidents
+
+**Historical CI incident — 2026-08-06 (resolved).** The run for
 #52 on 2026-08-06 failed only on *Shared model*, which died during "Set up job"
 with `Failed to resolve action download info. Error: Service Unavailable` — a
 GitHub Actions outage that day, not this repository. The bindings that job
@@ -129,14 +151,6 @@ the one good state, not the bad ones**, because the documented set is not the
 whole set. The comment above the job records the three separate fail-open shapes
 found while fixing it.
 
-**Three React `act` warnings come out of `useAnalysis.test.ts`** on a full
-frontend run. They predate the example catalogue — the suite that introduced a
-component fetching on mount brought the count to 212 and then to zero by making
-`ExamplePicker` presentational and stubbing the catalogue where it is not the
-subject. These three are the remainder, they are noise rather than failure, and
-they are recorded here so the next person to run `npm test` does not spend the
-afternoon on them.
-
 ---
 
 # Decisions Made
@@ -160,7 +174,7 @@ settled question being reopened; the full argument is in the ADR each names.
 | Do `invalid/` fixtures assert `path`? | Codes only. Paths are asserted in each project's unit tests, where a format difference is a local bug rather than a contract break |
 | Which CI job runs `tests/contract/`? | None. Each fixture declares its own expectation, so parity follows transitively. `tests/contract/` awaits API conformance tests |
 | Interpreter for the `simulation` extra | **The question expired.** Qiskit 2.x ships `cp310-abi3` wheels, so it runs on 3.11–3.14 and neither a CI leg nor a container-only extra was needed. The premise lapsed *without any 3.14 wheel being published*, which is why watching for a cp314 tag would never have shown it |
-| The `npm audit` findings, deferred behind an ESLint 10 upgrade | **The premise expired**, and rechecking cost one command. Cleared on 2026-08-02 by `npm audit fix` — a lockfile-only `brace-expansion` 1.1.16 → 1.1.18 patch bump on a dev-only transitive dependency. The count had already fallen 5 → 1 and the breaking upgrade was no longer the offered fix, so nothing was traded away. `npm audit` now reports zero. **`--force` is still the thing not to run** |
+| The `npm audit` findings, deferred behind an ESLint 10 upgrade | **The premise expired**, and rechecking cost one command. Cleared on 2026-08-02 by `npm audit fix` — a lockfile-only `brace-expansion` 1.1.16 → 1.1.18 patch bump on a dev-only transitive dependency. The count had already fallen 5 → 1 and the breaking upgrade was no longer the offered fix, so nothing was traded away. That audit reported zero findings; rerun `npm audit` for current dependency status. **`--force` is still the thing not to run** |
 
 Also resolved during Milestone 4, and recorded in the documents they affect:
 measurements are ignored rather than rejected by the statevector endpoint
@@ -267,13 +281,15 @@ settled by ADRs [0001](decisions/ADR0001_CircuitRepresentation.md),
 * [x] Validation — both languages, agreeing on the shared fixtures
 * [x] Cycle derivation — both languages, agreeing on the shared fixtures
 * [x] Unit tests — 190 backend, 168 frontend
-* [ ] Cross-language contract fixtures — `valid/`, `invalid/semantic/`, and
-  `decomposition/` done; `invalid/shape/` lands with the validation endpoint
+* [x] Milestone 2 contract fixtures — `valid/`, `invalid/semantic/`, and
+  `decomposition/` complete. A shared `invalid/shape/` corpus remains deferred
+  to the proposed validation endpoint; it is not part of this closed milestone.
+  Runtime shape validation already has tests in the consuming projects.
 
-A checked entity means it is **defined in the schema and generated into both
-languages**. It does not mean the entity behaves correctly: nothing validates a
-circuit yet, and nothing derives its cycles. Those are the three unchecked items
-and they are the bulk of the milestone.
+At milestone closure, entities were defined in the schema and generated into
+both languages, and validation and cycle derivation were implemented and tested.
+The earlier entity-only checklist described an intermediate development state;
+it is not the status of the completed model.
 
 Barrier and cycle derivation were added by ADR-0001. Barriers were pulled
 forward from the deferred list because they are how scheduling intent is
@@ -295,12 +311,11 @@ fixtures are what keep the two honest.
 * [x] Validation agrees across both languages on all 25 validation fixtures,
   including paths, which the fixtures do not themselves enforce.
 
-**A caveat worth stating rather than glossing.** The middle criterion is currently
-satisfied *vacuously*: there is no UI and no simulator, so nothing exists that
-could hold a competing representation. It becomes a real constraint in Milestone 3,
-when the editor is the first consumer with a reason to want its own copy. The rule
-is in place — `Architecture.md`, `Frontend.md`, and ADR-0001 all forbid it — but it
-has not yet been tested by anything that would be tempted to break it.
+**Historical caveat at Milestone 2 closure.** With no editor or simulator yet,
+the single-model criterion had no consumer to challenge it. Milestones 3 and 4
+subsequently exercised that boundary: the editor derives geometry from `Circuit`,
+and the simulator protocol consumes `Circuit` directly. Immutable history
+snapshots and temporary Qiskit translations are not competing live models.
 
 **Milestone 2 is complete.** Milestone 3 (Circuit Editor MVP) may begin.
 
@@ -688,8 +703,10 @@ output is a paragraph in `UI.md` rather than a green check.
 
 **Read first:** this section, then *Open Issues* above.
 
-**Nothing blocks starting.** No decision is outstanding, `main` is green, and
-the app runs natively and in Docker on 3.11 and 3.14.
+**Next work is release verification.** Record public smoke-test results for the
+deployed frontend and backend revisions, complete the human screen-reader check,
+and fix or explicitly defer both connector defects. The dated verification
+snapshot above does not establish current remote CI or Docker status.
 
 **This milestone is a different kind of work.** The first four built the thing;
 this one makes it fit for other people.
@@ -1426,7 +1443,7 @@ the only item here that would have caught it.
 Before making changes:
 
 1. Read `AGENTS.md`.
-2. Read `architecture.md`.
+2. Read `Architecture.md`.
 3. Read this roadmap.
 4. Identify the active milestone.
 5. Work only on tasks relevant to that milestone unless instructed otherwise.

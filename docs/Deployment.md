@@ -258,6 +258,20 @@ for the complete public checklist below have not yet been recorded; keep this
 separate from publication status and record the date and outcome when each check
 is performed.
 
+### Verification ledger
+
+| Date | Scope / revision | Evidence and remaining work |
+|---|---|---|
+| 2026-09-22 | Render backend; deployed revision not recorded | Health, one-qubit simulation, allowed-origin preflight, and unlisted-origin rejection verified. |
+| Date not recorded | GitHub Pages frontend; deployed revision not recorded | Maintainer confirmed publication at the custom domain; full smoke-test completion is not recorded. |
+| 2026-10-14 | Local source `403b4f0` | 925 frontend and 468 backend tests passed. React `act` warnings remain. This was not the complete release checklist. Public URLs were inaccessible through the review tool; no new production verification is claimed. |
+
+For the next public run, record both deployed commit identifiers, date, browser,
+individual check results, and any failures or deferrals. Confirm that the backend
+serializer fix and frontend incoming-document validation are deployed, then
+repeat Bell load → Save → Refresh and QASM import → Save → Refresh. Do not
+mark the release verified from publication or local test results alone.
+
 Run these against `https://phasor.zacharyparks.site` and
 `https://phasor-workbench-api.onrender.com`, not just a local dev server:
 
